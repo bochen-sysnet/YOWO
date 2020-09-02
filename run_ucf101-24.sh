@@ -8,6 +8,6 @@ python train.py --dataset ucf101-24 \
 	 			--backbone_2d_weights weights/yolo.weights \
 	 			# --resume_path /usr/home/sut/yowo/backup/yowo_ucf101-24_16f_best.pth \
 
-python ./evaluation/Object-Detection-Metrics/pascalvoc.py --gtfolder groundtruths_ucf --detfolder ../../ucf_detections/detections_0
+# python ./evaluation/Object-Detection-Metrics/pascalvoc.py --gtfolder /home/bo/research/dataset/ucf24/groundtruths_ucf --detfolder /home/bo/research/dataset/ucf24/ucf_detections/detections_0
 
 
