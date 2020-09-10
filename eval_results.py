@@ -293,7 +293,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t, ap_class = video_ap_one_class(gt, pred_cls, potential_class[cls_ind,:], iou_thresh, bTemporal, cls_len)
+        ap, pos_t, neg_t, ap_class = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
