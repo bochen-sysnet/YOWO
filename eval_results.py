@@ -123,7 +123,7 @@ def link_video_one_class(vid_det, bNMS3d = False, gtlen=None):
     return vres, det_t
 
 
-def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtlen = None):
+def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemporal = False, gtlen = None):
     '''
     gt: [ video_index, array[frame_index, x1,y1,x2,y2] ]
     pred_videos: [ video_index, [ [frame_index, [[x1,y1,x2,y2, score]] ] ] ]
@@ -145,6 +145,14 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
     fp = 0
     tp = 0
 
+    # metrics for class prediction
+    pr_class = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
+    pr_class[0,0] = 1.0
+    pr_class[0,1] = 0.0
+    fn_class = len(gt) #sum([len(a[1]) for a in gt])
+    fp_class = 0
+    tp_class = 0
+
     gt_v_index = [g[0] for g in gt]
     pos_t, neg_t = 0, 0
     for i, k in enumerate(argsort_scores):
@@ -152,6 +160,9 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
         # if i % 100 == 0:
         #     print ("%6.2f%% boxes processed, %d positives found, %d remain" %(100*float(i)/argsort_scores.size, tp, fn))
         video_index, boxes, t = pred[k]
+        # if we can decide what class should be considered in each video index
+        # then other class can be skipped
+        # the result will not be counted in AP and the time will also not be counted
         ispositive = False
         if video_index in gt_v_index:
             gt_this_index, gt_this = [], []
@@ -190,9 +201,19 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
             neg_t += t
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
-    ap = voc_ap(pr)
 
-    return ap, pos_t, neg_t
+        # chekc the class prediction result
+        if ispositive == potential_class[video_index-1]:
+            tp_class += 1
+            fn_class -= 1
+        else:
+            fp_class += 1
+        pr_class[i+1,0] = float(tp_class)/float(tp_class+fp_class)
+        pr_class[i+1,1] = float(tp_class)/float(tp_class+fn_class + 0.00001)
+    ap = voc_ap(pr)
+    ap_class = voc_ap(pr_class)
+
+    return ap, pos_t, neg_t, ap_class
 
 
 def gt_to_videts(gt_v):
@@ -206,6 +227,14 @@ def gt_to_videts(gt_v):
         for j in range(len(v_annot['tubes'])):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
+
+def predict_potential_class(n_videos, CLASSES, ref_frame_cnt = 10):
+    # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
+    # output: pred_videos_classes:array<v_ind, pred_classes>
+    # extra time usage
+    # we can probably use the transision of states
+    potential_class = np.ones([len(CLASSES), n_videos], dtype=np.bool)
+    return potential_class
 
 
 def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
@@ -246,13 +275,17 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
             # the last video
             # print('num of videos:{}'.format(v_cnt))
             res.append([cls_ind, v_cnt, v_dets])
-        return res
+        return res, v_cnt
 
     gt_videos_format = gt_to_videts(gt_videos)
-    pred_videos_format = imagebox_to_videts(all_boxes, CLASSES)
+    pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
+    # predict potential classes of each video based on first few frames
+    potential_class = predict_potential_class(v_cnt, CLASSES)
+    useClassPred = True
     ap_all = []    
     pos_t_all = []
     neg_t_all = []
+    ap_class_all = []
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
@@ -260,9 +293,10 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t = video_ap_one_class(gt, pred_cls, iou_thresh, bTemporal, cls_len)
+        ap, pos_t, neg_t, ap_class = video_ap_one_class(gt, pred_cls, potential_class[cls_ind,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
+        ap_class_all.append(ap_class)
 
-    return ap_all, pos_t_all, neg_t_all
+    return ap_all, pos_t_all, neg_t_all, ap_class_all
