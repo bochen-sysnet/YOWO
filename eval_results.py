@@ -137,7 +137,7 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
             pred.append((video_index, tube, t))
 
     # sort tubes according to scores (descending order)
-    argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b. _ in pred])) 
+    argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b, _ in pred])) 
     pr = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
     pr[0,0] = 1.0
     pr[0,1] = 0.0
