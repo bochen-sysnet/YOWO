@@ -203,11 +203,11 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
 
         # chekc the class prediction result
-        if ispositive == potential_class[video_index-1]:
-            tp_class += 1
-            fn_class -= 1
-        else:
-            fp_class += 1
+        # if ispositive == potential_class[video_index-1]:
+        tp_class += 1
+        fn_class -= 1
+        # else:
+        #     fp_class += 1
         pr_class[i+1,0] = float(tp_class)/float(tp_class+fp_class)
         pr_class[i+1,1] = float(tp_class)/float(tp_class+fn_class + 0.00001)
     ap = voc_ap(pr)
