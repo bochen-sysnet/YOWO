@@ -225,6 +225,7 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+        break
 
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
