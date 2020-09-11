@@ -224,7 +224,7 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc = 0
     for v_ind in range(n_videos):
         one_video_result = np.zeros([len(CLASSES), ], dtype=np.bool)
-        pred_cls = potential_class[;,v_ind]
+        pred_cls = potential_class[:,v_ind]
         gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
         for gt_cls_ind in gt_class_ind:
             one_video_result[gt_cls_ind] = potential_class[gt_cls_ind,v_ind]
