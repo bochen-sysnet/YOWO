@@ -229,6 +229,7 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
         gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
         for gt_cls_ind in gt_class_ind:
             one_video_result[gt_cls_ind] = potential_class[gt_cls_ind,v_ind]
+        print(gt_class_ind, CLASSES)
         for cls_ind in range(len(CLASSES)):
             if cls_ind not in gt_class_ind:
                 one_video_result[cls_ind] = not potential_class[cls_ind,v_ind]
