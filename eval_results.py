@@ -222,6 +222,7 @@ def class_prediction(n_videos, CLASSES, ref_frame_cnt = 10):
 
 def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc = 0
+    print(n_videos)
     for v_ind in range(n_videos):
         one_video_result = np.zeros([len(CLASSES), ], dtype=np.bool)
         pred_cls = potential_class[:,v_ind]
