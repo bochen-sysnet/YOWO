@@ -217,19 +217,18 @@ def class_prediction(n_videos, CLASSES, ref_frame_cnt = 10):
     # we can probably use the transision of states
     # existance of classes in one frame can be the state
     # it can transit to the classes of the next frame
+    # it is also like predicting rest of a sentence using a few words
     potential_class = np.ones([len(CLASSES), n_videos], dtype=np.bool)
     return potential_class
 
 def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc = 0
-    print(n_videos)
     for v_ind in range(n_videos):
         one_video_result = np.zeros([len(CLASSES), ], dtype=np.bool)
         pred_cls = potential_class[:,v_ind]
         gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
         for gt_cls_ind in gt_class_ind:
             one_video_result[gt_cls_ind] = potential_class[gt_cls_ind,v_ind]
-        print(gt_class_ind, CLASSES)
         for cls_ind in range(len(CLASSES)):
             if cls_ind not in gt_class_ind:
                 one_video_result[cls_ind] = not potential_class[cls_ind,v_ind]

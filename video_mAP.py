@@ -163,6 +163,7 @@ def video_mAP_ucf():
     n_videos = gt_data.shape[1]
     for i in range(n_videos):
         video_name = gt_data[0][i][1][0]
+        print(video_name)
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
@@ -172,6 +173,7 @@ def video_mAP_ucf():
                 tube_start_frame = gt_data[0][i][2][0][j][1][0][0]
                 tube_end_frame = gt_data[0][i][2][0][j][0][0][0]
                 tube_class = gt_data[0][i][2][0][j][2][0][0]
+                print(tube_class)
                 tube_data = gt_data[0][i][2][0][j][3]
                 tube_length = tube_end_frame - tube_start_frame + 1
             
@@ -225,7 +227,6 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-        break
 
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
