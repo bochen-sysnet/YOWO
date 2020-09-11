@@ -280,7 +280,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     # predict potential classes of each video based on first few frames
     potential_class = class_prediction(v_cnt, CLASSES)
     # evaluate class prediction
-    print(eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES))
+    print(eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES))
 
     useClassPred = True
     ap_all = []    
