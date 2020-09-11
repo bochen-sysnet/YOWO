@@ -145,14 +145,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     fp = 0
     tp = 0
 
-    # metrics for class prediction
-    pr_class = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
-    pr_class[0,0] = 1.0
-    pr_class[0,1] = 0.0
-    fn_class = len(gt) #sum([len(a[1]) for a in gt])
-    fp_class = 0
-    tp_class = 0
-
     gt_v_index = [g[0] for g in gt]
     pos_t, neg_t = 0, 0
     for i, k in enumerate(argsort_scores):
@@ -201,19 +193,9 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             neg_t += t
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
-
-        # chekc the class prediction result
-        # if ispositive == potential_class[video_index-1]:
-        tp_class += 1
-        fn_class -= 1
-        # else:
-        #     fp_class += 1
-        pr_class[i+1,0] = float(tp_class)/float(tp_class+fp_class)
-        pr_class[i+1,1] = float(tp_class)/float(tp_class+fn_class + 0.00001)
     ap = voc_ap(pr)
-    ap_class = voc_ap(pr_class)
 
-    return ap, pos_t, neg_t, ap_class
+    return ap, pos_t, neg_t
 
 
 def gt_to_videts(gt_v):
@@ -228,14 +210,30 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def predict_potential_class(n_videos, CLASSES, ref_frame_cnt = 10):
+def class_prediction(n_videos, CLASSES, ref_frame_cnt = 10):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
     # we can probably use the transision of states
+    # existance of classes in one frame can be the state
+    # it can transit to the classes of the next frame
     potential_class = np.ones([len(CLASSES), n_videos], dtype=np.bool)
     return potential_class
 
+def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
+    acc = 0
+    for v_ind in range(n_videos):
+        one_video_result = np.zeros([len(CLASSES), ], dtype=np.bool)
+        pred_cls = potential_class[;,v_ind]
+        gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
+        for gt_cls_ind in gt_class_ind:
+            one_video_result[gt_cls_ind] = potential_class[gt_cls_ind,v_ind]
+        for cls_ind in range(len(CLASSES)):
+            if cls_ind not in gt_class_ind:
+                one_video_result[cls_ind] = not potential_class[cls_ind,v_ind]
+        acc += np.mean(one_video_result)
+    acc /= n_videos
+    return acc
 
 def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
     '''
@@ -280,12 +278,14 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
     # predict potential classes of each video based on first few frames
-    potential_class = predict_potential_class(v_cnt, CLASSES)
+    potential_class = class_prediction(v_cnt, CLASSES)
+    # evaluate class prediction
+    print(eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES))
+
     useClassPred = True
     ap_all = []    
     pos_t_all = []
     neg_t_all = []
-    ap_class_all = []
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
@@ -293,10 +293,9 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t, ap_class = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap, pos_t, neg_t = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
-        ap_class_all.append(ap_class)
 
-    return ap_all, pos_t_all, neg_t_all, ap_class_all
+    return ap_all, pos_t_all, neg_t_all
