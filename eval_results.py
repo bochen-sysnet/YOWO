@@ -189,13 +189,13 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             fn -= 1
             # add to positive time
             pos_t += t
-            if not potential_class[video_index]:
+            if not potential_class[video_index-1]:
                 missed_actions += 1
         else:
             fp += 1
             # add to negative time
             neg_t += t
-            if not potential_class[video_index]:
+            if not potential_class[video_index-1]:
                 saved_t += t
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
