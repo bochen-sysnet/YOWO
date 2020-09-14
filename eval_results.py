@@ -237,6 +237,8 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 10):
             for frame_index, img_cls_dets in v_dets:
                 for cls_box in img_cls_dets:
                     cls_score += cls_box[4]
+                if frame_index >= ref_frame_cnt:
+                    break
             class_scores[cls_ind-1] = cls_score
         cls_ind = np.argmax(class_scores)
         potential_class[cls_ind,v_ind] = True
