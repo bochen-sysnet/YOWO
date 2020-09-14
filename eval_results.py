@@ -147,6 +147,8 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
 
     gt_v_index = [g[0] for g in gt]
     pos_t, neg_t = 0, 0
+    saved_t = 0
+    missed_actions = 0
     for i, k in enumerate(argsort_scores):
         # check each tube
         # if i % 100 == 0:
@@ -187,15 +189,19 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             fn -= 1
             # add to positive time
             pos_t += t
+            if not potential_class[video_index]:
+                missed_actions += 1
         else:
             fp += 1
             # add to negative time
             neg_t += t
+            if not potential_class[video_index]:
+                saved_t += t
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t, neg_t
+    return ap, pos_t, neg_t, saved_t, missed_actions
 
 
 def gt_to_videts(gt_v):
@@ -210,7 +216,7 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, ref_frame_cnt = 10):
+def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 10):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
@@ -220,7 +226,21 @@ def class_prediction(n_videos, CLASSES, ref_frame_cnt = 10):
     # it is also like predicting rest of a sentence using a few words
     # only one class per video
     potential_class = np.zeros([len(CLASSES), n_videos], dtype=np.bool)
-    potential_class[0,:] = np.ones([n_videos,], dtype=np.bool)
+    # potential_class[0,:] = np.ones([n_videos,], dtype=np.bool)
+    for v_ind in range(n_videos):
+        # extract bbxs of one video
+        pred_bbxs = [p for p in pred_videos_format if p[1]-1==v_ind]
+        # analyze class scores
+        class_scores = np.zeros([len(CLASSES),])
+        for cls_ind, _, v_dets in pred_bbxs:
+            cls_score = 0
+            for frame_index, img_cls_dets in v_dets:
+                for cls_box in img_cls_dets:
+                    cls_score += cls_box[4]
+            class_scores[cls_ind-1] = cls_score
+        cls_ind = np.argmax(class_scores)
+        potential_class[cls_ind,v_ind] = True
+
     return potential_class
 
 def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
@@ -278,7 +298,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
     # predict potential classes of each video based on first few frames
-    potential_class = class_prediction(v_cnt, CLASSES)
+    potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format)
     # evaluate class prediction
     print(eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES))
 
@@ -286,6 +306,8 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     ap_all = []    
     pos_t_all = []
     neg_t_all = []
+    saved_t_all = []
+    missed_actions_all = []
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
@@ -293,9 +315,11 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap, pos_t, neg_t, saved_t, missed_actions = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
+        saved_t_all.append(saved_t)
+        missed_actions_all.append(missed_actions)
 
-    return ap_all, pos_t_all, neg_t_all
+    return ap_all, pos_t_all, neg_t_all, saved_t_all, missed_actions_all
