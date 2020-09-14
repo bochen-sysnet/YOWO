@@ -201,7 +201,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t, neg_t, saved_t, missed_actions
+    return ap, pos_t*1.0/tp, neg_t*1.0/fp, saved_t*1.0/fp, missed_actions*1.0/tp
 
 
 def gt_to_videts(gt_v):
@@ -216,7 +216,7 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 10):
+def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 5):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
@@ -323,5 +323,9 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         neg_t_all.append(neg_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
+    print("Positive time:", pos_t_all)
+    print("Negative time:", neg_t_all)
+    print("Saved time:", saved_t_all)
+    print("Missed actions:", missed_actions_all)
 
-    return ap_all, pos_t_all, neg_t_all, saved_t_all, missed_actions_all
+    return ap_all
