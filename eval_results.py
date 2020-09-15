@@ -314,6 +314,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     neg_t_all = []
     saved_t_all = []
     missed_actions_all = []
+    link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
@@ -327,9 +328,11 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         neg_t_all.append(neg_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
+    link_end = time.perf_counter()
     print("Positive time:", np.mean(pos_t_all))
     print("Negative time:", np.mean(neg_t_all))
     print("Saved time:", np.mean(saved_t_all))
     print("Missed actions:", np.mean(missed_actions_all))
+    print("Link time:", (link_end - link_start)/v_cnt)
 
     return ap_all
