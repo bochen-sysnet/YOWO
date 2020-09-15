@@ -149,6 +149,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     pos_t, neg_t = 0, 0
     saved_t = 0
     missed_actions = 0
+    v_cnt = len(pred_videos)
     for i, k in enumerate(argsort_scores):
         # check each tube
         # if i % 100 == 0:
@@ -201,7 +202,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t*1.0/(tp + 0.00001),  neg_t*1.0/(fp + 0.00001), saved_t*1.0/(fp + 0.00001), missed_actions*1.0/(tp + 0.00001)
+    return ap, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions*1.0/v_cnt
 
 
 def gt_to_videts(gt_v):
@@ -216,7 +217,7 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 5):
+def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 1):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
@@ -237,7 +238,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 5):
             for frame_index, img_cls_dets in v_dets:
                 for cls_box in img_cls_dets:
                     cls_score += cls_box[4]
-                if frame_index >= ref_frame_cnt:
+                if frame_index >= ref_frame_cnt-1:
                     break
             class_scores[cls_ind-1] = cls_score
         cls_ind = np.argmax(class_scores)
