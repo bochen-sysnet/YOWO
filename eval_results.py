@@ -201,7 +201,10 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t*1.0/tp, neg_t*1.0/fp, saved_t*1.0/fp, missed_actions*1.0/tp
+    return ap, pos_t*1.0/(tp + 0.00001), 
+                neg_t*1.0/(fp + 0.00001), 
+                saved_t*1.0/(fp + 0.00001), 
+                missed_actions*1.0/(tp + 0.00001)
 
 
 def gt_to_videts(gt_v):
@@ -300,7 +303,10 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
     # predict potential classes of each video based on first few frames
+    pred_start = time.perf_counter()
     potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format)
+    pred_end = time.perf_counter()
+    print("Pred time:", (pred_end-pred_start)/v_cnt)
     # evaluate class prediction
     print(eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES))
 
@@ -323,9 +329,9 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         neg_t_all.append(neg_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
-    print("Positive time:", pos_t_all)
-    print("Negative time:", neg_t_all)
-    print("Saved time:", saved_t_all)
-    print("Missed actions:", missed_actions_all)
+    print("Positive time:", np.mean(pos_t_all))
+    print("Negative time:", np.mean(neg_t_all))
+    print("Saved time:", np.mean(saved_t_all))
+    print("Missed actions:", np.mean(missed_actions_all))
 
     return ap_all
