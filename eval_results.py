@@ -201,10 +201,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t*1.0/(tp + 0.00001), 
-                neg_t*1.0/(fp + 0.00001), 
-                saved_t*1.0/(fp + 0.00001), 
-                missed_actions*1.0/(tp + 0.00001)
+    return ap, pos_t*1.0/(tp + 0.00001),  neg_t*1.0/(fp + 0.00001), saved_t*1.0/(fp + 0.00001), missed_actions*1.0/(tp + 0.00001)
 
 
 def gt_to_videts(gt_v):
