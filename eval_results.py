@@ -304,7 +304,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     pred_start = time.perf_counter()
     potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format)
     pred_end = time.perf_counter()
-    print("Pred time:", (pred_end-pred_start)/v_cnt)
+    print("Pred time:", (pred_end-pred_start)/v_cnt, v_cnt)
     # evaluate class prediction
     print(eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES))
 

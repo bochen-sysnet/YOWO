@@ -189,6 +189,7 @@ def video_mAP_ucf():
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
 
+    bbx_det_start = time.perf_counter()
     for line in lines:
         print(line)
         line = line.rstrip()
@@ -225,9 +226,11 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+    bbx_det_end = time.perf_counter()
+    print("bounding box det time:", bbx_det_end - bbx_det_start)
 
-
-    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.1, 0.2, 0.5]
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
