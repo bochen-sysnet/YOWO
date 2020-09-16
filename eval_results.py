@@ -165,7 +165,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             for j, g in enumerate(gt):
                 if g[0] == video_index:
                     gt_this.append(g[1])
-                    print(g[1].shape)
                     gt_this_index.append(j)
             if len(gt_this) > 0:
                 if bTemporal:

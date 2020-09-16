@@ -71,6 +71,10 @@ def get_clip(root, imgpath, train_dur, dataset):
     elif dataset == 'jhmdb-21':
         img_name = os.path.join(class_name, file_name, '{:05d}.png'.format(im_ind))
     labpath = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(im_ind))
+    if dataset_use == 'ucf101-24':
+        labpath = os.path.join(base_path, 'labels', class_name, file_name ,'{:05d}.txt'.format(im_ind))
+    else:
+        labpath = os.path.join(base_path, 'labels', class_name + '_' + file_name + '_' + '{:05d}.txt'.format(im_ind))
     img_folder = os.path.join(base_path, 'rgb-images', class_name, file_name)
     max_num = len(os.listdir(img_folder))
     clip = [] 
@@ -123,10 +127,8 @@ class testData(Dataset):
     def __getitem__(self, index):
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
-        print(label_path)
 
         clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
-        print(label)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
