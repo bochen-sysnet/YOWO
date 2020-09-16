@@ -41,7 +41,6 @@ class listDataset(Dataset):
     def __getitem__(self, index):
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
-        print(imgpath)
 
         self.shape = (224, 224)
 

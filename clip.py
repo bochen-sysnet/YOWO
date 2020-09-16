@@ -144,6 +144,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
     #     base_path = "/usr/home/sut/datasets/ucf24"
     # else:
     #     base_path = "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb"
+    print(imgpath)
     im_split = imgpath.split('/')
     num_parts = len(im_split)
     im_ind = int(im_split[num_parts-1][0:5])
