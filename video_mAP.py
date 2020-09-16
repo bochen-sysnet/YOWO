@@ -68,13 +68,11 @@ def get_clip(root, imgpath, train_dur, dataset):
     im_ind = int(im_split[num_parts - 1][0:5])
     if dataset == 'ucf101-24':
         img_name = os.path.join(class_name, file_name, '{:05d}.jpg'.format(im_ind))
+        labpath = os.path.join(base_path, 'labels', class_name, file_name ,'{:05d}.txt'.format(im_ind))
     elif dataset == 'jhmdb-21':
         img_name = os.path.join(class_name, file_name, '{:05d}.png'.format(im_ind))
-    labpath = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(im_ind))
-    if dataset_use == 'ucf101-24':
-        labpath = os.path.join(base_path, 'labels', class_name, file_name ,'{:05d}.txt'.format(im_ind))
-    else:
         labpath = os.path.join(base_path, 'labels', class_name + '_' + file_name + '_' + '{:05d}.txt'.format(im_ind))
+        
     img_folder = os.path.join(base_path, 'rgb-images', class_name, file_name)
     max_num = len(os.listdir(img_folder))
     clip = [] 
