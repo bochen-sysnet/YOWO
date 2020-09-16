@@ -145,8 +145,6 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
     # else:
     #     base_path = "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb"
     im_split = imgpath.split('/')
-    if im_split[1] == "prelinger_LetsBeGo1953_pick_f_cm_np1_fr_med_8":
-        print(im_split)
     num_parts = len(im_split)
     im_ind = int(im_split[num_parts-1][0:5])
     if dataset_use == 'ucf101-24':
@@ -158,7 +156,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
     if dataset_use == 'ucf101-24':
         max_num = len(os.listdir(img_folder))
     else:
-        max_num = len(os.listdir(img_folder)) - 2
+        max_num = len(os.listdir(img_folder)) - 3
 
     clip = []
 
@@ -181,8 +179,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.jpg'.format(i_temp))
         else:
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.png'.format(i_temp))
-        if im_split[1] == "prelinger_LetsBeGo1953_pick_f_cm_np1_fr_med_8":
-            print(path_tmp, max_num, d, i)
+
         clip.append(Image.open(path_tmp).convert('RGB'))
 
     if train: # Apply augmentation
