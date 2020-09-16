@@ -187,6 +187,7 @@ def iou3d(b1, b2):
     return np.mean( o/(area2d(b1[:,1:5])+area2d(b2[:,1:5])-o) )
 
 def iou3dt(b1, b2):
+    print(b1.shape,b2.shape)
     tmin = max(b1[0,0], b2[0,0])
     tmax = min(b1[-1,0], b2[-1,0])
     if tmax <= tmin: return 0.0    
