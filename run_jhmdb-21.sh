@@ -10,5 +10,7 @@ python train.py --dataset jhmdb-21 \
 		--freeze_backbone_2d \
 		# --resume_path /usr/home/sut/yowo/backup/yowo_jhmdb-21_16f_best.pth \
 
+# python ./evaluation/Object-Detection-Metrics/pascalvoc.py --gtfolder /home/monet/research/dataset/jhmdb/groundtruths_jhmdb --detfolder /home/monet/research/YOWO/jhmdb_detections/detections_25
+
 
 
