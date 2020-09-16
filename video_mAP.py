@@ -123,6 +123,7 @@ class testData(Dataset):
     def __getitem__(self, index):
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
+        print(label_path)
 
         clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
         clip = [img.resize(self.shape) for img in clip]

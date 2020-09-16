@@ -193,8 +193,6 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
             tmp = torch.from_numpy(read_truths_args(labpath, 8.0/clip[0].width).astype('float32'))
         except Exception as e:
             tmp = torch.zeros(1,5)
-            print("error:", e)
-        print(tmp)
 
         tmp = tmp.view(-1)
         tsz = tmp.numel()
