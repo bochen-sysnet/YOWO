@@ -144,8 +144,9 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
     #     base_path = "/usr/home/sut/datasets/ucf24"
     # else:
     #     base_path = "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb"
-    print(imgpath)
     im_split = imgpath.split('/')
+    if im_split[1] == "prelinger_LetsBeGo1953_pick_f_cm_np1_fr_med_8":
+        print(im_split)
     num_parts = len(im_split)
     im_ind = int(im_split[num_parts-1][0:5])
     if dataset_use == 'ucf101-24':
