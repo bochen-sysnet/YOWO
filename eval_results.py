@@ -217,7 +217,7 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 10):
+def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 20):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
