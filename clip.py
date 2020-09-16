@@ -181,7 +181,8 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.jpg'.format(i_temp))
         else:
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.png'.format(i_temp))
-
+        if im_split[1] == "prelinger_LetsBeGo1953_pick_f_cm_np1_fr_med_8":
+            print(path_tmp, max_num, d, i)
         clip.append(Image.open(path_tmp).convert('RGB'))
 
     if train: # Apply augmentation
