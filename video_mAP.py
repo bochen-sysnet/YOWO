@@ -226,6 +226,7 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+        break
     bbx_det_end = time.perf_counter()
     print("bounding box det time:", bbx_det_end - bbx_det_start)
 
