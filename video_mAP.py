@@ -290,8 +290,8 @@ def video_mAP_jhmdb():
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
                     truths = target[i].view(-1, 5)
-                    print(truths)
                     num_gts = truths_length(truths)
+                    print(num_gts)
 
                     if t_label == -1:
                         t_label = int(truths[0][0]) + 1
