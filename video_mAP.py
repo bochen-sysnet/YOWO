@@ -126,6 +126,7 @@ class testData(Dataset):
         print(label_path)
 
         clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
+        print(label)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
