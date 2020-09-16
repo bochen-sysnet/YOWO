@@ -158,7 +158,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, shape, dataset_use
     if dataset_use == 'ucf101-24':
         max_num = len(os.listdir(img_folder))
     else:
-        max_num = len(os.listdir(img_folder)) - 1
+        max_num = len(os.listdir(img_folder)) - 2
 
     clip = []
 
