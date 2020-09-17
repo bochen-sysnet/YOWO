@@ -258,7 +258,7 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc /= n_videos
     return acc
 
-def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
+def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
@@ -298,17 +298,18 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
             res.append([cls_ind, v_cnt, v_dets])
         return res, v_cnt
 
+    print_str = ""
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
     # predict potential classes of each video based on first few frames
     pred_start = time.perf_counter()
-    potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format)
+    potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format, ref_frame_cnt)
     pred_end = time.perf_counter()
-    print("Pred time:", (pred_end-pred_start)/v_cnt, v_cnt)
+    print_str += "Pred time:" + (pred_end-pred_start)/v_cnt + "video num:" + v_cnt + '\n'
     # evaluate class prediction
-    print("Pred accuracy:", eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES))
+    pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
+    print_str += "Pred accuracy:" + pred_acc + '\n'
 
-    useClassPred = True
     ap_all = []    
     pos_t_all = []
     neg_t_all = []
@@ -331,10 +332,11 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         missed_actions_all.append(missed_actions)
         gt_actions_all.append(gt_actions)
     link_end = time.perf_counter()
-    print("Positive time:", np.sum(pos_t_all))
-    print("Negative time:", np.sum(neg_t_all))
-    print("Saved time:", np.sum(saved_t_all))
-    print("Miss ratio:", np.sum(missed_actions_all)/np.sum(gt_actions_all))
-    print("Link time:", (link_end - link_start)/v_cnt)
+    print_str += "Positive time:" + np.sum(pos_t_all) + '\n'
+    print_str += "Negative time:" + np.sum(neg_t_all) + '\n'
+    print_str += "Saved time:" + np.sum(saved_t_all) + '\n'
+    print_str += "Miss ratio:" + np.sum(missed_actions_all)/np.sum(gt_actions_all) + '\n'
+    print_str += "Link time:" + (link_end - link_start)/v_cnt + '\n'
+    print_str += "video mAP:" + str(ap_all)
 
-    return ap_all
+    return print_str

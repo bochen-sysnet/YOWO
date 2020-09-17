@@ -233,9 +233,17 @@ def video_mAP_ucf():
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
+    ref_frame_list = [1, 5, 10, 20, 30]
+    file_name = 'ucf24_pred_result.txt'
+    with open(file_name, 'w') as f:
+        f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
+        for ref_frame_cnt in ref_frame_list:
+            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True, ref_frame_cnt)
+            with open(file_name, 'a+') as f:
+                f.write('iou:' + str(iou_th) + ', ref cnt:' + ref_frame_cnt + '\n')
+                f.write(print_str)
 
 
 
@@ -326,16 +334,24 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
+        break
 
     bbx_det_end = time.perf_counter()
     print("bounding box det time:", bbx_det_end - bbx_det_start)
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
+    ref_frame_list = [1, 5, 10, 20, 30]
+    file_name = 'jhmdb_pred_result.txt'
+    with open(file_name, 'w') as f:
+        f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
-
+        for ref_frame_cnt in ref_frame_list:
+            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True, ref_frame_cnt)
+            with open(file_name, 'a+') as f:
+                f.write('iou:' + str(iou_th) + ', ref cnt:' + ref_frame_cnt + '\n')
+                f.write(print_str)
 
 if __name__ == '__main__':
     if opt.dataset == 'ucf101-24':
