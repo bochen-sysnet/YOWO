@@ -337,6 +337,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     print_str += "Saved time:" + str(np.sum(saved_t_all)) + '\n'
     print_str += "Miss ratio:" + str(np.sum(missed_actions_all)/np.sum(gt_actions_all)) + '\n'
     print_str += "Link time:" + str((link_end - link_start)/v_cnt) + '\n'
-    print_str += "video mAP:" + str(ap_all)
+    print_str += "video mAP:" + str(ap_all) + '\n'
 
     return print_str
