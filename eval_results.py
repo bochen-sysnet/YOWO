@@ -305,10 +305,10 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     pred_start = time.perf_counter()
     potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format, ref_frame_cnt)
     pred_end = time.perf_counter()
-    print_str += "Pred time:" + (pred_end-pred_start)/v_cnt + "video num:" + v_cnt + '\n'
+    print_str += "Pred time:" + str((pred_end-pred_start)/v_cnt) + "video num:" + str(v_cnt) + '\n'
     # evaluate class prediction
     pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
-    print_str += "Pred accuracy:" + pred_acc + '\n'
+    print_str += "Pred accuracy:" + str(pred_acc) + '\n'
 
     ap_all = []    
     pos_t_all = []
@@ -332,11 +332,11 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         missed_actions_all.append(missed_actions)
         gt_actions_all.append(gt_actions)
     link_end = time.perf_counter()
-    print_str += "Positive time:" + np.sum(pos_t_all) + '\n'
-    print_str += "Negative time:" + np.sum(neg_t_all) + '\n'
-    print_str += "Saved time:" + np.sum(saved_t_all) + '\n'
-    print_str += "Miss ratio:" + np.sum(missed_actions_all)/np.sum(gt_actions_all) + '\n'
-    print_str += "Link time:" + (link_end - link_start)/v_cnt + '\n'
+    print_str += "Positive time:" + str(np.sum(pos_t_all)) + '\n'
+    print_str += "Negative time:" + str(np.sum(neg_t_all)) + '\n'
+    print_str += "Saved time:" + str(np.sum(saved_t_all)) + '\n'
+    print_str += "Miss ratio:" + str(np.sum(missed_actions_all)/np.sum(gt_actions_all)) + '\n'
+    print_str += "Link time:" + str((link_end - link_start)/v_cnt) + '\n'
     print_str += "video mAP:" + str(ap_all)
 
     return print_str

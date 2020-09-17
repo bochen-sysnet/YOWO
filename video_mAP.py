@@ -242,7 +242,7 @@ def video_mAP_ucf():
         for ref_frame_cnt in ref_frame_list:
             print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
-                f.write('iou:' + str(iou_th) + ', ref cnt:' + ref_frame_cnt + '\n')
+                f.write('iou:' + str(iou_th) + ', ref cnt:' + str(ref_frame_cnt) + '\n')
                 f.write(print_str)
 
 
@@ -350,7 +350,7 @@ def video_mAP_jhmdb():
         for ref_frame_cnt in ref_frame_list:
             print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
-                f.write('iou:' + str(iou_th) + ', ref cnt:' + ref_frame_cnt + '\n')
+                f.write('iou:' + str(iou_th) + ', ref cnt:' + str(ref_frame_cnt) + '\n')
                 f.write(print_str)
 
 if __name__ == '__main__':
