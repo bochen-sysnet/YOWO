@@ -202,7 +202,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
 
-    return ap, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions/(tp + 0.00001)
+    return ap, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions, tp
 
 
 def gt_to_videts(gt_v):
@@ -314,6 +314,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     neg_t_all = []
     saved_t_all = []
     missed_actions_all = []
+    gt_actions_all = []
     link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
@@ -322,17 +323,18 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t, saved_t, missed_actions = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap, pos_t, neg_t, saved_t, missed_actions, gt_actions = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
+        gt_actions_all.append(gt_actions)
     link_end = time.perf_counter()
     print("Positive time:", np.sum(pos_t_all))
     print("Negative time:", np.sum(neg_t_all))
     print("Saved time:", np.sum(saved_t_all))
-    print("Missed actions:", np.sum(missed_actions_all))
+    print("Miss ratio:", np.sum(missed_actions_all)/np.sum(gt_actions_all))
     print("Link time:", (link_end - link_start)/v_cnt)
 
     return ap_all
