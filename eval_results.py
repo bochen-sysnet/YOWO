@@ -145,10 +145,19 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     fp = 0
     tp = 0
 
+    # for computing mAP with class pred
+    pr_new = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
+    pr_new[0,0] = 1.0
+    pr_new[0,1] = 0.0
+    fn_new = len(gt) #sum([len(a[1]) for a in gt])
+    fp_new = 0
+    tp_new = 0
+
     gt_v_index = [g[0] for g in gt]
     pos_t, neg_t = 0, 0
     saved_t = 0
     missed_actions = 0
+    actual_t = 0
     v_cnt = len(pred_videos)
     for i, k in enumerate(argsort_scores):
         # check each tube
@@ -185,6 +194,8 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
+        if potential_class[video_index-1]:
+            actual_t += t
         if ispositive:
             tp += 1
             fn -= 1
@@ -192,17 +203,25 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             pos_t += t
             if not potential_class[video_index-1]:
                 missed_actions += 1
+            else:
+                tp_new += 1
+                fn_new -= 1
         else:
             fp += 1
             # add to negative time
             neg_t += t
             if not potential_class[video_index-1]:
                 saved_t += t
+            else:
+                fp_new += 1
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
+        pr_new[i+1,0] = float(tp_new)/float(tp_new+fp_new)
+        pr_new[i+1,1] = float(tp_new)/float(tp_new+fn_new + 0.00001)
     ap = voc_ap(pr)
+    ap_new = voc_ap(pr_new)
 
-    return ap, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions, tp
+    return ap, ap_new, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions, tp, actual_t/v_cnt
 
 
 def gt_to_videts(gt_v):
@@ -258,7 +277,7 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc /= n_videos
     return acc
 
-def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, prior_length = None):
+def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
@@ -305,17 +324,20 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     pred_start = time.perf_counter()
     potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format, ref_frame_cnt)
     pred_end = time.perf_counter()
-    print_str += "Pred time:" + str((pred_end-pred_start)/v_cnt) + "video num:" + str(v_cnt) + '\n'
+    cls_pred_t = (pred_end-pred_start)/v_cnt
+    print_str += "Pred time:" + str(cls_pred_t) + ", video num:" + str(v_cnt) + '\n'
     # evaluate class prediction
     pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
     print_str += "Pred accuracy:" + str(pred_acc) + '\n'
 
-    ap_all = []    
+    ap_all = [] 
+    ap_new_all = []   
     pos_t_all = []
     neg_t_all = []
     saved_t_all = []
     missed_actions_all = []
     gt_actions_all = []
+    actual_t_all = []
     link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
@@ -324,19 +346,29 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pos_t, neg_t, saved_t, missed_actions, gt_actions = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap, ap_new, pos_t, neg_t, saved_t, missed_actions, gt_actions, actual_t = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
+        ap_new_all.append(ap_new)
         pos_t_all.append(pos_t)
         neg_t_all.append(neg_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
         gt_actions_all.append(gt_actions)
+        actual_t_all.append(actual_t)
     link_end = time.perf_counter()
+    act_loc_t_old = bbx_pred_t/v_cnt + np.mean(pos_t) + np.mean(neg_t)
+    act_loc_t_new = bbx_pred_t/v_cnt + cls_pred_t + np.mean(actual_t_all)
+    print_str += "Old video mAP:" + str(np.mean(ap_all)) + '\n'
+    print_str += "New video mAP:" + str(np.mean(ap_new_all)) + '\n'
+    print_str += "Total loc time:" + str(act_loc_t)
+    print_str += "EALR:" + str(np.mean(ap_all)/act_loc_t_old) + ',' +  str(np.mean(ap_new_all)/act_loc_t_new)
     print_str += "Positive time:" + str(np.sum(pos_t_all)) + '\n'
     print_str += "Negative time:" + str(np.sum(neg_t_all)) + '\n'
     print_str += "Saved time:" + str(np.sum(saved_t_all)) + '\n'
+    print_str += "Actual link time:" + str(np.sum(actual_t_all)) + '\n'
     print_str += "Miss ratio:" + str(np.sum(missed_actions_all)/np.sum(gt_actions_all)) + '\n'
     print_str += "Link time:" + str((link_end - link_start)/v_cnt) + '\n'
-    print_str += "video mAP:" + str(ap_all) + '\n'
+    print_str += "Video AP:" + str(ap_all) + '\n'
+    print_str += "Video AP:" + str(ap_new_all) + '\n'
 
     return print_str
