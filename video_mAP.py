@@ -27,7 +27,7 @@ net_options   = parse_cfg(cfgfile)[0]
 loss_options  = parse_cfg(cfgfile)[1]
 
 base_path     = data_options['base']
-testlist      = os.path.join(base_path, 'testlist_video.txt') if use_train==0 else os.path.join(base_path, 'trainlist_video.txt')
+testlist      = os.path.join(base_path, 'testlist_video.txt')# if use_train==0 else os.path.join(base_path, 'trainlist_video.txt')
 
 clip_duration = int(net_options['clip_duration'])
 anchors       = loss_options['anchors'].split(',')
@@ -231,7 +231,7 @@ def video_mAP_ucf():
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
         nl += 1
-        if nl == 50:break
+        if nl == 10:break
     bbx_det_end = time.perf_counter()
     print("bounding box det time:", bbx_det_end - bbx_det_start)
 
