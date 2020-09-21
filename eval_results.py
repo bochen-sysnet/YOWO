@@ -194,6 +194,9 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
+            print("Yes")
+        else:
+            print("NO")
         if potential_class[video_index-1]:
             actual_t += t
         if ispositive:
