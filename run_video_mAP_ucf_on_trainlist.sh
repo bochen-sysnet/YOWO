@@ -4,5 +4,5 @@ python video_mAP.py --dataset ucf101-24 \
 	 				--n_classes 24 \
 	 				--backbone_3d resnext101 \
 	 				--backbone_2d darknet \
-	 				--use_train 0 \
+	 				--use_train 1 \
 	 				--resume_path /home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth \
