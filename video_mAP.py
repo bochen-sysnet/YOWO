@@ -231,8 +231,7 @@ def video_mAP_ucf():
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
         nl += 1
-        if nl == 10:
-            break
+        if nl == 50:break
     bbx_det_end = time.perf_counter()
     print("bounding box det time:", bbx_det_end - bbx_det_start)
 
@@ -272,7 +271,6 @@ def video_mAP_jhmdb():
     detected_boxes = {}
     gt_videos = {}
     bbx_det_start = time.perf_counter()
-    nl = 0
     for line in lines:
         print(line)
 
@@ -340,8 +338,6 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        nl += 1
-        if nl == 10:break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
