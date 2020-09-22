@@ -341,7 +341,7 @@ def video_mAP_jhmdb():
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1, 5, 10, 20, 30]
+    ref_frame_list = [1, 5, 10, 20, 30, 40, 50, 60]
     file_name = 'jhmdb_pred_result.txt' if use_train==0 else 'jhmdb_pred_result_on_trainlist.txt'
     with open(file_name, 'w') as f:
         f.write('')
