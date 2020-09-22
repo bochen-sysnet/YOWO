@@ -236,7 +236,7 @@ def video_mAP_ucf():
     print("bounding box det time:", bbx_det_end - bbx_det_start)
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.75]
+    iou_list = [0.05]
     ref_frame_list = [30]
     file_name = 'ucf24_pred_result.txt' if use_train==0 else 'ucf24_pred_result_on_trainlist.txt'
     with open(file_name, 'w') as f:
