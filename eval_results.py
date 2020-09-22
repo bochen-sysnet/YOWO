@@ -274,7 +274,7 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
         for gt_cls_ind in gt_class_ind:
             one_video_result = potential_class[gt_cls_ind,v_ind]
         acc += one_video_result
-        print(v_ind, one_video_result, gt_cls_ind, potential_class[:, v_ind])
+        print(v_ind, one_video_result, gt_cls_ind)
     acc /= n_videos
     return acc
 
