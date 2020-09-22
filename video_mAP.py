@@ -193,7 +193,6 @@ def video_mAP_ucf():
             gt_videos[video_name] = v_annotation
 
     bbx_det_start = time.perf_counter()
-    nl = 0
     for line in lines:
         print(line)
         line = line.rstrip()
@@ -230,8 +229,6 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-        nl += 1
-        if nl == 10:break
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
 
@@ -271,7 +268,6 @@ def video_mAP_jhmdb():
     detected_boxes = {}
     gt_videos = {}
     bbx_det_start = time.perf_counter()
-    nl = 0
     for line in lines:
         print(line)
 
@@ -339,8 +335,6 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        nl += 1
-        if nl == 10:break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
