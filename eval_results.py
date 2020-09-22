@@ -175,6 +175,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                 if g[0] == video_index:
                     gt_this.append(g[1])
                     gt_this_index.append(j)
+            print(len(gt_this))
             if len(gt_this) > 0:
                 if bTemporal:
                     iou = np.array([iou3dt(np.array(g), boxes[:, :5]) for g in gt_this])
@@ -187,13 +188,15 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                         iou = np.array([iou3d(g[int(boxes[0,0]-1):int(boxes[-1,0]),:], boxes[:,:5]) for g in gt_this]) 
                     else:
                         iou = np.array([iou3d(g, boxes[:,:5]) for g in gt_this]) 
-
+                print(iou)
                 if iou.size > 0: # on ucf101 if invalid annotation ....
                     argmax = np.argmax(iou)
                     # check if this det tube matches any gt tube
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
+        else:
+            print('video not found')
         if potential_class[video_index-1]:
             actual_t += t
         if ispositive:
@@ -274,7 +277,6 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
         for gt_cls_ind in gt_class_ind:
             one_video_result = potential_class[gt_cls_ind,v_ind]
         acc += one_video_result
-        print(v_ind, one_video_result, gt_cls_ind)
     acc /= n_videos
     return acc
 
@@ -342,6 +344,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
+        print('cls:',cls_ind)
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
