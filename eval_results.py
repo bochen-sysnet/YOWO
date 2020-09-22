@@ -341,7 +341,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
-        print('cls:',cls_ind)
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
