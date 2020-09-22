@@ -233,7 +233,7 @@ def video_mAP_ucf():
         nl += 1
         if nl == 10:break
     bbx_det_end = time.perf_counter()
-    print("bounding box det time:", bbx_det_end - bbx_det_start)
+    bbx_pred_t = bbx_det_end - bbx_det_start
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.05]
@@ -244,7 +244,7 @@ def video_mAP_ucf():
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         for ref_frame_cnt in ref_frame_list:
-            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True, ref_frame_cnt)
+            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
                 f.write('---iou:' + str(iou_th) + ', ref cnt:' + str(ref_frame_cnt) + '---\n')
                 f.write(print_str)

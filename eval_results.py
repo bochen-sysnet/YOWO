@@ -187,16 +187,13 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                         iou = np.array([iou3d(g[int(boxes[0,0]-1):int(boxes[-1,0]),:], boxes[:,:5]) for g in gt_this]) 
                     else:
                         iou = np.array([iou3d(g, boxes[:,:5]) for g in gt_this]) 
-                print(iou, iou.size, iou[np.argmax(iou)], iou_thresh)
+                
                 if iou.size > 0: # on ucf101 if invalid annotation ....
                     argmax = np.argmax(iou)
                     # check if this det tube matches any gt tube
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
-        else:
-            print('video not found')
-        print(ispositive)
         if potential_class[video_index-1]:
             actual_t += t
         if ispositive:
