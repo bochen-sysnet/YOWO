@@ -197,6 +197,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                         del gt[gt_this_index[argmax]]
         else:
             print('video not found')
+        print(ispositive)
         if potential_class[video_index-1]:
             actual_t += t
         if ispositive:
