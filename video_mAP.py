@@ -18,6 +18,7 @@ dataset = opt.dataset
 assert dataset == 'ucf101-24' or dataset == 'jhmdb-21', 'invalid dataset'
 
 use_train     = opt.use_train
+sample_thresh = opt.sample_thresh
 datacfg       = opt.data_cfg
 cfgfile       = opt.cfg_file
 gt_file       = 'finalAnnots.mat' # Necessary for ucf
@@ -153,12 +154,14 @@ def video_mAP_ucf():
                'TennisSwing', 'TrampolineJumping', 'VolleyballSpiking', 'WalkingWithDog')
     
     video_testlist = []
+    sample_cnt = 0
     with open(testlist, 'r') as file:
         lines = file.readlines()
         for line in lines:
             line = line.rstrip()
-            video_testlist.append(line)
-    # maybe try only the first few lines
+            if sample_cnt < sample_thresh:
+                video_testlist.append(line)
+            sample_cnt = (sample_cnt + 1)%10
 
     detected_boxes = {}
     gt_videos = {}
@@ -236,7 +239,7 @@ def video_mAP_ucf():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1, 5] + [10*(i+1) for i in range(12)]
-    file_name = 'ucf24_pred_result.txt' if use_train==0 else 'ucf24_pred_result_on_trainlist.txt'
+    file_name = 'ucf24_pred_result_' + str(use_train) + '_' + str(sample_thresh) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
@@ -343,7 +346,7 @@ def video_mAP_jhmdb():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1, 5] + [10*(i+1) for i in range(12)]
-    file_name = 'jhmdb_pred_result.txt' if use_train==0 else 'jhmdb_pred_result_on_trainlist.txt'
+    file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:

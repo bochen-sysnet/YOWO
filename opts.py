@@ -5,6 +5,7 @@ def parse_opts():
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_classes', default=24, type=int, help='Number of classes (ucf101-24: 24, jhmdb-21: 21)')
     parser.add_argument('--use_train', default=0, type=int, help='Whether to use training set')
+    parser.add_argument('--sample_thresh', default=10, type=int, help='The portion of video to sample')
     parser.add_argument('--dataset', default='ucf101-24', type=str, help='Select dataset from (ucf101-24, jhmdb-21)')
     parser.add_argument('--begin_epoch', default=1, type=int, help='Training begins at this epoch. Previous trained model indicated by resume_path is loaded.')
     parser.add_argument('--end_epoch', default=25, type=int, help='Training ends at this epoch.')
