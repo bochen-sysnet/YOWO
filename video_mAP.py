@@ -158,6 +158,7 @@ def video_mAP_ucf():
         for line in lines:
             line = line.rstrip()
             video_testlist.append(line)
+    # maybe try only the first few lines
 
     detected_boxes = {}
     gt_videos = {}
@@ -243,7 +244,7 @@ def video_mAP_ucf():
         for ref_frame_cnt in ref_frame_list:
             print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + ',' + str(ref_frame_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(ref_frame_cnt) + '\t')
                 f.write(print_str)
 
 
