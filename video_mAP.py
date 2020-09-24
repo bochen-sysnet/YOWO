@@ -234,16 +234,16 @@ def video_mAP_ucf():
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1, 5, 10, 20, 30]
+    ref_frame_list = [1, 5] + [10*(i+1) for i in range(12)]
     file_name = 'ucf24_pred_result.txt' if use_train==0 else 'ucf24_pred_result_on_trainlist.txt'
     with open(file_name, 'w') as f:
-        f.write('')
+        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         for ref_frame_cnt in ref_frame_list:
             print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
-                f.write('---iou:' + str(iou_th) + ', ref cnt:' + str(ref_frame_cnt) + '---\n')
+                f.write(str(iou_th) + ',' + str(ref_frame_cnt) + '\t')
                 f.write(print_str)
 
 
@@ -341,16 +341,16 @@ def video_mAP_jhmdb():
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1, 5, 10, 20, 30, 40, 50, 60]
+    ref_frame_list = [1, 5] + [10*(i+1) for i in range(12)]
     file_name = 'jhmdb_pred_result.txt' if use_train==0 else 'jhmdb_pred_result_on_trainlist.txt'
     with open(file_name, 'w') as f:
-        f.write('')
+        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         for ref_frame_cnt in ref_frame_list:
             print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
             with open(file_name, 'a+') as f:
-                f.write('---iou:' + str(iou_th) + ', ref cnt:' + str(ref_frame_cnt) + '---\n')
+                f.write(str(iou_th) + ',' + str(ref_frame_cnt) + '\t')
                 f.write(print_str)
 
 if __name__ == '__main__':
