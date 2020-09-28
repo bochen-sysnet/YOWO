@@ -236,7 +236,7 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 20):
+def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, ref_frame_cnt = 20):
     # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
     # output: pred_videos_classes:array<v_ind, pred_classes>
     # extra time usage
@@ -245,9 +245,13 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 20):
     # it can transit to the classes of the next frame
     # it is also like predicting rest of a sentence using a few words
     # only one class per video
+    acc = 0
     potential_class = np.zeros([len(CLASSES), n_videos], dtype=np.bool)
     # potential_class[0,:] = np.ones([n_videos,], dtype=np.bool)
     for v_ind in range(n_videos):
+        one_video_result = 0
+        # gt classes
+        gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
         # extract bbxs of one video
         pred_bbxs = [p for p in pred_videos_format if p[1]-1==v_ind]
         # analyze class scores
@@ -262,8 +266,12 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, ref_frame_cnt = 20):
             class_scores[cls_ind-1] = cls_score
         cls_ind = np.argmax(class_scores)
         potential_class[cls_ind,v_ind] = True
+        if cls_ind in gt_class_ind:
+            one_video_result = 1
+        acc += one_video_result
+    acc /= n_videos
 
-    return potential_class
+    return potential_class, acc
 
 def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc = 0
@@ -322,12 +330,12 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
     # predict potential classes of each video based on first few frames
     pred_start = time.perf_counter()
-    potential_class = class_prediction(v_cnt, CLASSES, pred_videos_format, ref_frame_cnt)
+    potential_class, pred_acc = class_prediction(v_cnt, CLASSES, pred_videos_format, gt_videos_format, ref_frame_cnt)
     pred_end = time.perf_counter()
     cls_pred_t = (pred_end-pred_start)/v_cnt
     print_str += str(v_cnt) + '\t'
     # evaluate class prediction
-    pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
+    #pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
     print_str += "{0:.3f}\t".format(pred_acc)
 
     ap_all = [] 
