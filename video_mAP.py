@@ -345,7 +345,8 @@ def video_mAP_jhmdb():
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1, 5] + [10*(i+1) for i in range(18)] + [1000000]
+    #ref_frame_list = [1, 5] + [10*(i+1) for i in range(18)] + [1000000]
+    ref_frame_list = [1000000]
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
