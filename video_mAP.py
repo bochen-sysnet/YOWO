@@ -339,13 +339,13 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.1, 0.2, 0.5, 0.75]
+    #iou_list = [0.1, 0.2, 0.5, 0.75]
+    iou_list = [0.5]
     #ref_frame_list = [1, 5] + [10*(i+1) for i in range(18)] + [1000000]
     ref_frame_list = [1000000]
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
