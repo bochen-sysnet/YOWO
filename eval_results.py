@@ -262,7 +262,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
         class_scores = np.zeros([len(CLASSES),])
         for cls_ind, _, v_dets in pred_bbxs:
             cls_score = 0
-            video_str = ''
+            video_str = 'cls:{0:d}\n'.format(cls_ind)
             for frame_index, img_cls_dets in v_dets:
                 frame_str = ''
                 for cls_box in img_cls_dets:
