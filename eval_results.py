@@ -261,7 +261,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
         # analyze class scores
         class_scores = np.zeros([len(CLASSES),])
         for cls_ind, _, v_dets in pred_bbxs:
-            cls_scores = np.array([])
+            cls_scores = []
             video_str = 'cls:{0:d}\n'.format(cls_ind)
             for frame_index, img_cls_dets in v_dets:
                 frame_scores = []
@@ -271,6 +271,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
                 cls_scores.append(max(frame_scores))
                 if frame_index >= ref_frame_cnt-1:
                     break
+            cls_scores = np.array(cls_scores)
             sorted_scores = -np.sort(-cls_scores)
             cls_score = np.mean(sorted_scores[0:5])
             class_scores[cls_ind-1] = cls_score
