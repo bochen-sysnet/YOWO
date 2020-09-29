@@ -273,7 +273,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
                     break
             cls_scores = np.array(cls_scores)
             sorted_scores = -np.sort(-cls_scores)
-            cls_score = sorted_scores[0]#np.mean(sorted_scores[0:5])
+            cls_score = np.mean(sorted_scores[0:10])
             class_scores[cls_ind-1] = cls_score
             print_str += video_str + '\n'
         cls_ind = np.argmax(class_scores)
