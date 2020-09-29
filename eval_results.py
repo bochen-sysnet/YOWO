@@ -261,20 +261,23 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
         # analyze class scores
         class_scores = np.zeros([len(CLASSES),])
         for cls_ind, _, v_dets in pred_bbxs:
-            cls_score = 0
-            bbx_cnt = 0
+            cls_scores = np.array([])
             video_str = 'cls:{0:d}\n'.format(cls_ind)
             for frame_index, img_cls_dets in v_dets:
                 frame_str = ''
+                frame_scores = []
                 for cls_box in img_cls_dets:
                     bbx_size = (cls_box[2]-cls_box[0]) * (cls_box[3]-cls_box[1])
-                    cls_score += cls_box[4]
+                    frame_scores.append(cls_box[4])
                     bbx_cnt += 1
                     frame_str += '[{0:.4f},{1:.4f}],'.format(bbx_size, cls_box[4])
                 video_str += '{0:d}:{1:s}\t'.format(frame_index, frame_str)
+                cls_scores.append(max(frame_scores))
                 if frame_index >= ref_frame_cnt-1:
                     break
-            class_scores[cls_ind-1] = cls_score/(bbx_cnt + 0.0000001)
+            sorted_scores = -np.sort(-cls_scores)
+            cls_score = np.mean(sorted_scores[0:5])
+            class_scores[cls_ind-1] = cls_score
             print_str += video_str + '\n'
         cls_ind = np.argmax(class_scores)
         potential_class[cls_ind,v_ind] = True
