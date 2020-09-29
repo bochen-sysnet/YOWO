@@ -264,7 +264,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
             cls_scores = []
             video_str = 'cls:{0:d}\n'.format(cls_ind)
             for frame_index, img_cls_dets in v_dets:
-                frame_scores = []
+                frame_scores = [0]
                 for cls_box in img_cls_dets:
                     frame_scores.append(cls_box[4])
                 video_str += '{0:d}:{1:.4f}\t'.format(frame_index, max(frame_scores))
