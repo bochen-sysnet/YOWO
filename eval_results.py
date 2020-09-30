@@ -245,15 +245,10 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
     # it can transit to the classes of the next frame
     # it is also like predicting rest of a sentence using a few words
     # only one class per video
-    file_name = 'per_video_pred_result.txt'
-    with open(file_name, 'w') as f:
-        f.write('')
     acc = 0
     potential_class = np.zeros([len(CLASSES), n_videos], dtype=np.bool)
-    # potential_class[0,:] = np.ones([n_videos,], dtype=np.bool)
     for v_ind in range(n_videos):
         one_video_result = 0
-        print_str = 'video:{0:d}\n'.format(v_ind)
         # gt classes
         gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
         # extract bbxs of one video
@@ -262,12 +257,10 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
         class_scores = np.zeros([len(CLASSES),])
         for cls_ind, _, v_dets in pred_bbxs:
             cls_scores = []
-            video_str = 'cls:{0:d}\n'.format(cls_ind)
             for frame_index, img_cls_dets in v_dets:
                 frame_scores = [0]
                 for cls_box in img_cls_dets:
                     frame_scores.append(cls_box[4])
-                video_str += '{0:d}:{1:.4f}\t'.format(frame_index, max(frame_scores))
                 cls_scores.append(max(frame_scores))
                 if frame_index >= ref_frame_cnt-1:
                     break
@@ -275,15 +268,11 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
             sorted_scores = -np.sort(-cls_scores)
             cls_score = np.mean(sorted_scores[0:10])
             class_scores[cls_ind-1] = cls_score
-            print_str += video_str + '\n'
         cls_ind = np.argmax(class_scores)
         potential_class[cls_ind,v_ind] = True
         if cls_ind in gt_class_ind:
             one_video_result = 1
-        print_str += str(cls_ind) + '\t' + str(gt_class_ind) + '\n'
         acc += one_video_result
-        with open(file_name, 'a+') as f:
-            f.write(print_str)
     acc /= n_videos
 
     return potential_class, acc
