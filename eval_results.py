@@ -375,11 +375,9 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     ealr_old = np.mean(ap_all)/act_loc_t_old
     ealr_new = np.mean(ap_new_all)/act_loc_t_new
     print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(ealr_old, ealr_new, ealr_new/ealr_old)
-    # print_str += "Pos time:" + str(np.sum(pos_t_all)) + ", neg time:" + str(np.sum(neg_t_all)) + '\n'
-    # print_str += "Saved time:" + str(np.sum(saved_t_all)) + ", Actual link time:" + str(np.sum(actual_t_all)) + '\n'
+    saved_link_time_ratio = (np.sum(pos_t_all) + np.sum(neg_t_all) - cls_pred_t - np.sum(actual_t_all))/(np.sum(pos_t_all) + np.sum(neg_t_all))
+    saved_al_time_ratio = (np.sum(pos_t_all) + np.sum(neg_t_all) - cls_pred_t - np.sum(actual_t_all))/act_loc_t_old
+    print_str += "{0:.4f}\t{1:.4f}\t".format(saved_link_time_ratio, saved_al_time_ratio)
     print_str += str(np.sum(missed_actions_all)) + '/' + str(np.sum(gt_actions_all)) + '\n'
-    # print_str += "Link time:" + str((link_end - link_start)/v_cnt) + '\n'
-    # print_str += "Video AP:" + str(ap_all) + '\n'
-    # print_str += "Video AP new:" + str(ap_new_all) + '\n'
 
     return print_str
