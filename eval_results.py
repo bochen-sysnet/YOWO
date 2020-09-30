@@ -266,7 +266,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
                     break
             cls_scores = np.array(cls_scores)
             sorted_scores = -np.sort(-cls_scores)
-            cls_score = np.mean(sorted_scores[0:10])
+            cls_score = np.mean(sorted_scores)
             class_scores[cls_ind-1] = cls_score
         cls_ind = np.argmax(class_scores)
         potential_class[cls_ind,v_ind] = True
