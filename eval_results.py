@@ -381,9 +381,13 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     print_str += str(np.sum(missed_actions_all)) + '/' + str(np.sum(gt_actions_all)) + '\n'
     saved_link_t_ratio_wrt_class = (np.cumsum(pos_t_all) + np.cumsum(neg_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(pos_t_all) + np.cumsum(neg_t_all))
     saved_al_time_ratio_wrt_class = (np.cumsum(pos_t_all) + np.cumsum(neg_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(pos_t_all) + np.cumsum(neg_t_all) + bbx_pred_t/v_cnt)
+    print_str += "Saved time:\n"
     print_str += str(saved_link_t_ratio_wrt_class) + '\n'
     print_str += str(saved_al_time_ratio_wrt_class) + '\n'
     old_link_t_wrt_class = np.cumsum(pos_t_all) + np.cumsum(neg_t_all)
     new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
+    print_str += "BBX Pred Time:{0:.4f}\n".format(bbx_pred_t/v_cnt)
+    print_str += str(old_link_t_wrt_class) + '\n'
+    print_str += str(new_link_t_wrt_class) + '\n'
     
     return print_str
