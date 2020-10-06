@@ -383,5 +383,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     saved_al_time_ratio_wrt_class = (np.cumsum(pos_t_all) + np.cumsum(neg_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(pos_t_all) + np.cumsum(neg_t_all) + bbx_pred_t/v_cnt)
     print_str += str(saved_link_t_ratio_wrt_class) + '\n'
     print_str += str(saved_al_time_ratio_wrt_class) + '\n'
+    old_link_t_wrt_class = np.cumsum(pos_t_all) + np.cumsum(neg_t_all)
+    new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
     
     return print_str
