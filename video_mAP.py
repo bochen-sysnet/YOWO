@@ -207,13 +207,13 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            print(data.shape)
-            return
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
                 data = Variable(data)
                 output = model(data).data
+                print(data.shape, output.shape, target.shape)
+                return
 
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
                 for i in range(output.size(0)):
