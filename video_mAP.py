@@ -155,7 +155,6 @@ def get_area_feature(frame, area_blur_rad=11, area_blur_var=0):
 
 def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
     if prev_frame is None: return 0
-    print(frame.shape, prev_frame.shape)
     frame_diff = cv2.absdiff(frame, prev_frame)
     frame_diff = cv2.cvtColor(frame_diff, cv2.COLOR_BGR2GRAY)
     frame_diff = cv2.threshold(frame_diff, pixel_thresh_low_bound, 255, cv2.THRESH_BINARY)[1]
@@ -225,9 +224,9 @@ def extract_n_filter_one_batch(batch, prev_frame):
     area_diff_list = []
     # calc feature diffs
     for i in range(batch.size(0)):
-        pixel_diff_list.append(calc_pixel_diff(pixel_feat_list[i], pixel_feat_list[i+1]))
-        edge_diff_list.append(calc_edge_diff(edge_feat_list[i], edge_feat_list[i+1]))
-        area_diff_list.append(calc_area_diff(area_feat_list[i], area_feat_list[i+1]))
+        pixel_diff_list.append(calc_pixel_diff(pixel_feat_list[i+1], pixel_feat_list[i]))
+        edge_diff_list.append(calc_edge_diff(edge_feat_list[i+1], edge_feat_list[i]))
+        area_diff_list.append(calc_area_diff(area_feat_list[i+1], area_feat_list[i]))
     print(pixel_diff_list, edge_diff_list, area_diff_list)
           
     return last_frame
