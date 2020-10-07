@@ -138,12 +138,96 @@ class testData(Dataset):
 
         return clip, label, img_name
     
-def extract_n_filter_one_batch(batch):
+def get_pixel_feature(frame):
+    return frame
+
+def get_edge_feature(frame, edge_blur_rad=11, edge_blur_var=0, edge_canny_low=101, edge_canny_high=255):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (edge_blur_rad, edge_blur_rad), edge_blur_var)
+    edge = cv2.Canny(blur, edge_canny_low, edge_canny_high)
+    return edge
+
+def get_area_feature(frame, area_blur_rad=11, area_blur_var=0):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (area_blur_rad, area_blur_rad), area_blur_var)
+    return blur
+
+def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
+    if prev_frame is None: return 0
+    frame_diff = cv2.absdiff(frame, prev_frame)
+    frame_diff = cv2.cvtColor(frame_diff, cv2.COLOR_BGR2GRAY)
+    frame_diff = cv2.threshold(frame_diff, pixel_thresh_low_bound, 255, cv2.THRESH_BINARY)[1]
+    changed_pixels = cv2.countNonZero(frame_diff)
+    fraction_changed = changed_pixels / total_pixels
+    return fraction_changed
+    
+def calc_edge_diff(frame, prev_frame, edge_thresh_low_bound=21):
+    if prev_frame is None: return 0
+    total_pixels = edge.shape[0] * edge.shape[1]
+    frame_diff = cv2.absdiff(edge, prev_edge)
+    frame_diff = cv2.threshold(frame_diff,edge_thresh_low_bound, 255,
+                               cv2.THRESH_BINARY)[1]
+    changed_pixels = cv2.countNonZero(frame_diff)
+    fraction_changed = changed_pixels / total_pixels
+    return fraction_changed
+
+def calc_area_diff(frame, prev_frame, area_thresh_low_bound=21):
+    if prev_frame is None: return 0
+    total_pixels = frame.shape[0] * frame.shape[1]
+    frame_delta = cv2.absdiff(frame, prev_frame)
+    thresh = cv2.threshold(frame_delta, area_thresh_low_bound, 255,
+                           cv2.THRESH_BINARY)[1]
+    thresh = cv2.dilate(thresh, None)
+    contours = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                                cv2.CHAIN_APPROX_SIMPLE)
+    contours = imutils.grab_contours(contours)
+    if not contours:
+        return 0.0
+    return max([cv2.contourArea(c) / total_pixels for c in contours])
+    
+    
+def extract_n_filter_one_batch(batch, prev_frame):
     batch = batch.squeeze(2)
-    print(batch.shape)
+    last_frame = None
+    pixel_feat_list = []
+    edge_feat_list = []
+    area_feat_list = []
+    # get all features
+    if prev is None:
+        pixel_feat_list.append(None)
+        edge_feat_list.append(None)
+        area_feat_list.append(None)
+    else:
+        pixel_feat_list.append(get_pixel_feature(prev_frame))
+        edge_feat_list.append(get_edge_feature(prev_frame))
+        area_feat_list.append(get_area_feature(prev_frame))
     for i in range(batch.size(0)):
-        rgb_frame = batch[i,:,:,:].squeeze(0)
-        print(i,rgb_frame.shape)
+        rgb_frame = batch[i,:,:,:].squeeze(0).numpy()
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BRB2BGR)
+        # pixel diff
+        pixel_feat = get_pixel_feature(bgr_frame)
+        pixel_feat_list.append(pixel_feat)
+        # edge diff
+        edge_feat = get_edge_feature(bgr_frame)
+        edge_feat_list.append(edge_feat)
+        # area diff
+        area_feat = get_area_feature(bgr_frame)
+        area_feat_list.append(area_feat)
+        # update prev frame
+        if i == batch.size(0)-1:
+            last_frame = bgr_frame
+    
+    pixel_diff_list = []
+    edge_diff_list = []
+    area_diff_list = []
+    # calc feature diffs
+    for i in range(batch.size(0)):
+        pixel_diff_list.append(calc_pixel_diff(pixel_feat_list[i], pixel_feat_list[i+1]))
+        edge_diff_list.append(calc_edge_diff(edge_feat_list[i], edge_feat_list[i+1]))
+        area_diff_list.append(calc_area_diff(area_feat_list[i], area_feat_list[i+1]))
+    print(pixel_diff_list, edge_diff_list, area_diff_list)
+          
+    return last_frame
 
 def video_mAP_ucf():
     """
@@ -213,8 +297,9 @@ def video_mAP_ucf():
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, **kwargs)
 
+        prev_frame = None
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            extract_n_filter_one_batch(data[:, :, -1, :, :])
+            prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
             return
             if use_cuda:
                 data = data.cuda()
