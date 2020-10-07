@@ -137,6 +137,13 @@ class testData(Dataset):
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
 
         return clip, label, img_name
+    
+def filter_one_batch(batch):
+    batch = batch.unsqueeze(2)
+    print(batch.shape)
+    for i in range(batch.size(0)):
+        rgb_frame = batch[i,:,:,:].unsqueeze(0)
+        print(i,rgb_frame.shape)
 
 def video_mAP_ucf():
     """
@@ -207,13 +214,13 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
+            process_one_batch(data[:, :, -1, :, :])
+            return
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
                 data = Variable(data)
                 output = model(data).data
-                print(data.shape, output.shape, target.shape)
-                return
 
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
                 for i in range(output.size(0)):
