@@ -165,7 +165,7 @@ def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
     
 def calc_edge_diff(frame, prev_frame, edge_thresh_low_bound=21):
     if prev_frame is None: return 0
-    total_pixels = edge.shape[0] * edge.shape[1]
+    total_pixels = frame.shape[0] * frame.shape[1]
     frame_diff = cv2.absdiff(edge, prev_edge)
     frame_diff = cv2.threshold(frame_diff,edge_thresh_low_bound, 255,
                                cv2.THRESH_BINARY)[1]
