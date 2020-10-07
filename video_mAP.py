@@ -193,7 +193,7 @@ def extract_n_filter_one_batch(batch, prev_frame):
     edge_feat_list = []
     area_feat_list = []
     # get all features
-    if prev is None:
+    if prev_frame is None:
         pixel_feat_list.append(None)
         edge_feat_list.append(None)
         area_feat_list.append(None)
