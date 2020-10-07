@@ -138,7 +138,7 @@ class testData(Dataset):
 
         return clip, label, img_name
     
-def filter_one_batch(batch):
+def extract_n_filter_one_batch(batch):
     batch = batch.unsqueeze(2)
     print(batch.shape)
     for i in range(batch.size(0)):
@@ -214,7 +214,7 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            process_one_batch(data[:, :, -1, :, :])
+            extract_n_filter_one_batch(data[:, :, -1, :, :])
             return
             if use_cuda:
                 data = data.cuda()
