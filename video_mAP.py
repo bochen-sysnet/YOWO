@@ -139,10 +139,10 @@ class testData(Dataset):
         return clip, label, img_name
     
 def extract_n_filter_one_batch(batch):
-    batch = batch.unsqueeze(2)
+    batch = batch.squeeze(2)
     print(batch.shape)
     for i in range(batch.size(0)):
-        rgb_frame = batch[i,:,:,:].unsqueeze(0)
+        rgb_frame = batch[i,:,:,:].squeeze(0)
         print(i,rgb_frame.shape)
 
 def video_mAP_ucf():
