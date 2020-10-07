@@ -204,7 +204,7 @@ def extract_n_filter_one_batch(batch, prev_frame):
         area_feat_list.append(get_area_feature(prev_frame))
     for i in range(batch.size(0)):
         rgb_frame = batch[i,:,:,:].squeeze(0).numpy()
-        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BRB2BGR)
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
         # pixel diff
         pixel_feat = get_pixel_feature(bgr_frame)
         pixel_feat_list.append(pixel_feat)
