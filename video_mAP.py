@@ -155,6 +155,7 @@ def get_area_feature(frame, area_blur_rad=11, area_blur_var=0):
 
 def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
     if prev_frame is None: return 0
+    total_pixels = frame.shape[0] * frame.shape[1]
     frame_diff = cv2.absdiff(frame, prev_frame)
     frame_diff = cv2.cvtColor(frame_diff, cv2.COLOR_BGR2GRAY)
     frame_diff = cv2.threshold(frame_diff, pixel_thresh_low_bound, 255, cv2.THRESH_BINARY)[1]
