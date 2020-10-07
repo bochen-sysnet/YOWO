@@ -11,6 +11,7 @@ from scipy.io import loadmat
 from model import YOWO
 from utils import *
 from eval_results import *
+import cv2
 
 opt = parse_opts()
 
