@@ -155,6 +155,7 @@ def get_area_feature(frame, area_blur_rad=11, area_blur_var=0):
 
 def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
     if prev_frame is None: return 0
+    print(frame.shape, prev_frame.shape)
     frame_diff = cv2.absdiff(frame, prev_frame)
     frame_diff = cv2.cvtColor(frame_diff, cv2.COLOR_BGR2GRAY)
     frame_diff = cv2.threshold(frame_diff, pixel_thresh_low_bound, 255, cv2.THRESH_BINARY)[1]
@@ -206,7 +207,6 @@ def extract_n_filter_one_batch(batch, prev_frame):
         rgb_frame = batch[i,:,:,:].squeeze(0).permute(1, 2, 0).numpy()
         rgb_frame = (rgb_frame*255).astype(np.uint8)
         bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
-        print(bgr_frame.shape)
         # pixel diff
         pixel_feat = get_pixel_feature(bgr_frame)
         pixel_feat_list.append(pixel_feat)
