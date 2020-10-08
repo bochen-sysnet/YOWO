@@ -303,7 +303,6 @@ def video_mAP_ucf():
         prev_frame = None
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             # prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
-            print(img_name)
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
