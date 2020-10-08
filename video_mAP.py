@@ -390,6 +390,7 @@ def video_mAP_jhmdb():
         t_label = -1
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
+            print(img_name)
             path_split = img_name[0].split('/')
             if video_name == '':
                 video_name = os.path.join(path_split[0], path_split[1])
@@ -425,6 +426,7 @@ def video_mAP_jhmdb():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[0]] = img_annotation
+                    
 
                     # generate corresponding gts
                     # save format: {v_name: {tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
@@ -440,6 +442,7 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
+        return
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
