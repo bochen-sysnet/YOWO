@@ -301,7 +301,6 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         prev_frame = None
-        frame_idx = 0
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             # prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
             print(img_name)
@@ -313,6 +312,11 @@ def video_mAP_ucf():
 
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
                 for i in range(output.size(0)):
+                    # try to skip some frames
+                    if i%2 != 0:
+                        ref_idx = i/2*2
+                        detected_boxes[img_name[i]] = detected_boxes[img_name[ref_idx]]
+                        continue
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
@@ -331,8 +335,6 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-                    frame_idx += 1
-        return
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
 
