@@ -301,9 +301,10 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         prev_frame = None
+        frame_idx = 0
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
-            return
+            # prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
+            print(img_name)
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
@@ -330,6 +331,8 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+                    frame_idx += 1
+        return
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
 
