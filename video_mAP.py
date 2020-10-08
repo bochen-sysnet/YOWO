@@ -313,7 +313,7 @@ def video_mAP_ucf():
                 for i in range(output.size(0)):
                     # try to skip some frames
                     if i%2 != 0:
-                        ref_idx = i/2*2
+                        ref_idx = i//2*2
                         detected_boxes[img_name[i]] = detected_boxes[img_name[ref_idx]]
                         continue
                     boxes = all_boxes[i]
