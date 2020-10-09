@@ -312,8 +312,8 @@ def video_mAP_ucf():
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
                 for i in range(output.size(0)):
                     # try to skip some frames
-                    if i%2 != 0:
-                        ref_idx = i//2*2
+                    if i%4 != 0:
+                        ref_idx = i//4*4
                         detected_boxes[img_name[i]] = detected_boxes[img_name[ref_idx]]
                         continue
                     boxes = all_boxes[i]
@@ -391,6 +391,9 @@ def video_mAP_jhmdb():
         
         ref_img_name = None
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
+            if batch_idx%4 != 0:
+                detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
+                break
             path_split = img_name[0].split('/')
             if video_name == '':
                 video_name = os.path.join(path_split[0], path_split[1])
@@ -404,9 +407,6 @@ def video_mAP_jhmdb():
 
                 assert(output.size(0) == 1)
                 for i in range(output.size(0)):
-                    if batch_idx%2 == 1:
-                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
-                        break
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
