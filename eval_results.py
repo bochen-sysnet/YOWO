@@ -309,15 +309,13 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
             cls_ind += 1
             # get the directory path of images
             preVideo = os.path.dirname(keys[0])
-            # closest available det results
-            closest_cls_dets = None
             for i in range(len(keys)):
                 curVideo = os.path.dirname(keys[i])
                 if (frame_index-1)%skip_period == 0:
                     img_cls_dets = img_boxes[keys[i]][cls_ind]
                     v_dets.append([frame_index, img_cls_dets])
-                    closest_cls_dets = img_cls_dets
                 else:
+                    closest_cls_dets = v_dets[-1][1]
                     v_dets.append([frame_index, closest_cls_dets])
                 frame_index += 1
                 if preVideo!=curVideo:
