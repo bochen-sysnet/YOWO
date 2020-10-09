@@ -388,7 +388,8 @@ def video_mAP_jhmdb():
         v_annotation = {}
         all_gt_boxes = []
         t_label = -1
-
+        
+        ref_img_name = None
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             path_split = img_name[0].split('/')
             if video_name == '':
@@ -401,10 +402,11 @@ def video_mAP_jhmdb():
                 output = model(data).data
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
 
-                ref_img_name = None
-                print(output.size(0))
-                return
+                assert(output.size(0) == 1)
                 for i in range(output.size(0)):
+                    if batch_idx%2 == 1:
+                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
+                        break
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
@@ -427,10 +429,9 @@ def video_mAP_jhmdb():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[0]] = img_annotation
-                    if i%2 == 0:
-                        ref_img_name = img_name[0]
-                    else:
-                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
+                    
+                    ref_img_name = img_name[0]
+                        
                         
                 for i in range(output.size(0)):
                     truths = target[i].view(-1, 5)
