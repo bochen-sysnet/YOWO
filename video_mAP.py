@@ -291,7 +291,6 @@ def video_mAP_ucf():
             gt_videos[video_name] = v_annotation
 
     bbx_det_start = time.perf_counter()
-    M = 4
     for line in lines:
         print(line)
         line = line.rstrip()
@@ -302,8 +301,6 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         prev_frame = None
-        frame_idx = 0
-        ref_img_name = None
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             # prev_frame = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
             if use_cuda:
@@ -314,11 +311,6 @@ def video_mAP_ucf():
 
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
                 for i in range(output.size(0)):
-                    # try to skip some frames
-                    if frame_idx%M != 0:
-                        detected_boxes[img_name[i]] = detected_boxes[ref_img_name]
-                        frame_idx += 1
-                        continue
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
@@ -337,11 +329,8 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-                    
-                    ref_img_name = img_name[i]
-                    frame_idx += 1
     bbx_det_end = time.perf_counter()
-    bbx_pred_t = (bbx_det_end - bbx_det_start)/M
+    bbx_pred_t = (bbx_det_end - bbx_det_start)
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
@@ -395,8 +384,6 @@ def video_mAP_jhmdb():
         all_gt_boxes = []
         t_label = -1
         
-        ref_img_name = None
-        M = 4
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             path_split = img_name[0].split('/')
             if video_name == '':
@@ -411,9 +398,6 @@ def video_mAP_jhmdb():
 
                 assert(output.size(0) == 1)
                 for i in range(output.size(0)):
-                    if batch_idx%M != 0:
-                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
-                        break
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
@@ -436,9 +420,6 @@ def video_mAP_jhmdb():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[0]] = img_annotation
-                    
-                    ref_img_name = img_name[0]
-                        
                         
                 for i in range(output.size(0)):
                     truths = target[i].view(-1, 5)
@@ -459,7 +440,7 @@ def video_mAP_jhmdb():
         gt_videos[video_name] = v_annotation
 
     bbx_det_end = time.perf_counter()
-    bbx_pred_t = (bbx_det_end - bbx_det_start)/M
+    bbx_pred_t = (bbx_det_end - bbx_det_start)
 
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
