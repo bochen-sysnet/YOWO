@@ -390,7 +390,6 @@ def video_mAP_jhmdb():
         t_label = -1
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            print(img_name)
             path_split = img_name[0].split('/')
             if video_name == '':
                 video_name = os.path.join(path_split[0], path_split[1])
@@ -402,12 +401,14 @@ def video_mAP_jhmdb():
                 output = model(data).data
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
 
+                ref_img_name = None
+                print(output.size(0))
+                return
                 for i in range(output.size(0)):
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
                     truths = target[i].view(-1, 5)
-                    num_gts = truths_length(truths)
 
                     if t_label == -1:
                         t_label = int(truths[0][0]) + 1
@@ -426,8 +427,14 @@ def video_mAP_jhmdb():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[0]] = img_annotation
-                    
-
+                    if i%2 == 0:
+                        ref_img_name = img_name[0]
+                    else:
+                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
+                        
+                for i in range(output.size(0)):
+                    truths = target[i].view(-1, 5)
+                    num_gts = truths_length(truths)
                     # generate corresponding gts
                     # save format: {v_name: {tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
                     gt_boxes = []
@@ -442,7 +449,6 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        return
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = bbx_det_end - bbx_det_start
