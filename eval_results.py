@@ -289,17 +289,18 @@ def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
     acc /= n_videos
     return acc
 
-def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, prior_length = None):
+def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, skip_cnt = 0, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
     '''
-    def imagebox_to_videts(img_boxes, CLASSES):
+    def imagebox_to_videts(img_boxes, CLASSES, skip_cnt=0):
         # put bboxes in one video of the same class into one v_dets
         # image names
         keys = list(all_boxes.keys())
         keys.sort()
         res = []
+        skip_period = skip_cnt + 1
         # without 'background'
         for cls_ind, cls in enumerate(CLASSES[0:]):
             v_cnt = 1
@@ -308,10 +309,16 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
             cls_ind += 1
             # get the directory path of images
             preVideo = os.path.dirname(keys[0])
+            # closest available det results
+            closest_cls_dets = None
             for i in range(len(keys)):
                 curVideo = os.path.dirname(keys[i])
-                img_cls_dets = img_boxes[keys[i]][cls_ind]
-                v_dets.append([frame_index, img_cls_dets])
+                if (frame_index-1)%skip_period == 0:
+                    img_cls_dets = img_boxes[keys[i]][cls_ind]
+                    v_dets.append([frame_index, img_cls_dets])
+                    closest_cls_dets = img_cls_dets
+                else:
+                    v_dets.append([frame_index, closest_cls_dets])
                 frame_index += 1
                 if preVideo!=curVideo:
                     preVideo = curVideo
@@ -368,6 +375,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
         gt_actions_all.append(gt_actions)
         actual_t_all.append(actual_t)
     link_end = time.perf_counter()
+    bbx_pred_t /= (skip_cnt+1)
     act_loc_t_old = bbx_pred_t/v_cnt + np.sum(pos_t_all) + np.sum(neg_t_all)
     act_loc_t_new = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
     print_str += "{0:.3f}\t{1:.3f}\t".format(np.mean(ap_all), np.mean(ap_new_all))
