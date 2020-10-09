@@ -398,9 +398,6 @@ def video_mAP_jhmdb():
         ref_img_name = None
         M = 4
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            if batch_idx%M != 0:
-                detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
-                continue
             path_split = img_name[0].split('/')
             if video_name == '':
                 video_name = os.path.join(path_split[0], path_split[1])
@@ -414,6 +411,9 @@ def video_mAP_jhmdb():
 
                 assert(output.size(0) == 1)
                 for i in range(output.size(0)):
+                    if batch_idx%M != 0:
+                        detected_boxes[img_name[0]] = detected_boxes[ref_img_name]
+                        break
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
