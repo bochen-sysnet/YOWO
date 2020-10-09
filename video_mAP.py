@@ -439,7 +439,6 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
