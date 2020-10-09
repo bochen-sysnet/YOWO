@@ -335,15 +335,16 @@ def video_mAP_ucf():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
+    skip_cnt_list = [1, 3, 7, 15]
     file_name = 'ucf24_pred_result_' + str(use_train) + '_' + str(sample_thresh) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for ref_frame_cnt in ref_frame_list:
-            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
+        for skip_cnt in skip_cnt_list:
+            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(ref_frame_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
 
 
@@ -445,15 +446,16 @@ def video_mAP_jhmdb():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
+    skip_cnt_list = [1, 3, 7, 15]
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for ref_frame_cnt in ref_frame_list:
-            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_cnt)
+        for skip_cnt in skip_cnt_list:
+            print_str = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + ',' + str(ref_frame_cnt) + '\t')
+                f.write(str(iou_th) + ',' + str(skip_cnt) + '\t')
                 f.write(print_str)
 
 if __name__ == '__main__':
