@@ -336,7 +336,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
 
     print_str = ""
     gt_videos_format = gt_to_videts(gt_videos)
-    pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES)
+    pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES, skip_cnt)
     # predict potential classes of each video based on first few frames
     pred_start = time.perf_counter()
     potential_class, pred_acc = class_prediction(v_cnt, CLASSES, pred_videos_format, gt_videos_format, ref_frame_cnt)
