@@ -487,7 +487,7 @@ def video_mAP_jhmdb():
         if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
-                    np.savetxt(f, linea.reshape(1, line.shape[0]), fmt='%.3f')
+                    np.savetxt(f, line.reshape(1, line.shape[0]), fmt='%.3f')
                     
                 
 
