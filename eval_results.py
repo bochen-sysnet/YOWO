@@ -154,11 +154,13 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     tp_new = 0
 
     gt_v_index = [g[0] for g in gt]
-    pos_t, neg_t = 0, 0
+    raw_t = 0
     saved_t = 0
     missed_actions = 0
     actual_t = 0
     v_cnt = len(pred_videos)
+    # store scores of each video
+    tube_scores = np.zeros(v_cnt)
     for i, k in enumerate(argsort_scores):
         # check each tube
         # if i % 100 == 0:
@@ -194,13 +196,14 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
+                    # add score
+                    tube_scores[video_index-1] += iou[argmax]
         if potential_class[video_index-1]:
             actual_t += t
+        raw_t += t
         if ispositive:
             tp += 1
             fn -= 1
-            # add to positive time
-            pos_t += t
             if not potential_class[video_index-1]:
                 missed_actions += 1
             else:
@@ -208,8 +211,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                 fn_new -= 1
         else:
             fp += 1
-            # add to negative time
-            neg_t += t
             if not potential_class[video_index-1]:
                 saved_t += t
             else:
@@ -221,7 +222,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     ap = voc_ap(pr)
     ap_new = voc_ap(pr_new)
 
-    return ap, ap_new, pos_t/v_cnt,  neg_t/v_cnt, saved_t/v_cnt, missed_actions, tp, actual_t/v_cnt
+    return ap, ap_new, raw_t/v_cnt, saved_t/v_cnt, missed_actions, tp, actual_t/v_cnt, tube_scores
 
 
 def gt_to_videts(gt_v):
@@ -349,12 +350,12 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
 
     ap_all = [] 
     ap_new_all = []   
-    pos_t_all = []
-    neg_t_all = []
+    raw_t_all = []
     saved_t_all = []
     missed_actions_all = []
     gt_actions_all = []
     actual_t_all = []
+    tube_scores_all = np.zeros(v_cnt)
     link_start = time.perf_counter()
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
@@ -363,37 +364,37 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, ap_new, pos_t, neg_t, saved_t, missed_actions, gt_actions, actual_t = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap, ap_new, raw_t, saved_t, missed_actions, gt_actions, actual_t, tube_scores = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
         ap_new_all.append(ap_new)
-        pos_t_all.append(pos_t)
-        neg_t_all.append(neg_t)
+        raw_t_all.append(raw_t)
         saved_t_all.append(saved_t)
         missed_actions_all.append(missed_actions)
         gt_actions_all.append(gt_actions)
         actual_t_all.append(actual_t)
+        tube_scores_all += tube_scores
     link_end = time.perf_counter()
     bbx_pred_t /= (skip_cnt+1)
-    act_loc_t_old = bbx_pred_t/v_cnt + np.sum(pos_t_all) + np.sum(neg_t_all)
+    act_loc_t_old = bbx_pred_t/v_cnt + np.sum(raw_t_all)
     act_loc_t_new = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
     print_str += "{0:.3f}\t{1:.3f}\t".format(np.mean(ap_all), np.mean(ap_new_all))
     print_str += "{0:.3f}\t{1:.3f}\t".format(act_loc_t_old, act_loc_t_new)
     ealr_old = np.mean(ap_all)**2/act_loc_t_old
     ealr_new = np.mean(ap_new_all)**2/act_loc_t_new
     print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(ealr_old, ealr_new, ealr_new/ealr_old)
-    saved_link_time_ratio = (np.sum(pos_t_all) + np.sum(neg_t_all) - cls_pred_t - np.sum(actual_t_all))/(np.sum(pos_t_all) + np.sum(neg_t_all))
-    saved_al_time_ratio = (np.sum(pos_t_all) + np.sum(neg_t_all) - cls_pred_t - np.sum(actual_t_all))/act_loc_t_old
+    saved_link_time_ratio = (np.sum(raw_t_all) - cls_pred_t - np.sum(actual_t_all))/(np.sum(raw_t_all))
+    saved_al_time_ratio = (np.sum(raw_t_all) - cls_pred_t - np.sum(actual_t_all))/act_loc_t_old
     print_str += "{0:.4f}\t{1:.4f}\t".format(saved_link_time_ratio, saved_al_time_ratio)
     print_str += str(np.sum(missed_actions_all)) + '/' + str(np.sum(gt_actions_all)) + '\n'
-    saved_link_t_ratio_wrt_class = (np.cumsum(pos_t_all) + np.cumsum(neg_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(pos_t_all) + np.cumsum(neg_t_all))
-    #saved_al_time_ratio_wrt_class = (np.cumsum(pos_t_all) + np.cumsum(neg_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(pos_t_all) + np.cumsum(neg_t_all) + bbx_pred_t/v_cnt)
+    saved_link_t_ratio_wrt_class = (np.cumsum(raw_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(raw_t_all))
+    #saved_al_time_ratio_wrt_class = (np.cumsum(raw_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(raw_t_all) + bbx_pred_t/v_cnt)
     print_str += "Saved time:\n"
     print_str += str(saved_link_t_ratio_wrt_class) + '\n'
     #print_str += str(saved_al_time_ratio_wrt_class) + '\n'
-    old_link_t_wrt_class = np.cumsum(pos_t_all) + np.cumsum(neg_t_all)
+    old_link_t_wrt_class = np.cumsum(raw_t_all)
     new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
     print_str += "BBX Pred Time:{0:.4f}\n".format(bbx_pred_t/v_cnt)
     print_str += str(old_link_t_wrt_class) + '\n'
     print_str += str(new_link_t_wrt_class) + '\n'
     
-    return print_str
+    return print_str, tube_scores_all
