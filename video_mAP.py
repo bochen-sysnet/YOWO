@@ -488,6 +488,7 @@ def video_mAP_jhmdb():
             print(all_tube_scores.shape)
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
+                    print(line.shape)
                     np.savetxt(f, line, fmt='%.3f')
                     break
                     
