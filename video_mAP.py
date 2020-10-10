@@ -355,7 +355,7 @@ def video_mAP_ucf():
                 f.write(print_str)
             all_tube_scores[:,idx] = tube_scores
         all_tube_scores[:,idx+1:idx+4] = all_feat
-        if iouth == iou_list[0]:
+        if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
                     np.savetxt(f, line, fmt='%.3f')
@@ -484,7 +484,7 @@ def video_mAP_jhmdb():
                 f.write(print_str)
             all_tube_scores[:,idx] = tube_scores
         all_tube_scores[:,idx+1:idx+4] = all_feat
-        if iouth == iou_list[0]:
+        if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
                     np.savetxt(f, line, fmt='%.3f')
