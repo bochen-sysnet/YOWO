@@ -464,7 +464,6 @@ def video_mAP_jhmdb():
         gt_videos[video_name] = v_annotation
         
         all_feat[lidx,:] = [np.mean(pixel_diff_list), np.mean(edge_diff_list), np.mean(area_diff_list)]
-        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
