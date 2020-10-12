@@ -341,22 +341,23 @@ def video_mAP_ucf():
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
     skip_cnt_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), len(skip_cnt_list) + 3))
+        all_tube_scores = np.zeros((len(lines), N + 3))
         for idx, skip_cnt in enumerate(skip_cnt_list):
             print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
-            for col in range(len(skip_cnt_list)-1):
-                tube_scores[:,col+1] -= tube_scores[:,0]
             all_tube_scores[:,idx] = tube_scores
-        all_tube_scores[:,idx+1:idx+4] = all_feat
+        for col in range(N-1):
+            all_tube_scores[:,col+1] -= all_tube_scores[:,0]
+        all_tube_scores[:,N:N+3] = all_feat
         if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
@@ -463,6 +464,7 @@ def video_mAP_jhmdb():
         gt_videos[video_name] = v_annotation
         
         all_feat[lidx,:] = [np.mean(pixel_diff_list), np.mean(edge_diff_list), np.mean(area_diff_list)]
+        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
@@ -471,22 +473,23 @@ def video_mAP_jhmdb():
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
     skip_cnt_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), len(skip_cnt_list)+3))
+        all_tube_scores = np.zeros((len(lines), N+3))
         for idx, skip_cnt in enumerate(skip_cnt_list):
             print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + ',' + str(skip_cnt) + '\t')
                 f.write(print_str)
-            for col in range(len(skip_cnt_list)-1):
-                tube_scores[:,col+1] -= tube_scores[:,0]
             all_tube_scores[:,idx] = tube_scores
-        all_tube_scores[:,idx+1:idx+4] = all_feat
+        for col in range(N-1):
+            all_tube_scores[:,col+1] -= all_tube_scores[:,0]
+        all_tube_scores[:,N:N+3] = all_feat
         if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
