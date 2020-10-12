@@ -340,7 +340,7 @@ def video_mAP_ucf():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
-    skip_cnt_list = [0, 1, 3, 7, 15, 17, 19, 23, 29]
+    skip_cnt_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
@@ -353,6 +353,8 @@ def video_mAP_ucf():
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
+            for col in range(len(skip_cnt_list)-1):
+                tube_scores[:,col+1] -= tube_scores[:,0]
             all_tube_scores[:,idx] = tube_scores
         all_tube_scores[:,idx+1:idx+4] = all_feat
         if iou_th == iou_list[0]:
@@ -468,7 +470,7 @@ def video_mAP_jhmdb():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
-    skip_cnt_list = [0, 1, 3, 7, 15, 17, 19, 23, 29]
+    skip_cnt_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
@@ -481,6 +483,8 @@ def video_mAP_jhmdb():
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + ',' + str(skip_cnt) + '\t')
                 f.write(print_str)
+            for col in range(len(skip_cnt_list)-1):
+                tube_scores[:,col+1] -= tube_scores[:,0]
             all_tube_scores[:,idx] = tube_scores
         all_tube_scores[:,idx+1:idx+4] = all_feat
         if iou_th == iou_list[0]:
