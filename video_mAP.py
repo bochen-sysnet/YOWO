@@ -157,13 +157,13 @@ def get_hist_feature(frame, hist_nb_bins=32):
     nb_channels = frame.shape[-1]
     hist = np.zeros((hist_nb_bins * nb_channels, 1), dtype='float32')
     for i in range(nb_channels):
-        hist[i * hist_nb_bins: (i + 1) * self.hist_nb_bins] = cv2.calcHist(frame, [i], None, [self.hist_nb_bins], [0, 256])
+        hist[i * hist_nb_bins: (i + 1) * hist_nb_bins] = cv2.calcHist(frame, [i], None, [hist_nb_bins], [0, 256])
     hist = cv2.normalize(hist, hist)
     return hist
     
 def get_corner_feature(frame, corner_block_size=5, corner_ksize=3, corner_k=0.05):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    corner = cv2.cornerHarris(gray, self.corner_block_size, self.corner_ksize, self.corner_k)
+    corner = cv2.cornerHarris(gray, corner_block_size, corner_ksize, corner_k)
     corner = cv2.dilate(corner, None)
     return corner
     
