@@ -153,6 +153,20 @@ def get_area_feature(frame, area_blur_rad=11, area_blur_var=0):
     blur = cv2.GaussianBlur(gray, (area_blur_rad, area_blur_rad), area_blur_var)
     return blur
 
+def get_hist_feature(frame, hist_nb_bins=32):
+    nb_channels = frame.shape[-1]
+    hist = np.zeros((hist_nb_bins * nb_channels, 1), dtype='float32')
+    for i in range(nb_channels):
+        hist[i * hist_nb_bins: (i + 1) * self.hist_nb_bins] = cv2.calcHist(frame, [i], None, [self.hist_nb_bins], [0, 256])
+    hist = cv2.normalize(hist, hist)
+    return hist
+    
+def get_corner_feature(frame, corner_block_size=5, corner_ksize=3, corner_k=0.05):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    corner = cv2.cornerHarris(gray, self.corner_block_size, self.corner_ksize, self.corner_k)
+    corner = cv2.dilate(corner, None)
+    return corner
+    
 def calc_pixel_diff(frame, prev_frame, pixel_thresh_low_bound=21):
     if prev_frame is None: return 0
     total_pixels = frame.shape[0] * frame.shape[1]
@@ -186,7 +200,18 @@ def calc_area_diff(frame, prev_frame, area_thresh_low_bound=21):
     if not contours:
         return 0.0
     return max([cv2.contourArea(c) / total_pixels for c in contours])
+
+def calc_corner_diff(corner, prev_corner):
+    if prev_corner is None: return 0
+    total_pixels = corner.shape[0] * corner.shape[1]
+    frame_diff = cv2.absdiff(corner, prev_corner)
+    changed_pixels = cv2.countNonZero(frame_diff)
+    fraction_changed = changed_pixels / total_pixels
+    return fraction_changed
     
+def calc_hist_diff(frame, prev_frame):
+    if prev_frame is None: return 0
+    return cv2.compareHist(frame, prev_frame, cv2.HISTCMP_CHISQR)
     
 def extract_one_batch(batch, prev_frame):
     batch = batch.squeeze(2)
@@ -194,15 +219,21 @@ def extract_one_batch(batch, prev_frame):
     pixel_feat_list = []
     edge_feat_list = []
     area_feat_list = []
+    corner_feat_list = []
+    hist_feat_list = []
     # get all features
     if prev_frame is None:
         pixel_feat_list.append(None)
         edge_feat_list.append(None)
         area_feat_list.append(None)
+        corner_feat_list.append(None)
+        hist_feat_list.append(None)
     else:
         pixel_feat_list.append(get_pixel_feature(prev_frame))
         edge_feat_list.append(get_edge_feature(prev_frame))
         area_feat_list.append(get_area_feature(prev_frame))
+        corner_feat_list.append(get_corner_feature(prev_frame))
+        hist_feat_list.append(get_hist_feature(prev_frame))
     for i in range(batch.size(0)):
         rgb_frame = batch[i,:,:,:].squeeze(0).permute(1, 2, 0).numpy()
         rgb_frame = (rgb_frame*255).astype(np.uint8)
@@ -216,6 +247,12 @@ def extract_one_batch(batch, prev_frame):
         # area diff
         area_feat = get_area_feature(bgr_frame)
         area_feat_list.append(area_feat)
+        # hist diff
+        hist_feat = get_hist_feature(bgr_frame)
+        hist_feat_list.append(hist_feat)
+        # corner diff
+        corner_feat = get_corner_feature(bgr_frame)
+        corner_feat_list.append(corner_feat)
         # update prev frame
         if i == batch.size(0)-1:
             last_frame = bgr_frame
@@ -223,13 +260,17 @@ def extract_one_batch(batch, prev_frame):
     pixel_diff_list = []
     edge_diff_list = []
     area_diff_list = []
+    hist_diff_list = []
+    corner_diff_list = []
     # calc feature diffs
     for i in range(batch.size(0)):
         pixel_diff_list.append(calc_pixel_diff(pixel_feat_list[i+1], pixel_feat_list[i]))
         edge_diff_list.append(calc_edge_diff(edge_feat_list[i+1], edge_feat_list[i]))
         area_diff_list.append(calc_area_diff(area_feat_list[i+1], area_feat_list[i]))
+        hist_diff_list.append(calc_hist_diff(hist_feat_list[i+1], hist_feat_list[i]))
+        corner_diff_list.append(calc_corner_diff(corner_feat_list[i+1],corner_feat_list[i]))
           
-    return last_frame, pixel_diff_list, edge_diff_list, area_diff_list
+    return last_frame, pixel_diff_list, edge_diff_list, area_diff_list, hist_diff_list, corner_diff_list
 
 def video_mAP_ucf():
     """
@@ -301,12 +342,15 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         prev_frame = None
-        pixel_diff_list, edge_diff_list, area_diff_list = [], [], []
+        pixel_diff_list, edge_diff_list, area_diff_list, corner_diff_list, hist_diff_list = [], [], [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
+            prev_frame, pixel_diff, edge_diff, area_diff, hist_diff, corner_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
             pixel_diff_list += pixel_diff
             edge_diff_list += edge_diff
             area_diff_list += area_diff
+            hist_diff_list += hist_diff
+            corner_diff_list += corner_diff
+            
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
@@ -336,6 +380,8 @@ def video_mAP_ucf():
         all_feat.append(pixel_diff_list)
         all_feat.append(edge_diff_list)
         all_feat.append(area_diff_list)
+        all_feat.append(hist_diff_list)
+        all_feat.append(corner_diff_list)
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
@@ -406,12 +452,14 @@ def video_mAP_jhmdb():
         t_label = -1
         
         prev_frame = None
-        pixel_diff_list, edge_diff_list, area_diff_list = [], [], []
+        pixel_diff_list, edge_diff_list, area_diff_list, corner_diff_list, hist_diff_list = [], [], [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
+            prev_frame, pixel_diff, edge_diff, area_diff, corner_diff_list, hist_diff_list = extract_one_batch(data[:, :, -1, :, :], prev_frame)
             pixel_diff_list += pixel_diff
             edge_diff_list += edge_diff
             area_diff_list += area_diff
+            hist_diff_list += hist_diff
+            corner_diff_list += corner_diff
             
             path_split = img_name[0].split('/')
             if video_name == '':
@@ -470,6 +518,8 @@ def video_mAP_jhmdb():
         all_feat.append(pixel_diff_list)
         all_feat.append(edge_diff_list)
         all_feat.append(area_diff_list)
+        all_feat.append(hist_diff_list)
+        all_feat.append(corner_diff_list)
         break
 
     bbx_det_end = time.perf_counter()
