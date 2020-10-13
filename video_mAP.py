@@ -348,7 +348,7 @@ def video_mAP_ucf():
     tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
     feature_file = 'ucf24_feature_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
-        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
+        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         all_tube_scores = np.zeros((len(lines), N))
@@ -484,7 +484,7 @@ def video_mAP_jhmdb():
     tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
     feature_file = 'jhmdb_feature_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
-        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
+        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\t\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         all_tube_scores = np.zeros((len(lines), N))
