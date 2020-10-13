@@ -188,7 +188,7 @@ def calc_area_diff(frame, prev_frame, area_thresh_low_bound=21):
     return max([cv2.contourArea(c) / total_pixels for c in contours])
     
     
-def extract_n_filter_one_batch(batch, prev_frame):
+def extract_one_batch(batch, prev_frame):
     batch = batch.squeeze(2)
     last_frame = None
     pixel_feat_list = []
@@ -290,7 +290,7 @@ def video_mAP_ucf():
             gt_videos[video_name] = v_annotation
 
     bbx_det_start = time.perf_counter()
-    all_feat = np.zeros((len(lines),3))
+    all_feat = []
     for lidx, line in enumerate(lines):
         print(line)
         line = line.rstrip()
@@ -303,7 +303,7 @@ def video_mAP_ucf():
         prev_frame = None
         pixel_diff_list, edge_diff_list, area_diff_list = [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
+            prev_frame, pixel_diff, edge_diff, area_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
             pixel_diff_list += pixel_diff
             edge_diff_list += edge_diff
             area_diff_list += area_diff
@@ -333,7 +333,9 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-        all_feat[lidx,:] = [np.mean(pixel_diff_list), np.mean(edge_diff_list), np.mean(area_diff_list)]
+        all_feat.append(pixel_diff_list)
+        all_feat.append(edge_diff_list)
+        all_feat.append(area_diff_list)
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
@@ -344,24 +346,26 @@ def video_mAP_ucf():
     N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
+    feature_file = 'ucf24_feature_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), N + 3))
+        all_tube_scores = np.zeros((len(lines), N))
         for idx, skip_cnt in enumerate(skip_cnt_list):
             print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
             all_tube_scores[:,idx] = tube_scores
-        for col in range(N-1):
-            all_tube_scores[:,col+1] -= all_tube_scores[:,0]
-        all_tube_scores[:,N:N+3] = all_feat
         if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
                     np.savetxt(f, line.reshape(1, line.shape[0]), fmt='%.3f')
+            with open(feature_file, 'wb') as f:
+                for line in all_feat:
+                    l = np.array(line)
+                    np.savetxt(f, l.reshape(1, l.shape[0]), fmt='%.3f')
 
 
 def video_mAP_jhmdb():
@@ -384,7 +388,7 @@ def video_mAP_jhmdb():
     detected_boxes = {}
     gt_videos = {}
     bbx_det_start = time.perf_counter()
-    all_feat = np.zeros((len(lines),3))
+    all_feat = []
     for lidx, line in enumerate(lines):
         print(line)
 
@@ -404,7 +408,7 @@ def video_mAP_jhmdb():
         prev_frame = None
         pixel_diff_list, edge_diff_list, area_diff_list = [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff = extract_n_filter_one_batch(data[:, :, -1, :, :], prev_frame)
+            prev_frame, pixel_diff, edge_diff, area_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
             pixel_diff_list += pixel_diff
             edge_diff_list += edge_diff
             area_diff_list += area_diff
@@ -463,7 +467,10 @@ def video_mAP_jhmdb():
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
         
-        all_feat[lidx,:] = [np.mean(pixel_diff_list), np.mean(edge_diff_list), np.mean(area_diff_list)]
+        all_feat.append(pixel_diff_list)
+        all_feat.append(edge_diff_list)
+        all_feat.append(area_diff_list)
+        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
@@ -475,24 +482,26 @@ def video_mAP_jhmdb():
     N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
+    feature_file = 'jhmdb_feature_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
         f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tEALR_old\tEALR_new\tmiss_r\n')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), N+3))
+        all_tube_scores = np.zeros((len(lines), N))
         for idx, skip_cnt in enumerate(skip_cnt_list):
             print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + ',' + str(skip_cnt) + '\t')
                 f.write(print_str)
             all_tube_scores[:,idx] = tube_scores
-        for col in range(N-1):
-            all_tube_scores[:,col+1] -= all_tube_scores[:,0]
-        all_tube_scores[:,N:N+3] = all_feat
         if iou_th == iou_list[0]:
             with open(tube_score_file,'wb') as f:
                 for line in all_tube_scores:
                     np.savetxt(f, line.reshape(1, line.shape[0]), fmt='%.3f')
+            with open(feature_file, 'wb') as f:
+                for line in all_feat:
+                    l = np.array(line)
+                    np.savetxt(f, l.reshape(1, l.shape[0]), fmt='%.3f')
                     
                 
 
