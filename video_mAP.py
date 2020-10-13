@@ -520,7 +520,6 @@ def video_mAP_jhmdb():
         all_feat.append(area_diff_list)
         all_feat.append(hist_diff_list)
         all_feat.append(corner_diff_list)
-        break
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
