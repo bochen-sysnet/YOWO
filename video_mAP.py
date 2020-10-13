@@ -454,7 +454,7 @@ def video_mAP_jhmdb():
         prev_frame = None
         pixel_diff_list, edge_diff_list, area_diff_list, corner_diff_list, hist_diff_list = [], [], [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff, corner_diff_list, hist_diff_list = extract_one_batch(data[:, :, -1, :, :], prev_frame)
+            prev_frame, pixel_diff, edge_diff, area_diff, corner_diff, hist_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
             pixel_diff_list += pixel_diff
             edge_diff_list += edge_diff
             area_diff_list += area_diff
