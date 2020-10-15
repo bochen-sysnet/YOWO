@@ -388,7 +388,7 @@ def video_mAP_ucf():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
-    skip_cnt_list = [0, 1, 9, 14, 19, 24, 29]
+    skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
@@ -527,7 +527,7 @@ def video_mAP_jhmdb():
     # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
-    skip_cnt_list = [0, 1, 9, 14, 19, 24, 29]
+    skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
