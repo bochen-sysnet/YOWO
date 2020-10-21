@@ -331,7 +331,6 @@ def video_mAP_ucf():
             gt_videos[video_name] = v_annotation
 
     bbx_det_start = time.perf_counter()
-    all_feat = []
     for lidx, line in enumerate(lines):
         print(line)
         line = line.rstrip()
@@ -341,15 +340,7 @@ def video_mAP_ucf():
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, **kwargs)
 
-        prev_frame = None
-        pixel_diff_list, edge_diff_list, area_diff_list, corner_diff_list, hist_diff_list = [], [], [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff, hist_diff, corner_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
-            pixel_diff_list += pixel_diff
-            edge_diff_list += edge_diff
-            area_diff_list += area_diff
-            hist_diff_list += hist_diff
-            corner_diff_list += corner_diff
             
             if use_cuda:
                 data = data.cuda()
@@ -377,41 +368,30 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-        all_feat.append(pixel_diff_list)
-        all_feat.append(edge_diff_list)
-        all_feat.append(area_diff_list)
-        all_feat.append(hist_diff_list)
-        all_feat.append(corner_diff_list)
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
-    # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.1, 0.2, 0.5, 0.75]
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    #iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
     skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
-    tube_score_file = 'ucf24_tube_score_' + str(use_train) + '.txt'
-    feature_file = 'ucf24_feature_' + str(use_train) + '.txt'
+    log_file = 'ucf24_log_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
-        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\tmiss_r\n')
+        f.write('')
+    with open(log_file, 'w') as f:
+        f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), N))
         for idx, skip_cnt in enumerate(skip_cnt_list):
             print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
-            all_tube_scores[:,idx] = tube_scores
-        if iou_th == iou_list[0]:
-            with open(tube_score_file,'wb') as f:
-                for line in all_tube_scores:
-                    np.savetxt(f, line.reshape(1, line.shape[0]), fmt='%.3f')
-            with open(feature_file, 'wb') as f:
-                for line in all_feat:
-                    l = np.array(line)
-                    np.savetxt(f, l.reshape(1, l.shape[0]), fmt='%.3f')
+            with open(log_file, 'a+') as f:
+                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(log_str)
 
 
 def video_mAP_jhmdb():
@@ -434,7 +414,6 @@ def video_mAP_jhmdb():
     detected_boxes = {}
     gt_videos = {}
     bbx_det_start = time.perf_counter()
-    all_feat = []
     for lidx, line in enumerate(lines):
         print(line)
 
@@ -451,16 +430,7 @@ def video_mAP_jhmdb():
         all_gt_boxes = []
         t_label = -1
         
-        prev_frame = None
-        pixel_diff_list, edge_diff_list, area_diff_list, corner_diff_list, hist_diff_list = [], [], [], [], []
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            prev_frame, pixel_diff, edge_diff, area_diff, corner_diff, hist_diff = extract_one_batch(data[:, :, -1, :, :], prev_frame)
-            pixel_diff_list += pixel_diff
-            edge_diff_list += edge_diff
-            area_diff_list += area_diff
-            hist_diff_list += hist_diff
-            corner_diff_list += corner_diff
-            
             path_split = img_name[0].split('/')
             if video_name == '':
                 video_name = os.path.join(path_split[0], path_split[1])
@@ -514,43 +484,31 @@ def video_mAP_jhmdb():
         v_annotation['gt_classes'] = t_label
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
-        
-        all_feat.append(pixel_diff_list)
-        all_feat.append(edge_diff_list)
-        all_feat.append(area_diff_list)
-        all_feat.append(hist_diff_list)
-        all_feat.append(corner_diff_list)
 
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
-    # iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.1, 0.2, 0.5, 0.75]
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    #iou_list = [0.1, 0.2, 0.5, 0.75]
     ref_frame_list = [1000000]
     skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
-    tube_score_file = 'jhmdb_tube_score_' + str(use_train) + '.txt'
-    feature_file = 'jhmdb_feature_' + str(use_train) + '.txt'
+    log_file = 'jhmdb_log_' + str(use_train) + '.txt'
     with open(file_name, 'w') as f:
-        f.write('v_cnt\tacc\tvmAP_old\tvmAP_new\tloc_t_old\tloc_t_new\t\tmiss_r\n')
+        f.write('')
+    with open(log_file, 'w') as f:
+        f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        all_tube_scores = np.zeros((len(lines), N))
         for idx, skip_cnt in enumerate(skip_cnt_list):
-            print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
+            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + ',' + str(skip_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
-            all_tube_scores[:,idx] = tube_scores
-        if iou_th == iou_list[0]:
-            with open(tube_score_file,'wb') as f:
-                for line in all_tube_scores:
-                    np.savetxt(f, line.reshape(1, line.shape[0]), fmt='%.3f')
-            with open(feature_file, 'wb') as f:
-                for line in all_feat:
-                    l = np.array(line)
-                    np.savetxt(f, l.reshape(1, l.shape[0]), fmt='%.3f')
+            with open(log_file, 'a+') as f:
+                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(log_str)
                     
                 
 
