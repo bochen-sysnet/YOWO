@@ -385,7 +385,7 @@ def video_mAP_ucf():
     for iou_th in iou_list:
         print('iou is: ', iou_th)
         for idx, skip_cnt in enumerate(skip_cnt_list):
-            print_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
+            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
             with open(file_name, 'a+') as f:
                 f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
                 f.write(print_str)
