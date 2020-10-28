@@ -375,23 +375,23 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
         actual_t_all.append(actual_t)
         tube_scores_all += tube_scores
     link_end = time.perf_counter()
+    
+    YOWO_al_time = bbx_pred_t/v_cnt + np.sum(raw_t_all)
+    YOWO_map = np.mean(ap_all)
     bbx_pred_t /= (skip_cnt+1)
-    act_loc_t_old = bbx_pred_t/v_cnt + np.sum(raw_t_all)
-    act_loc_t_new = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
-    print_str += "{0:.3f}\t{1:.3f}\t".format(np.mean(ap_all), np.mean(ap_new_all))
-    print_str += "{0:.3f}\t{1:.3f}\t".format(act_loc_t_old, act_loc_t_new)
-    print_str += "{0:.3f}\t{1:.3f}\n".format(bbx_pred_t, np.sum(raw_t_all))
-    saved_link_time_ratio = (np.sum(raw_t_all) - cls_pred_t - np.sum(actual_t_all))/(np.sum(raw_t_all))
-    saved_al_time_ratio = (np.sum(raw_t_all) - cls_pred_t - np.sum(actual_t_all))/act_loc_t_old
-    log_str += "{0:.4f}\t{1:.4f}\t".format(saved_link_time_ratio, saved_al_time_ratio)
-    log_str += str(np.sum(missed_actions_all)) + '/' + str(np.sum(gt_actions_all)) + '\n'
-    saved_link_t_ratio_wrt_class = (np.cumsum(raw_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(raw_t_all))
-    saved_al_time_ratio_wrt_class = (np.cumsum(raw_t_all) - cls_pred_t - np.cumsum(actual_t_all))/(np.cumsum(raw_t_all) + bbx_pred_t/v_cnt)
-    log_str += str(saved_link_t_ratio_wrt_class) + '\n'
-    log_str += str(saved_al_time_ratio_wrt_class) + '\n'
+    our_al_time = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
+    our_map = np.mean(ap_new_all)
+    print_str += "{0:.3f}\t{1:.3f}\t".format(our_map, our_al_time)
+    print_str += "{0:.3f}\t{1:.3f}\t".format(YOWO_map, YOWO_al_time)
+    print_str += "{0:.3f}\t".format(bbx_pred_t/v_cnt)
+    old_link_time = np.sum(raw_t_all)
+    new_link_time = cls_pred_t + np.sum(actual_t_all)
+    saved_link_time_ratio = (old_link_time - new_link_time)/(old_link_time)
+    print_str += "{0:.4f}\t{1:.4f}\t{1:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
+    print_str += str(np.sum(missed_actions_all)) + '\t' + str(np.sum(gt_actions_all)) + '\n'
+    
     old_link_t_wrt_class = np.cumsum(raw_t_all)
     new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
-    log_str += "BBX Pred Time:{0:.4f}\n".format(bbx_pred_t/v_cnt)
     log_str += str(old_link_t_wrt_class) + '\n'
     log_str += str(new_link_t_wrt_class) + '\n'
     
