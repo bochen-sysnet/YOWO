@@ -387,7 +387,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     old_link_time = np.sum(raw_t_all)
     new_link_time = cls_pred_t + np.sum(actual_t_all)
     saved_link_time_ratio = (old_link_time - new_link_time)/(old_link_time)
-    print_str += "{0:.4f}\t{1:.4f}\t{1:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
+    print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
     print_str += str(np.sum(missed_actions_all)) + '\t' + str(np.sum(gt_actions_all)) + '\n'
     
     old_link_t_wrt_class = np.cumsum(raw_t_all)
