@@ -371,9 +371,9 @@ def video_mAP_ucf():
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
-    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    #iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1000000]
+    #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.5]
+    ref_frame_list = [i for i in range(30)]
     skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
@@ -384,13 +384,13 @@ def video_mAP_ucf():
         f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for idx, skip_cnt in enumerate(skip_cnt_list):
-            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
+        for idx, ref_cnt in enumerate(ref_frame_list):
+            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_cnt, skip_cnt_list[0])
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
                 f.write(print_str)
             with open(log_file, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
                 f.write(log_str)
 
 
@@ -488,9 +488,9 @@ def video_mAP_jhmdb():
     bbx_det_end = time.perf_counter()
     bbx_pred_t = (bbx_det_end - bbx_det_start)
 
-    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    #iou_list = [0.1, 0.2, 0.5, 0.75]
-    ref_frame_list = [1000000]
+    #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.5]
+    ref_frame_list = [i for i in range(30)]
     skip_cnt_list = [i for i in range(30)]
     N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
@@ -501,13 +501,13 @@ def video_mAP_jhmdb():
         f.write('')
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for idx, skip_cnt in enumerate(skip_cnt_list):
-            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_frame_list[0], skip_cnt)
+        for idx, ref_cnt in enumerate(ref_frame_list):
+            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_cnt, skip_cnt_list[0])
             with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
                 f.write(print_str)
             with open(log_file, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(skip_cnt) + '\t')
+                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
                 f.write(log_str)
                     
                 
