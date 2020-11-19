@@ -18,8 +18,11 @@ for i in range(num_images):
 			prob = float(elem[1])
 			x1 = int(elem[2])
 			y1 = int(elem[3])
-			x2 = int(elem[2])
-			y2 = int(elem[3])
-			draw.rectangle(((x1, y1), (x2, y2)), fill="black")
+			x2 = int(elem[4])
+			y2 = int(elem[5])
+			if a_cls == 24:
+				draw.rectangle(((x1, y1), (x2, y2)), outline="green")
+			else:
+				draw.rectangle(((x1, y1), (x2, y2)), outline="red")
 	save_path = os.path.join(out_dir, '%05d.jpg' % (i+1))
 	img.save(save_path)
