@@ -2,7 +2,7 @@ import os
 from PIL import Image
 from PIL import ImageDraw
 
-img_dir = "/home/monet/research/dataset/ucf24/rgb-images/RopeClimbing/v_RopeClimbing_g01_c01"
+img_dir = "/home/monet/research/dataset/ucf24/rgb-images/PoleVault/v_PoleVault_g01_c01"
 bbx_dir = "/home/monet/research/YOWO/ucf_detections/detections_9"
 out_dir = "/home/monet/research/YOWO/examples"
 num_images = 10
@@ -10,7 +10,7 @@ for i in range(num_images):
 	img_path = os.path.join(img_dir, '%05d.jpg' % (i+1))
 	img = Image.open(img_path)
 	draw = ImageDraw.Draw(img)
-	bbx_path = os.path.join(bbx_dir, 'RopeClimbing_v_RopeClimbing_g01_c01_%05d.txt' % (i+1))
+	bbx_path = os.path.join(bbx_dir, 'PoleVault_v_PoleVault_g01_c01_%05d.txt' % (i+1))
 	with open(bbx_path,'r') as f:
 		for line in f:
 			elem = line.strip().split(' ')
