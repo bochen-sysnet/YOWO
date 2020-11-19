@@ -10,7 +10,7 @@ for i in range(num_images):
 	img_path = os.path.join(img_dir, '%05d.jpg' % (i+1))
 	img = Image.open(img_path)
 	draw = ImageDraw.Draw(img)
-	bbx_path = os.path.join(bbx_dir, 'VolleyballSpiking_v_VolleyballSpiking_g07_c07_%05d.txt' % (i+1))
+	bbx_path = os.path.join(bbx_dir, 'VolleyballSpiking_v_VolleyballSpiking_g07_c07_%05d.txt' % (i+10))
 	with open(bbx_path,'r') as f:
 		for line in f:
 			elem = line.strip().split(' ')
