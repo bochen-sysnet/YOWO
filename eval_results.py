@@ -263,7 +263,7 @@ def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, re
                 for cls_box in img_cls_dets:
                     frame_scores.append(cls_box[4])
                 cls_scores.append(max(frame_scores))
-                if frame_index >= ref_frame_cnt-1:
+                if frame_index == ref_frame_cnt:
                     break
             cls_scores = np.array(cls_scores)
             sorted_scores = -np.sort(-cls_scores)
