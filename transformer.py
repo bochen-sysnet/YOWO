@@ -2,8 +2,18 @@ import cv2
 import numpy as np
 import time
 import torch
+import glob
+
+from torchvision import transforms
+from torch.utils.data import Dataset
+from utils import *
+from eval_results import *
+from cfg import parse_cfg
 # todo
 # change quality in a tile
+
+dataset = 'ucf101-24'
+
 def tile_disturber(images,rows,cols,r):
 	pass
 
@@ -137,39 +147,43 @@ def ROI_area(ROIs,w,h):
 # change quality of non-ROI
 # r_in is the scaled ratio of ROIs
 # r_out is the scaled ratio of the whole image
-def region_disturber(images,targets,r_in,r_out):
+def region_disturber(image,label,r_in,r_out):
 	# get the original content from ROI
 	# downsample rest, then upsample
 	# put roi back
 	means = (104, 117, 123)
-	w,h = 1024,512
+	w,h = 320,240
 	dsize_out = (int(w*r_out),int(h*r_out))
-	output = None
-	for image,label in zip(images,targets):
-		image = image.permute(1,2,0).numpy()
-		label = label.numpy()
-		crops = []
-		for x1,y1,x2,y2,_  in label:
-			x1=int(x1*1024);x2=int(x2*1024);y1=int(y1*512);y2=int(y2*512)
-			x1=max(x1,0);x2=min(x2,w);y1=max(y1,0);y2=min(y2,h)
-			dsize_in = (int((x2-x1)*r_in),int((y2-y1)*r_in))
-			crop = image[y1:y2,x1:x2]
-			crop_d = cv2.resize(crop, dsize=dsize_in, interpolation=cv2.INTER_LINEAR)
-			crop_u = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
-			crops.append((x1,y1,x2,y2,crop_u))
+	crops = []
+	for _,cx,cy,imgw,imgh  in label:
+		cx=int(cx*320);cy=int(cy*240);imgw=int(imgw*320);imgh=int(imgh*320)
+		x1=max(cx-imgw//2,0);x2=min(cx+imgw//2,w);y1=max(cy-imgw//2,0);y2=min(cy+imgw//2,h)
+		dsize_in = (int((x2-x1)*r_in),int((y2-y1)*r_in))
+		crop = image[y1:y2,x1:x2]
+		crop_d = cv2.resize(crop, dsize=dsize_in, interpolation=cv2.INTER_LINEAR)
+		crop_u = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
+		crops.append((x1,y1,x2,y2,crop_u))
+	if r_out<1:
 		# downsample
 		downsample = cv2.resize(image, dsize=dsize_out, interpolation=cv2.INTER_LINEAR)
 		# upsample
-		upsample = cv2.resize(downsample, dsize=(w,h), interpolation=cv2.INTER_LINEAR)
-		for x1,y1,x2,y2,crop  in crops:
-			upsample[y1:y2,x1:x2] = crop
-		# concate
-		disturbed = torch.from_numpy(upsample).float().permute(2,0,1).unsqueeze(0)
-		if output is None:
-			output = disturbed
-		else:
-			output = torch.cat((output,disturbed),0)
-	return output
+		image = cv2.resize(downsample, dsize=(w,h), interpolation=cv2.INTER_LINEAR)
+	for x1,y1,x2,y2,crop  in crops:
+		image[y1:y2,x1:x2] = crop
+	
+	return image
+
+def path_to_disturbed_image(imgpath, labpath, r_in, r_out):
+	try:
+		label = torch.from_numpy(read_truths_args(labpath, 8.0 / clip[0].width).astype('float32'))
+	except Exception:
+		label = []
+	pil_image = Image.open(imgpath)
+	b,g,r = cv2.split(np.array(pil_image))
+	np_img = cv2.merge((b,g,r))
+	np_img = region_disturber(np_img,label, r_in, r_out)
+	pil_image = Image.fromarray(np_img)
+	return pil_image
 
 
 # analyze static and motion feature points
@@ -238,16 +252,113 @@ class Transformer:
 		self.name = name
 
 	def transform(self, images, targets):
-		if self.name=='analyzer':
-			analyzer(images,targets)
-		else:
-			images = region_disturber(images,targets,1,1)
+		# if self.name=='analyzer':
+		# 	analyzer(images,targets)
+		# else:
+		# 	images = region_disturber(images,targets,1,1)
 		return images
 
+def get_clip(root, imgpath, train_dur, dataset):
+	im_split = imgpath.split('/')
+	num_parts = len(im_split)
+	class_name = im_split[-3]
+	file_name = im_split[-2]
+	im_ind = int(im_split[num_parts - 1][0:5])
+	if dataset == 'ucf101-24':
+		img_name = os.path.join(class_name, file_name, '{:05d}.jpg'.format(im_ind))
+	elif dataset == 'jhmdb-21':
+		img_name = os.path.join(class_name, file_name, '{:05d}.png'.format(im_ind))
+	labpath = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(im_ind))
+	img_folder = os.path.join(base_path, 'rgb-images', class_name, file_name)
+	max_num = len(os.listdir(img_folder))
+	clip = [] 
 
+	for i in reversed(range(train_dur)):
+		i_img = im_ind - i * 1
+		if i_img < 1:
+			i_img = 1
+		elif i_img > max_num:
+			i_img = max_num
 
+		if dataset == 'ucf101-24':
+			path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.jpg'.format(i_img))
+		elif dataset == 'jhmdb-21':
+			path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.png'.format(i_img)) 
+
+		# read label from file, then apply transformer
+		lab_path_tmp = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(i_img)) 
+		pil_image = path_to_disturbed_image(path_tmp, lab_path_tmp,0.5,1)
+
+		clip.append(pil_image.convert('RGB'))
+
+	label = torch.zeros(50 * 5)
+	try:
+		tmp = torch.from_numpy(read_truths_args(labpath, 8.0 / clip[0].width).astype('float32'))
+	except Exception:
+		tmp = torch.zeros(1, 5)
+
+	tmp = tmp.view(-1)
+	tsz = tmp.numel()
+
+	if tsz > 50 * 5:
+		label = tmp[0:50 * 5]
+	elif tsz > 0:
+		label[0:tsz] = tmp
+
+	return clip, label, img_name
+
+class testData(Dataset):
+    def __init__(self, root, shape=None, transform=None, clip_duration=16):
+
+        self.root = root
+        if dataset == 'ucf101-24':
+            self.label_paths = sorted(glob.glob(os.path.join(root, '*.jpg')))
+        elif dataset == 'jhmdb-21':
+            self.label_paths = sorted(glob.glob(os.path.join(root, '*.png')))
+
+        self.shape = shape
+        self.transform = transform
+        self.clip_duration = clip_duration
+
+    def __len__(self):
+        return len(self.label_paths)
+
+    def __getitem__(self, index):
+        assert index <= len(self), 'index range error'
+        label_path = self.label_paths[index]
+
+        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
+        clip = [img.resize(self.shape) for img in clip]
+
+        if self.transform is not None:
+            clip = [self.transform(img) for img in clip]
+
+        clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
+
+        return clip, label, img_name
 
 if __name__ == "__main__":
-    img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
+    # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
     # img = cv2.imread('/home/bo/research/dataset/ucf24/rgb-images/Basketball/v_Basketball_g01_c01/00001.jpg')
-    # local_test(img)
+
+	use_cuda = True
+	kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
+
+	datacfg       = 'cfg/ucf24.data'
+	cfgfile       = 'cfg/ucf24.cfg'
+
+	net_options   = parse_cfg(cfgfile)[0]
+	base_path     = '/home/bo/research/dataset/ucf24'
+
+	clip_duration = int(net_options['clip_duration'])
+
+	line = 'Basketball/v_Basketball_g01_c01'
+
+	test_loader = torch.utils.data.DataLoader(
+					testData(os.path.join(base_path, 'rgb-images', line),
+					shape=(224, 224), transform=transforms.Compose([
+					transforms.ToTensor()]), clip_duration=clip_duration),
+					batch_size=1, shuffle=False, **kwargs)
+	for batch_idx, (data, target, img_name) in enumerate(test_loader):
+		print(data.shape,target.shape)
+		if batch_idx==10:break
