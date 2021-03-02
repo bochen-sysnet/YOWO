@@ -202,7 +202,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             actual_t += t
         raw_t += t
         if ispositive:
-            print('positive')
             tp += 1
             fn -= 1
             if not potential_class[video_index-1]:
@@ -222,6 +221,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pr_new[i+1,1] = float(tp_new)/float(tp_new+fn_new + 0.00001)
     ap = voc_ap(pr)
     ap_new = voc_ap(pr_new)
+    print(len(pred),tp)
 
     return ap, ap_new, raw_t/v_cnt, saved_t/v_cnt, missed_actions, tp, actual_t/v_cnt, tube_scores
 
