@@ -198,6 +198,7 @@ def video_mAP_ucf():
 
     bbx_det_start = time.perf_counter()
     for lidx, line in enumerate(lines):
+        if lidx==30:break
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(

@@ -202,6 +202,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             actual_t += t
         raw_t += t
         if ispositive:
+            print('positive')
             tp += 1
             fn -= 1
             if not potential_class[video_index-1]:
@@ -361,6 +362,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     # look at different classes and link frames of that class
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
+        print(cls_ind,)
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
