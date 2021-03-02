@@ -216,7 +216,7 @@ def video_mAP_ucf(params):
                           testData(os.path.join(base_path, 'rgb-images', line), params,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
-                          batch_size=64, shuffle=False, params=params, **kwargs)
+                          batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             if use_cuda:
