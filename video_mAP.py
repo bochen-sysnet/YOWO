@@ -162,7 +162,7 @@ def video_mAP_ucf():
     gt_data = loadmat(gt_file)['annot']
     n_videos = gt_data.shape[1]
     for i in range(n_videos):
-        if i==10:break
+        if i==20:break
         video_name = gt_data[0][i][1][0]
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
@@ -191,7 +191,7 @@ def video_mAP_ucf():
             gt_videos[video_name] = v_annotation
 
     for lidx,line in enumerate(lines):
-        if lidx==10:break
+        if lidx==20:break
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
