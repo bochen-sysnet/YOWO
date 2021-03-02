@@ -135,6 +135,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pred_link_v, det_t = link_video_one_class(pred_v[1], True, gtlen) # [array<frame_index, x1,y1,x2,y2, cls_score>]
         for tube, t in zip(pred_link_v, det_t):
             pred.append((video_index, tube, t))
+    print(len(pred))
 
     # sort tubes according to scores (descending order)
     argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b, _ in pred])) 
@@ -202,7 +203,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             actual_t += t
         raw_t += t
         if ispositive:
-            print('pos')
             tp += 1
             fn -= 1
             if not potential_class[video_index-1]:
@@ -300,7 +300,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
         # put bboxes in one video of the same class into one v_dets
         # image names
         keys = list(all_boxes.keys())
-        print(keys)
         keys.sort()
         res = []
         skip_period = skip_cnt + 1
@@ -384,7 +383,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     # our_al_time = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
     # our_map = np.mean(ap_new_all)
     # print_str += "{0:.3f}\t{1:.3f}\t".format(our_map, our_al_time)
-    print_str += "{0:.3f}\t{1:.3f}\t".format(YOWO_map, YOWO_al_time)
+    print_str += "{0:.3f}\t{1:.3f}\t".format(YOWO_map, YOWO_al_time) + str(ap_all) + '\n'
     # print_str += "{0:.3f}\t".format(bbx_pred_t/v_cnt)
     # old_link_time = np.sum(raw_t_all)
     # new_link_time = cls_pred_t + np.sum(actual_t_all)

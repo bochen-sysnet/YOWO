@@ -333,7 +333,7 @@ def video_mAP_ucf():
     bbx_det_start = time.perf_counter()
     for lidx, line in enumerate(lines):
         print(line)
-        if lidx == 5:break
+        if lidx == 2:break
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line),
