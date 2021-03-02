@@ -13,7 +13,7 @@ from utils import *
 from eval_results import *
 from transformer import path_to_disturbed_image
 
-def setup_model(opt):
+def setup_param(opt):
     dataset = opt.dataset
     assert dataset == 'ucf101-24' or dataset == 'jhmdb-21', 'invalid dataset'
 
@@ -57,7 +57,7 @@ def setup_model(opt):
         model.load_state_dict(checkpoint['state_dict'])
         model.eval()
         print("===================================================================")
-    return model
+    return gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs model
 
 def setup_opt(opt):
     opt.dataset = 'ucf101-24'
@@ -68,7 +68,8 @@ def setup_opt(opt):
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
-def get_clip(root, imgpath, train_dur, dataset):
+def get_clip(root, imgpath, train_dur, dataset, params):
+    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs model = params
     im_split = imgpath.split('/')
     num_parts = len(im_split)
     class_name = im_split[-3]
@@ -119,8 +120,10 @@ def get_clip(root, imgpath, train_dur, dataset):
     return clip, label, img_name
 
 class testData(Dataset):
-    def __init__(self, root, shape=None, transform=None, clip_duration=16):
+    def __init__(self, root, shape=None, transform=None, clip_duration=16, params=None):
 
+        self.params = params
+        gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs model = params
         self.root = root
         if dataset == 'ucf101-24':
             self.label_paths = sorted(glob.glob(os.path.join(root, '*.jpg')))
@@ -138,7 +141,7 @@ class testData(Dataset):
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
 
-        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
+        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.params)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
@@ -148,10 +151,11 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(model):
+def video_mAP_ucf(params):
     """
     Calculate video_mAP over the test dataset
     """
+    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs model = params
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -212,7 +216,7 @@ def video_mAP_ucf(model):
                           testData(os.path.join(base_path, 'rgb-images', line),
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
-                          batch_size=64, shuffle=False, **kwargs)
+                          batch_size=64, shuffle=False, params=params, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             if use_cuda:
@@ -250,10 +254,11 @@ def video_mAP_ucf(model):
 
 
 
-def video_mAP_jhmdb(model):
+def video_mAP_jhmdb(params):
     """
     Calculate video_mAP over the test set
     """
+    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs model = params
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -278,7 +283,7 @@ def video_mAP_jhmdb(model):
                           testData(os.path.join(base_path, 'rgb-images', line),
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
-                          batch_size=1, shuffle=False, **kwargs)
+                          batch_size=1, shuffle=False, params=params, **kwargs)
 
         video_name = ''
         v_annotation = {}
@@ -345,10 +350,10 @@ def video_mAP_jhmdb(model):
 
 if __name__ == '__main__':
     opt = parse_opts()
-    model = setup_model(opt)
+    params = setup_param(opt)
 
     if opt.dataset == 'ucf101-24':
-        video_mAP_ucf(model)
+        video_mAP_ucf(params)
     elif opt.dataset == 'jhmdb-21':
-        video_mAP_jhmdb(model)
+        video_mAP_jhmdb(params)
     
