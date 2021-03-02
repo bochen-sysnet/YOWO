@@ -304,6 +304,8 @@ def video_mAP_ucf():
     n_videos = gt_data.shape[1]
     for i in range(n_videos):
         video_name = gt_data[0][i][1][0]
+        print(video_name)
+        if i==2:break
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}

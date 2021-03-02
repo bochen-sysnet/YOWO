@@ -135,7 +135,6 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
         pred_link_v, det_t = link_video_one_class(pred_v[1], True, gtlen) # [array<frame_index, x1,y1,x2,y2, cls_score>]
         for tube, t in zip(pred_link_v, det_t):
             pred.append((video_index, tube, t))
-    print(len(pred))
 
     # sort tubes according to scores (descending order)
     argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b, _ in pred])) 
