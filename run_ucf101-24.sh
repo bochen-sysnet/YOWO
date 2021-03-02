@@ -6,7 +6,7 @@ python train.py --dataset ucf101-24 \
 	 			--backbone_3d_weights weights/resnext-101-kinetics.pth \
 	 			--backbone_2d darknet \
 	 			--backbone_2d_weights weights/yolo.weights \
-	 			# --resume_path /usr/home/sut/yowo/backup/yowo_ucf101-24_16f_best.pth \
+	 			# --resume_path /home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth \
 
 # python ./evaluation/Object-Detection-Metrics/pascalvoc.py --gtfolder /home/monet/research/dataset/ucf24/groundtruths_ucf --detfolder /home/monet/research/dataset/ucf24/ucf_detections/detections_0
 
