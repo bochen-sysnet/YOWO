@@ -299,6 +299,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
         # put bboxes in one video of the same class into one v_dets
         # image names
         keys = list(all_boxes.keys())
+        print(keys)
         keys.sort()
         res = []
         skip_period = skip_cnt + 1
@@ -396,4 +397,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     log_str += str(old_link_t_wrt_class) + '\n'
     log_str += str(new_link_t_wrt_class) + '\n'
     
+    # the first string to record time metrics
+    # the second string to record prediction accuracy
     return print_str, log_str, tube_scores_all
