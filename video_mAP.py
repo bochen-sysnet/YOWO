@@ -138,6 +138,7 @@ class testData(Dataset):
         return len(self.label_paths)
 
     def __getitem__(self, index):
+        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = self.params
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
 
