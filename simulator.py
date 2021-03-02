@@ -11,62 +11,9 @@ from scipy.io import loadmat
 from model import YOWO
 from utils import *
 from eval_results import *
+
+
 from transformer import path_to_disturbed_image
-
-def setup_model(opt):
-    dataset = opt.dataset
-    assert dataset == 'ucf101-24' or dataset == 'jhmdb-21', 'invalid dataset'
-
-    datacfg       = opt.data_cfg
-    cfgfile       = opt.cfg_file
-    gt_file       = 'finalAnnots.mat' # Necessary for ucf
-
-    data_options  = read_data_cfg(datacfg)
-    net_options   = parse_cfg(cfgfile)[0]
-    loss_options  = parse_cfg(cfgfile)[1]
-
-    base_path     = data_options['base']
-    testlist      = os.path.join(base_path, 'testlist_video.txt')
-
-    clip_duration = int(net_options['clip_duration'])
-    anchors       = loss_options['anchors'].split(',')
-    anchors       = [float(i) for i in anchors]
-    num_anchors   = int(loss_options['num'])
-    num_classes   = opt.n_classes
-
-    # Test parameters
-    conf_thresh   = 0.005
-    nms_thresh    = 0.4
-    eps           = 1e-5
-
-    use_cuda = True
-    kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
-
-
-    # Create model
-    model       = YOWO(opt)
-    model       = model.cuda()
-    model       = nn.DataParallel(model, device_ids=None) # in multi-gpu case
-    print(model)
-
-    # Load resume path 
-    if opt.resume_path:
-        print("===================================================================")
-        print('loading checkpoint {}'.format(opt.resume_path))
-        checkpoint = torch.load(opt.resume_path)
-        model.load_state_dict(checkpoint['state_dict'])
-        model.eval()
-        print("===================================================================")
-    return model
-
-def setup_opt(opt):
-    opt.dataset = 'ucf101-24'
-    opt.data_cfg = 'cfg/ucf24.data'
-    opt.cfg_file = 'cfg/ucf24.cfg' 
-    opt.n_classes = 24
-    opt.backbone_3d = 'resnext101'
-    opt.backbone_2d = 'darknet'
-    opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
 def get_clip(root, imgpath, train_dur, dataset):
     im_split = imgpath.split('/')
@@ -148,7 +95,7 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(model):
+def video_mAP_ucf():
     """
     Calculate video_mAP over the test dataset
     """
@@ -250,7 +197,7 @@ def video_mAP_ucf(model):
 
 
 
-def video_mAP_jhmdb(model):
+def video_mAP_jhmdb():
     """
     Calculate video_mAP over the test set
     """
@@ -342,13 +289,69 @@ def video_mAP_jhmdb(model):
         print('iou is: ', iou_th)
         print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
 
+def setup_model(opt):
+    dataset = opt.dataset
+    assert dataset == 'ucf101-24' or dataset == 'jhmdb-21', 'invalid dataset'
+
+    datacfg       = opt.data_cfg
+    cfgfile       = opt.cfg_file
+    gt_file       = 'finalAnnots.mat' # Necessary for ucf
+
+    data_options  = read_data_cfg(datacfg)
+    net_options   = parse_cfg(cfgfile)[0]
+    loss_options  = parse_cfg(cfgfile)[1]
+
+    base_path     = data_options['base']
+    testlist      = os.path.join(base_path, 'testlist_video.txt')
+
+    clip_duration = int(net_options['clip_duration'])
+    anchors       = loss_options['anchors'].split(',')
+    anchors       = [float(i) for i in anchors]
+    num_anchors   = int(loss_options['num'])
+    num_classes   = opt.n_classes
+
+    # Test parameters
+    conf_thresh   = 0.005
+    nms_thresh    = 0.4
+    eps           = 1e-5
+
+    use_cuda = True
+    kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
+
+
+    # Create model
+    model       = YOWO(opt)
+    model       = model.cuda()
+    model       = nn.DataParallel(model, device_ids=None) # in multi-gpu case
+    print(model)
+
+    # Load resume path 
+    if opt.resume_path:
+        print("===================================================================")
+        print('loading checkpoint {}'.format(opt.resume_path))
+        checkpoint = torch.load(opt.resume_path)
+        model.load_state_dict(checkpoint['state_dict'])
+        model.eval()
+        print("===================================================================")
+
+# simulate action detection
+def simulate(dataset, start, end):
+    # manually enter options
+    opt = parse_opts()
+    opt.dataset = 'ucf101-24'
+    opt.data_cfg = 'cfg/ucf24.data'
+    opt.cfg_file = 'cfg/ucf24.cfg' 
+    opt.n_classes = 24
+    opt.backbone_3d = 'resnext101'
+    opt.backbone_2d = 'darknet'
+    opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
+
+    
+
 
 if __name__ == '__main__':
-    opt = parse_opts()
-    model = setup_model(opt)
-
     if opt.dataset == 'ucf101-24':
-        video_mAP_ucf(model)
+        video_mAP_ucf()
     elif opt.dataset == 'jhmdb-21':
-        video_mAP_jhmdb(model)
+        video_mAP_jhmdb()
     

@@ -171,6 +171,7 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
                     cnt_IoU += 1
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
+                        # removing tubes will affect avgIoU
                         del gt[gt_this_index[argmax]]
         if ispositive:
             tp += 1
