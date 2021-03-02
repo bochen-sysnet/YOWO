@@ -137,6 +137,8 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
     fn = len(gt) #sum([len(a[1]) for a in gt])
     fp = 0
     tp = 0
+    avg_IoU = 0
+    cnt_IoU = 0
 
     gt_v_index = [g[0] for g in gt]
     for i, k in enumerate(argsort_scores):
@@ -165,6 +167,8 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
 
                 if iou.size > 0: # on ucf101 if invalid annotation ....
                     argmax = np.argmax(iou)
+                    avg_IoU += iou[argmax]
+                    cnt_IoU += 1
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
@@ -176,8 +180,9 @@ def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtl
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
     ap = voc_ap(pr)
+    avg_IoU = avg_IoU/cnt_IoU if cnt_IoU>0 else 0
 
-    return ap
+    return ap,avg_IoU
 
 
 def gt_to_videts(gt_v):
@@ -235,13 +240,15 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format = imagebox_to_videts(all_boxes, CLASSES)
     ap_all = []    
+    IoU_all = []
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap = video_ap_one_class(gt, pred_cls, iou_thresh, bTemporal, cls_len)
+        ap, avg_IoU = video_ap_one_class(gt, pred_cls, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
+        IoU_all.append(avg_IoU)
 
-    return ap_all
+    return ap_all,IoU_all
