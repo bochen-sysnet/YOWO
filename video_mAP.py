@@ -57,7 +57,7 @@ def setup_param(opt):
         model.load_state_dict(checkpoint['state_dict'])
         model.eval()
         print("===================================================================")
-    return gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model
+    return dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model
 
 def setup_opt(opt):
     opt.dataset = 'ucf101-24'
@@ -69,7 +69,7 @@ def setup_opt(opt):
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
 def get_clip(root, imgpath, train_dur, dataset, params):
-    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
     im_split = imgpath.split('/')
     num_parts = len(im_split)
     class_name = im_split[-3]
@@ -123,7 +123,7 @@ class testData(Dataset):
     def __init__(self, root, params, shape=None, transform=None, clip_duration=16):
 
         self.params = params
-        gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
         self.root = root
         if dataset == 'ucf101-24':
             self.label_paths = sorted(glob.glob(os.path.join(root, '*.jpg')))
@@ -155,7 +155,7 @@ def video_mAP_ucf(params):
     """
     Calculate video_mAP over the test dataset
     """
-    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -258,7 +258,7 @@ def video_mAP_jhmdb(params):
     """
     Calculate video_mAP over the test set
     """
-    gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
