@@ -373,8 +373,8 @@ def video_mAP_ucf():
 
     #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.5]
-    ref_frame_list = [i for i in range(100)] + [1000000]
-    skip_cnt_list = [i for i in range(30)]
+    ref_frame_list = [1000000]
+    skip_cnt_list = [0]
     N = len(skip_cnt_list)
     file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
     log_file = 'ucf24_log_' + str(use_train) + '.txt'
@@ -490,8 +490,8 @@ def video_mAP_jhmdb():
 
     #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     iou_list = [0.5]
-    ref_frame_list = [i for i in range(100)] + [1000000]
-    skip_cnt_list = [i for i in range(30)]
+    ref_frame_list = [1000000] # use all frames for prediction
+    skip_cnt_list = [0] # no skip
     N = len(skip_cnt_list)
     file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
     log_file = 'jhmdb_log_' + str(use_train) + '.txt'
