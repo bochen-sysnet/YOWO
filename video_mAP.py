@@ -305,7 +305,7 @@ def video_mAP_ucf():
     for i in range(n_videos):
         video_name = gt_data[0][i][1][0]
         print(video_name)
-        if i==2:break
+        if i==20:break
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
@@ -335,7 +335,7 @@ def video_mAP_ucf():
     bbx_det_start = time.perf_counter()
     for lidx, line in enumerate(lines):
         print(line)
-        if lidx == 2:break
+        if lidx == 20:break
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line),
