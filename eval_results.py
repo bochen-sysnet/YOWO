@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 import numpy as np
-import os,time
+import os
 from utils import *
 
 def compute_score_one_class(bbox1, bbox2, w_iou=1.0, w_scores=1.0, w_scores_mul=0.5):
@@ -23,8 +23,6 @@ def compute_score_one_class(bbox1, bbox2, w_iou=1.0, w_scores=1.0, w_scores_mul=
 def link_bbxes_between_frames(bbox_list, w_iou=1.0, w_scores=1.0, w_scores_mul=0.5):
     # bbx_list: list of bounding boxes <x1> <y1> <x2> <y2> <class score>
     # check no empty detections
-    det_t = []
-    t_start = time.perf_counter()
     ind_notempty = []
     nfr = len(bbox_list)
     for i in range(nfr):
@@ -83,13 +81,10 @@ def link_bbxes_between_frames(bbox_list, w_iou=1.0, w_scores=1.0, w_scores_mul=0
             detect[i] = np.delete(detect[i], j, 0)
             isempty_vertex[i] = (detect[i].size==0) # it is true when there is no detection in any frame
         res.append( this )
-        t_end = time.perf_counter()
-        det_t.append(t_end - t_start)
-        t_start = t_end
         if len(res) == 3:
             break
         
-    return res, det_t
+    return res
 
 
 def link_video_one_class(vid_det, bNMS3d = False, gtlen=None):
@@ -100,9 +95,8 @@ def link_video_one_class(vid_det, bNMS3d = False, gtlen=None):
     return a list of tube [array[frame_index, x1,y1,x2,y2, cls_score]]
     '''
     # list of bbox information [[bbox in frame 1], [bbox in frame 2], ...]
-    # need to check the time cost of building each tube
     vdets = [vid_det[i][1] for i in range(len(vid_det))]
-    vres, det_t = link_bbxes_between_frames(vdets) 
+    vres = link_bbxes_between_frames(vdets) 
     if len(vres) != 0:
         if bNMS3d:
             tube = [b[:, :5] for b in vres]
@@ -113,17 +107,16 @@ def link_video_one_class(vid_det, bNMS3d = False, gtlen=None):
             keep = nms_3d(dets, 0.3) # bug for nms3dt
             if np.array(keep).size:
                 vres_keep = [vres[k] for k in keep]
-                det_t_keep = [det_t[k] for k in keep]
                 # max subarray with penalization -|Lc-L|/Lc
                 if gtlen:
                     vres = temporal_check(vres_keep, gtlen)
                 else:
                     vres = vres_keep
-                det_t = det_t_keep
-    return vres, det_t
+
+    return vres
 
 
-def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemporal = False, gtlen = None):
+def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtlen = None):
     '''
     gt: [ video_index, array[frame_index, x1,y1,x2,y2] ]
     pred_videos: [ video_index, [ [frame_index, [[x1,y1,x2,y2, score]] ] ] ]
@@ -132,12 +125,12 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     pred = []
     for pred_v in pred_videos:
         video_index = pred_v[0]
-        pred_link_v, det_t = link_video_one_class(pred_v[1], True, gtlen) # [array<frame_index, x1,y1,x2,y2, cls_score>]
-        for tube, t in zip(pred_link_v, det_t):
-            pred.append((video_index, tube, t))
+        pred_link_v = link_video_one_class(pred_v[1], True, gtlen) # [array<frame_index, x1,y1,x2,y2, cls_score>]
+        for tube in pred_link_v:
+            pred.append((video_index, tube))
 
     # sort tubes according to scores (descending order)
-    argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b, _ in pred])) 
+    argsort_scores = np.argsort(-np.array([np.mean(b[:, 5]) for _, b in pred])) 
     pr = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
     pr[0,0] = 1.0
     pr[0,1] = 0.0
@@ -145,34 +138,14 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
     fp = 0
     tp = 0
 
-    # for computing mAP with class pred
-    pr_new = np.empty((len(pred)+1, 2), dtype=np.float32) # precision, recall
-    pr_new[0,0] = 1.0
-    pr_new[0,1] = 0.0
-    fn_new = len(gt) #sum([len(a[1]) for a in gt])
-    fp_new = 0
-    tp_new = 0
-
     gt_v_index = [g[0] for g in gt]
-    raw_t = 0
-    saved_t = 0
-    missed_actions = 0
-    actual_t = 0
-    v_cnt = len(pred_videos)
-    # store scores of each video
-    tube_scores = np.zeros(v_cnt)
     for i, k in enumerate(argsort_scores):
-        # check each tube
         # if i % 100 == 0:
         #     print ("%6.2f%% boxes processed, %d positives found, %d remain" %(100*float(i)/argsort_scores.size, tp, fn))
-        video_index, boxes, t = pred[k]
-        # if we can decide what class should be considered in each video index
-        # then other class can be skipped
-        # the result will not be counted in AP and the time will also not be counted
+        video_index, boxes = pred[k]
         ispositive = False
         if video_index in gt_v_index:
             gt_this_index, gt_this = [], []
-            # find all gt tubes of one class in one video
             for j, g in enumerate(gt):
                 if g[0] == video_index:
                     gt_this.append(g[1])
@@ -189,41 +162,22 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
                         iou = np.array([iou3d(g[int(boxes[0,0]-1):int(boxes[-1,0]),:], boxes[:,:5]) for g in gt_this]) 
                     else:
                         iou = np.array([iou3d(g, boxes[:,:5]) for g in gt_this]) 
-                
+
                 if iou.size > 0: # on ucf101 if invalid annotation ....
                     argmax = np.argmax(iou)
-                    # check if this det tube matches any gt tube
                     if iou[argmax] >= iou_thresh:
                         ispositive = True
                         del gt[gt_this_index[argmax]]
-                    # add score
-                    tube_scores[video_index-1] += iou[argmax]
-        if potential_class[video_index-1]:
-            actual_t += t
-        raw_t += t
         if ispositive:
             tp += 1
             fn -= 1
-            if not potential_class[video_index-1]:
-                missed_actions += 1
-            else:
-                tp_new += 1
-                fn_new -= 1
         else:
             fp += 1
-            if not potential_class[video_index-1]:
-                saved_t += t
-            else:
-                fp_new += 1
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
-        pr_new[i+1,0] = float(tp_new)/float(tp_new+fp_new + 0.00001)
-        pr_new[i+1,1] = float(tp_new)/float(tp_new+fn_new + 0.00001)
     ap = voc_ap(pr)
-    ap_new = voc_ap(pr_new)
-    print(len(pred),tp)
 
-    return ap, ap_new, raw_t/v_cnt, saved_t/v_cnt, missed_actions, tp, actual_t/v_cnt, tube_scores
+    return ap
 
 
 def gt_to_videts(gt_v):
@@ -238,71 +192,17 @@ def gt_to_videts(gt_v):
             res.append([v_annot['gt_classes'], i+1, v_annot['tubes'][j]])
     return res
 
-def class_prediction(n_videos, CLASSES, pred_videos_format, gt_videos_format, ref_frame_cnt = 20):
-    # input: pred_videos_format:array<cls_ind, v_ind, v_dets>
-    # output: pred_videos_classes:array<v_ind, pred_classes>
-    # extra time usage
-    # we can probably use the transision of states
-    # existance of classes in one frame can be the state
-    # it can transit to the classes of the next frame
-    # it is also like predicting rest of a sentence using a few words
-    # only one class per video
-    acc = 0
-    potential_class = np.zeros([len(CLASSES), n_videos], dtype=np.bool)
-    for v_ind in range(n_videos):
-        one_video_result = 0
-        # gt classes
-        gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
-        # extract bbxs of one video
-        pred_bbxs = [p for p in pred_videos_format if p[1]-1==v_ind]
-        # analyze class scores
-        class_scores = np.zeros([len(CLASSES),])
-        for cls_ind, _, v_dets in pred_bbxs:
-            cls_scores = []
-            for frame_index, img_cls_dets in v_dets:
-                frame_scores = [0]
-                for cls_box in img_cls_dets:
-                    frame_scores.append(cls_box[4])
-                cls_scores.append(max(frame_scores))
-                if frame_index == ref_frame_cnt:
-                    break
-            cls_scores = np.array(cls_scores)
-            sorted_scores = -np.sort(-cls_scores)
-            cls_score = np.mean(sorted_scores)
-            class_scores[cls_ind-1] = cls_score
-        cls_ind = np.argmax(class_scores)
-        potential_class[cls_ind,v_ind] = True
-        if cls_ind in gt_class_ind:
-            one_video_result = 1
-        acc += one_video_result
-    acc /= n_videos
 
-    return potential_class, acc
-
-def eval_class_prediction(potential_class, gt_videos_format, n_videos, CLASSES):
-    acc = 0
-    for v_ind in range(n_videos):
-        one_video_result = 0
-        pred_cls = potential_class[:,v_ind]
-        gt_class_ind = [g[0]-1 for g in gt_videos_format if g[1]-1==v_ind]
-        for gt_cls_ind in gt_class_ind:
-            one_video_result = potential_class[gt_cls_ind,v_ind]
-        acc += one_video_result
-    acc /= n_videos
-    return acc
-
-def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2, bTemporal = False, ref_frame_cnt = 20, skip_cnt = 0, prior_length = None):
+def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal = False, prior_length = None):
     '''
     gt_videos: {vname:{tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
     all_boxes: {imgname:{cls_ind:array[x1,y1,x2,y2, cls_score]}}
     '''
-    def imagebox_to_videts(img_boxes, CLASSES, skip_cnt=0):
-        # put bboxes in one video of the same class into one v_dets
+    def imagebox_to_videts(img_boxes, CLASSES):
         # image names
         keys = list(all_boxes.keys())
         keys.sort()
         res = []
-        skip_period = skip_cnt + 1
         # without 'background'
         for cls_ind, cls in enumerate(CLASSES[0:]):
             v_cnt = 1
@@ -313,12 +213,8 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
             preVideo = os.path.dirname(keys[0])
             for i in range(len(keys)):
                 curVideo = os.path.dirname(keys[i])
-                if (frame_index-1)%skip_period == 0:
-                    img_cls_dets = img_boxes[keys[i]][cls_ind]
-                    v_dets.append([frame_index, img_cls_dets])
-                else:
-                    closest_cls_dets = v_dets[-1][1]
-                    v_dets.append([frame_index, closest_cls_dets])
+                img_cls_dets = img_boxes[keys[i]][cls_ind]
+                v_dets.append([frame_index, img_cls_dets])
                 frame_index += 1
                 if preVideo!=curVideo:
                     preVideo = curVideo
@@ -334,68 +230,18 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
             # the last video
             # print('num of videos:{}'.format(v_cnt))
             res.append([cls_ind, v_cnt, v_dets])
-        return res, v_cnt
+        return res
 
-    print_str = ""
-    log_str = ""
     gt_videos_format = gt_to_videts(gt_videos)
-    pred_videos_format, v_cnt = imagebox_to_videts(all_boxes, CLASSES, skip_cnt)
-    # predict potential classes of each video based on first few frames
-    pred_start = time.perf_counter()
-    potential_class, pred_acc = class_prediction(v_cnt, CLASSES, pred_videos_format, gt_videos_format, ref_frame_cnt)
-    pred_end = time.perf_counter()
-    cls_pred_t = (pred_end-pred_start)/v_cnt
-    print_str += str(v_cnt) + '\t'
-    # evaluate class prediction
-    #pred_acc = eval_class_prediction(potential_class, gt_videos_format, v_cnt, CLASSES)
-    print_str += "{0:.3f}\t".format(pred_acc)
-
-    ap_all = [] 
-    ap_new_all = []   
-    raw_t_all = []
-    saved_t_all = []
-    missed_actions_all = []
-    gt_actions_all = []
-    actual_t_all = []
-    tube_scores_all = np.zeros(v_cnt)
-    link_start = time.perf_counter()
-    # look at different classes and link frames of that class
+    pred_videos_format = imagebox_to_videts(all_boxes, CLASSES)
+    ap_all = []    
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
-        print(cls_ind,)
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, ap_new, raw_t, saved_t, missed_actions, gt_actions, actual_t, tube_scores = video_ap_one_class(gt, pred_cls, potential_class[cls_ind-1,:], iou_thresh, bTemporal, cls_len)
+        ap = video_ap_one_class(gt, pred_cls, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
-        ap_new_all.append(ap_new)
-        raw_t_all.append(raw_t)
-        saved_t_all.append(saved_t)
-        missed_actions_all.append(missed_actions)
-        gt_actions_all.append(gt_actions)
-        actual_t_all.append(actual_t)
-        tube_scores_all += tube_scores
-    link_end = time.perf_counter()
-    
-    YOWO_al_time = bbx_pred_t/v_cnt + np.sum(raw_t_all)
-    YOWO_map = np.mean(ap_all)
-    bbx_pred_t /= (skip_cnt+1)
-    our_al_time = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
-    our_map = np.mean(ap_new_all)
-    print_str += "{0:.3f}\t{1:.3f}\t".format(our_map, our_al_time)
-    print_str += "{0:.3f}\t{1:.3f}\t".format(YOWO_map, YOWO_al_time)
-    print_str += "{0:.3f}\t".format(bbx_pred_t/v_cnt)
-    old_link_time = np.sum(raw_t_all)
-    new_link_time = cls_pred_t + np.sum(actual_t_all)
-    saved_link_time_ratio = (old_link_time - new_link_time)/(old_link_time)
-    print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
-    print_str += str(np.sum(missed_actions_all)) + '\t' + str(np.sum(gt_actions_all)) + '\t'
-    print_str += str(cls_pred_t) + '\n'
-    
-    old_link_t_wrt_class = np.cumsum(raw_t_all)
-    new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
-    log_str += str(old_link_t_wrt_class) + '\n'
-    log_str += str(new_link_t_wrt_class) + '\n'
-    
-    return print_str, log_str, tube_scores_all
+
+    return ap_all

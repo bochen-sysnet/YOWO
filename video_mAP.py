@@ -17,8 +17,6 @@ opt = parse_opts()
 dataset = opt.dataset
 assert dataset == 'ucf101-24' or dataset == 'jhmdb-21', 'invalid dataset'
 
-use_train     = opt.use_train
-sample_thresh = opt.sample_thresh
 datacfg       = opt.data_cfg
 cfgfile       = opt.cfg_file
 gt_file       = 'finalAnnots.mat' # Necessary for ucf
@@ -28,7 +26,7 @@ net_options   = parse_cfg(cfgfile)[0]
 loss_options  = parse_cfg(cfgfile)[1]
 
 base_path     = data_options['base']
-testlist      = os.path.join(base_path, 'testlist_video.txt') if use_train==0 else os.path.join(base_path, 'trainlist_video.txt')
+testlist      = os.path.join(base_path, 'testlist_video.txt')
 
 clip_duration = int(net_options['clip_duration'])
 anchors       = loss_options['anchors'].split(',')
@@ -70,11 +68,9 @@ def get_clip(root, imgpath, train_dur, dataset):
     im_ind = int(im_split[num_parts - 1][0:5])
     if dataset == 'ucf101-24':
         img_name = os.path.join(class_name, file_name, '{:05d}.jpg'.format(im_ind))
-        labpath = os.path.join(base_path, 'labels', class_name, file_name ,'{:05d}.txt'.format(im_ind))
     elif dataset == 'jhmdb-21':
         img_name = os.path.join(class_name, file_name, '{:05d}.png'.format(im_ind))
-        labpath = os.path.join(base_path, 'labels', class_name + '_' + file_name + '_' + '{:05d}.txt'.format(im_ind))
-        
+    labpath = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(im_ind))
     img_folder = os.path.join(base_path, 'rgb-images', class_name, file_name)
     max_num = len(os.listdir(img_folder))
     clip = [] 
@@ -137,7 +133,7 @@ class testData(Dataset):
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
 
         return clip, label, img_name
-    
+
 def video_mAP_ucf():
     """
     Calculate video_mAP over the test dataset
@@ -154,14 +150,11 @@ def video_mAP_ucf():
                'TennisSwing', 'TrampolineJumping', 'VolleyballSpiking', 'WalkingWithDog')
     
     video_testlist = []
-    sample_cnt = 0
     with open(testlist, 'r') as file:
         lines = file.readlines()
         for line in lines:
             line = line.rstrip()
-            if sample_cnt < sample_thresh:
-                video_testlist.append(line)
-            sample_cnt = (sample_cnt + 1)%10
+            video_testlist.append(line)
 
     detected_boxes = {}
     gt_videos = {}
@@ -196,8 +189,7 @@ def video_mAP_ucf():
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
 
-    bbx_det_start = time.perf_counter()
-    for lidx, line in enumerate(lines):
+    for lidx,line in enumerate(lines):
         if lidx==50:break
         print(line)
         line = line.rstrip()
@@ -208,7 +200,6 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
-            
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
@@ -235,30 +226,13 @@ def video_mAP_ucf():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-    bbx_det_end = time.perf_counter()
-    bbx_pred_t = (bbx_det_end - bbx_det_start)
 
-    #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.5]
-    ref_frame_list = [1000000]
-    skip_cnt_list = [0]
-    N = len(skip_cnt_list)
-    file_name = 'ucf24_pred_result_' + str(use_train) + '.txt'
-    log_file = 'ucf24_log_' + str(use_train) + '.txt'
-    with open(file_name, 'w') as f:
-        f.write('')
-    with open(log_file, 'w') as f:
-        f.write('')
+
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for idx, ref_cnt in enumerate(ref_frame_list):
-            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_cnt, skip_cnt_list[0])
-            with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
-                f.write(print_str)
-            with open(log_file, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
-                f.write(log_str)
+        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
+
 
 
 def video_mAP_jhmdb():
@@ -280,8 +254,7 @@ def video_mAP_jhmdb():
 
     detected_boxes = {}
     gt_videos = {}
-    bbx_det_start = time.perf_counter()
-    for lidx, line in enumerate(lines):
+    for line in lines:
         print(line)
 
         line = line.rstrip()
@@ -296,7 +269,7 @@ def video_mAP_jhmdb():
         v_annotation = {}
         all_gt_boxes = []
         t_label = -1
-        
+
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
             path_split = img_name[0].split('/')
             if video_name == '':
@@ -309,12 +282,12 @@ def video_mAP_jhmdb():
                 output = model(data).data
                 all_boxes = get_region_boxes_video(output, conf_thresh, num_classes, anchors, num_anchors, 0, 1)
 
-                assert(output.size(0) == 1)
                 for i in range(output.size(0)):
                     boxes = all_boxes[i]
                     boxes = nms(boxes, nms_thresh)
                     n_boxes = len(boxes)
                     truths = target[i].view(-1, 5)
+                    num_gts = truths_length(truths)
 
                     if t_label == -1:
                         t_label = int(truths[0][0]) + 1
@@ -333,10 +306,7 @@ def video_mAP_jhmdb():
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[0]] = img_annotation
-                        
-                for i in range(output.size(0)):
-                    truths = target[i].view(-1, 5)
-                    num_gts = truths_length(truths)
+
                     # generate corresponding gts
                     # save format: {v_name: {tubes: [[frame_index, x1,y1,x2,y2]], gt_classes: vlabel}} 
                     gt_boxes = []
@@ -352,32 +322,11 @@ def video_mAP_jhmdb():
         v_annotation['tubes'] = np.expand_dims(np.array(all_gt_boxes), axis=0)
         gt_videos[video_name] = v_annotation
 
-    bbx_det_end = time.perf_counter()
-    bbx_pred_t = (bbx_det_end - bbx_det_start)
-
-    #iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
-    iou_list = [0.5]
-    ref_frame_list = [1000000] # use all frames for prediction
-    skip_cnt_list = [0] # no skip
-    N = len(skip_cnt_list)
-    file_name = 'jhmdb_pred_result_' + str(use_train) + '.txt'
-    log_file = 'jhmdb_log_' + str(use_train) + '.txt'
-    with open(file_name, 'w') as f:
-        f.write('')
-    with open(log_file, 'w') as f:
-        f.write('')
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     for iou_th in iou_list:
         print('iou is: ', iou_th)
-        for idx, ref_cnt in enumerate(ref_frame_list):
-            print_str, log_str, tube_scores = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, bbx_pred_t, iou_th, True, ref_cnt, skip_cnt_list[0])
-            with open(file_name, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
-                f.write(print_str)
-            with open(log_file, 'a+') as f:
-                f.write(str(iou_th) + '\t' + str(ref_cnt) + '\t')
-                f.write(log_str)
-                    
-                
+        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
+
 
 if __name__ == '__main__':
     if opt.dataset == 'ucf101-24':
