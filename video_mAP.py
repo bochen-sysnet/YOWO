@@ -90,7 +90,7 @@ def get_clip(root, imgpath, train_dur, dataset):
         # clip.append(Image.open(path_tmp).convert('RGB'))
         # read label from file, then apply transformer
         lab_path_tmp = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(i_img)) 
-        pil_image = path_to_disturbed_image(path_tmp, lab_path_tmp,0.5,1)
+        pil_image = path_to_disturbed_image(path_tmp, lab_path_tmp,0.2,1)
 
         clip.append(pil_image.convert('RGB'))
 
