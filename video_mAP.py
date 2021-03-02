@@ -213,7 +213,7 @@ def video_mAP_ucf(params):
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), params
+                          testData(os.path.join(base_path, 'rgb-images', line), params,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, params=params, **kwargs)
@@ -280,7 +280,7 @@ def video_mAP_jhmdb(params):
         line = line.rstrip()
 
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), params
+                          testData(os.path.join(base_path, 'rgb-images', line), params,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=1, shuffle=False, **kwargs)
