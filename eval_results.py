@@ -202,6 +202,7 @@ def video_ap_one_class(gt, pred_videos, potential_class, iou_thresh = 0.2, bTemp
             actual_t += t
         raw_t += t
         if ispositive:
+            print('pos')
             tp += 1
             fn -= 1
             if not potential_class[video_index-1]:
@@ -380,22 +381,22 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, bbx_pred_t, iou_thresh = 0.2
     YOWO_al_time = bbx_pred_t/v_cnt + np.sum(raw_t_all)
     YOWO_map = np.mean(ap_all)
     bbx_pred_t /= (skip_cnt+1)
-    our_al_time = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
-    our_map = np.mean(ap_new_all)
-    print_str += "{0:.3f}\t{1:.3f}\t".format(our_map, our_al_time)
+    # our_al_time = bbx_pred_t/v_cnt + cls_pred_t + np.sum(actual_t_all)
+    # our_map = np.mean(ap_new_all)
+    # print_str += "{0:.3f}\t{1:.3f}\t".format(our_map, our_al_time)
     print_str += "{0:.3f}\t{1:.3f}\t".format(YOWO_map, YOWO_al_time)
-    print_str += "{0:.3f}\t".format(bbx_pred_t/v_cnt)
-    old_link_time = np.sum(raw_t_all)
-    new_link_time = cls_pred_t + np.sum(actual_t_all)
-    saved_link_time_ratio = (old_link_time - new_link_time)/(old_link_time)
-    print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
-    print_str += str(np.sum(missed_actions_all)) + '\t' + str(np.sum(gt_actions_all)) + '\t'
-    print_str += str(cls_pred_t) + '\n'
+    # print_str += "{0:.3f}\t".format(bbx_pred_t/v_cnt)
+    # old_link_time = np.sum(raw_t_all)
+    # new_link_time = cls_pred_t + np.sum(actual_t_all)
+    # saved_link_time_ratio = (old_link_time - new_link_time)/(old_link_time)
+    # print_str += "{0:.4f}\t{1:.4f}\t{2:.4f}\t".format(old_link_time, new_link_time, saved_link_time_ratio)
+    # print_str += str(np.sum(missed_actions_all)) + '\t' + str(np.sum(gt_actions_all)) + '\t'
+    # print_str += str(cls_pred_t) + '\n'
     
-    old_link_t_wrt_class = np.cumsum(raw_t_all)
-    new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
-    log_str += str(old_link_t_wrt_class) + '\n'
-    log_str += str(new_link_t_wrt_class) + '\n'
+    # old_link_t_wrt_class = np.cumsum(raw_t_all)
+    # new_link_t_wrt_class = cls_pred_t + np.cumsum(actual_t_all)
+    # log_str += str(old_link_t_wrt_class) + '\n'
+    # log_str += str(new_link_t_wrt_class) + '\n'
     
     # the first string to record time metrics
     # the second string to record prediction accuracy
