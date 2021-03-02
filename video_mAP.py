@@ -201,6 +201,7 @@ def video_mAP_ucf():
                           batch_size=64, shuffle=False, **kwargs)
 
         for batch_idx, (data, target, img_name) in enumerate(test_loader):
+            print(data.shape)
             if use_cuda:
                 data = data.cuda()
             with torch.no_grad():
