@@ -58,7 +58,7 @@ if opt.resume_path:
     model.eval()
     print("===================================================================")
 
-from transfomer import path_to_disturbed_image
+from transformer import path_to_disturbed_image
 
 def get_clip(root, imgpath, train_dur, dataset):
     im_split = imgpath.split('/')
@@ -86,7 +86,7 @@ def get_clip(root, imgpath, train_dur, dataset):
             path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.jpg'.format(i_img))
         elif dataset == 'jhmdb-21':
             path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.png'.format(i_img))      
-            
+
         # clip.append(Image.open(path_tmp).convert('RGB'))
         # read label from file, then apply transformer
         lab_path_tmp = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(i_img)) 
