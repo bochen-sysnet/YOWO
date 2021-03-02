@@ -120,7 +120,7 @@ def get_clip(root, imgpath, train_dur, dataset, params):
     return clip, label, img_name
 
 class testData(Dataset):
-    def __init__(self, root, shape=None, transform=None, clip_duration=16, params=None):
+    def __init__(self, root, params, shape=None, transform=None, clip_duration=16):
 
         self.params = params
         gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
@@ -213,7 +213,7 @@ def video_mAP_ucf(params):
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line),
+                          testData(os.path.join(base_path, 'rgb-images', line), params
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, params=params, **kwargs)
@@ -280,10 +280,10 @@ def video_mAP_jhmdb(params):
         line = line.rstrip()
 
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line),
+                          testData(os.path.join(base_path, 'rgb-images', line), params
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
-                          batch_size=1, shuffle=False, params=params, **kwargs)
+                          batch_size=1, shuffle=False, **kwargs)
 
         video_name = ''
         v_annotation = {}
