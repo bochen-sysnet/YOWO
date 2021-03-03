@@ -276,7 +276,7 @@ class Transformer:
 		if img_index in self.lru:
 			image = self.lru[img_index]
 		else:
-			image = path_to_disturbed_image(img, label, 0.5, 1)
+			image = path_to_disturbed_image(image, label, 0.5, 1)
 			self.lru[img_index] = image
 		return images
 
