@@ -152,18 +152,18 @@ def region_disturber(image,label,r_in,r_out):
 	# get the original content from ROI
 	# downsample rest, then upsample
 	# put roi back
-	means = (104, 117, 123)
 	w,h = 320,240
 	dsize_out = (int(w*r_out),int(h*r_out))
 	crops = []
 	for _,cx,cy,imgw,imgh  in label:
 		cx=int(cx*320);cy=int(cy*240);imgw=int(imgw*320);imgh=int(imgh*320)
 		x1=max(cx-imgw//2,0);x2=min(cx+imgw//2,w);y1=max(cy-imgw//2,0);y2=min(cy+imgw//2,h)
-		dsize_in = (int((x2-x1)*r_in),int((y2-y1)*r_in))
 		crop = image[y1:y2,x1:x2]
-		crop_d = cv2.resize(crop, dsize=dsize_in, interpolation=cv2.INTER_LINEAR)
-		crop_u = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
-		crops.append((x1,y1,x2,y2,crop_u))
+		if r_in<1:
+			dsize_in = (int((x2-x1)*r_in),int((y2-y1)*r_in))
+			crop_d = cv2.resize(crop, dsize=dsize_in, interpolation=cv2.INTER_LINEAR)
+			crop = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
+		crops.append((x1,y1,x2,y2,crop))
 	if r_out<1:
 		# downsample
 		downsample = cv2.resize(image, dsize=dsize_out, interpolation=cv2.INTER_LINEAR)
@@ -273,15 +273,16 @@ class Transformer:
 		# divide [320,240] image to 8*6 tiles
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
-		# 
+		# the score should be divided by the number of features such that 0 <= score <= 1
+		# use f(x)=e^(-sigma*x) to 
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
-		if img_index in self.lru:
-			image = self.lru[img_index]
-		else:
-			image = path_to_disturbed_image(image, label, 1, 1)
-			self.lru[img_index] = image
+		# if img_index in self.lru:
+		# 	image = self.lru[img_index]
+		# else:
+		image = path_to_disturbed_image(image, label, 1, 1)
+		# self.lru[img_index] = image
 		return image
 
 if __name__ == "__main__":
