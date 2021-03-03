@@ -269,19 +269,20 @@ class Transformer:
 		self.lru = LRU(16) # size of clip
 
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
+		# Rule 1: 
 		# analyze features in image, 
 		# divide [320,240] image to 8*6 tiles
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
 		# 0 <= score <= 1
-		# use f(x)=e^(-sigma*x) to 
+		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
 		# if img_index in self.lru:
 		# 	image = self.lru[img_index]
 		# else:
-		image = path_to_disturbed_image(image, label, .2, .2)
+		image = path_to_disturbed_image(image, label, 1, 0.5)
 		# self.lru[img_index] = image
 		return image
 
