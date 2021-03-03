@@ -271,13 +271,7 @@ class Transformer:
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
-		# !!!!!!!!!! some problems with lru ?????
-		if img_index in self.lru: 
-			im1 = self.lru[img_index]
-			im2 = path_to_disturbed_image(image, label, 1, 1)
-			diff = ImageChops.difference(im1, im2).getbbox()
-			print(img_index,diff)
-			return im1
+		if img_index in self.lru: return self.lru[img_index]
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -320,7 +314,7 @@ class Transformer:
 		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# downsample the image based on the quality
 
-		image = path_to_disturbed_image(image, label, 1, 1)
+		image = path_to_disturbed_image(image, label, 0.2, 0.2)
 		self.lru[img_index] = image
 		return image
 
