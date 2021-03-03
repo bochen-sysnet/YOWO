@@ -354,7 +354,6 @@ class Transformer:
 		pil_image = Image.fromarray(bgr_frame)
 
 		feat_end = time.perf_counter()
-		print(img_index,feat_end-feat_start)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
