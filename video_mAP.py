@@ -68,18 +68,18 @@ def setup_opt(opt):
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
-def simulate(dataset, data_range):
+def simulate(dataset, data_range=None, TF=None, C_param=None):
     opt = parse_opts()
     setup_opt(opt)
     opt.dataset = dataset
     AD_param = setup_param(opt)
     if opt.dataset == 'ucf101-24':
-        video_mAP_ucf(AD_param, data_range)
+        video_mAP_ucf(AD_param, data_range, TF, C_param)
     elif opt.dataset == 'jhmdb-21':
-        video_mAP_jhmdb(AD_param, data_range)
+        video_mAP_jhmdb(AD_param, data_range, TF, C_param)
     return ans
 
-def get_clip(root, imgpath, train_dur, dataset, AD_param):
+def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
     dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
     im_split = imgpath.split('/')
     num_parts = len(im_split)
@@ -107,11 +107,18 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param):
         elif dataset == 'jhmdb-21':
             path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.png'.format(i_img))      
 
-        # clip.append(Image.open(path_tmp).convert('RGB'))
         # read label from file, then apply transformer
         lab_path_tmp = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(i_img)) 
-        pil_image = path_to_disturbed_image(path_tmp, lab_path_tmp,1,1)
+        
+        # transform can take different number params
+        try:
+            label = torch.from_numpy(read_truths_args(lab_path_tmp, 8.0 / clip[0].width).astype('float32'))
+        except Exception:
+            label = []
+        pil_image = Image.open(path_tmp)
+        pil_image = TF.transform(C_param=C_param, img=pil_image, label=label, img_index=im_ind)
 
+        # clip.append(Image.open(path_tmp).convert('RGB'))
         clip.append(pil_image.convert('RGB'))
 
     label = torch.zeros(50 * 5)
@@ -131,9 +138,11 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param):
     return clip, label, img_name
 
 class testData(Dataset):
-    def __init__(self, root, AD_param, shape=None, transform=None, clip_duration=16):
+    def __init__(self, root, AD_param, TF, C_param, shape=None, transform=None, clip_duration=16):
 
         self.AD_param = AD_param
+        self.C_param = C_param
+        self.TF = TF
         dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
         self.root = root
         if dataset == 'ucf101-24':
@@ -153,7 +162,7 @@ class testData(Dataset):
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
 
-        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.AD_param)
+        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.AD_param, self.TF, self.C_param)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
@@ -163,7 +172,7 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(AD_param,data_range=None):
+def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
     """
     Calculate video_mAP over the test dataset
     """
@@ -229,7 +238,8 @@ def video_mAP_ucf(AD_param,data_range=None):
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), AD_param,
+                          testData(os.path.join(base_path, 'rgb-images', line), 
+                          AD_param, TF, C_param,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, **kwargs)
@@ -300,7 +310,8 @@ def video_mAP_jhmdb(AD_param, data_range):
         line = line.rstrip()
 
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), AD_param,
+                          testData(os.path.join(base_path, 'rgb-images', line), 
+                          AD_param, TF, C_param,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=1, shuffle=False, **kwargs)

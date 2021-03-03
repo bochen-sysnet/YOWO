@@ -173,12 +173,7 @@ def region_disturber(image,label,r_in,r_out):
 	
 	return image
 
-def path_to_disturbed_image(imgpath, labpath, r_in, r_out):
-	try:
-		label = torch.from_numpy(read_truths_args(labpath, 8.0 / clip[0].width).astype('float32'))
-	except Exception:
-		label = []
-	pil_image = Image.open(imgpath)
+def path_to_disturbed_image(pil_image, label, r_in, r_out):
 	b,g,r = cv2.split(np.array(pil_image))
 	np_img = cv2.merge((b,g,r))
 	np_img = region_disturber(np_img,label, r_in, r_out)
@@ -246,16 +241,42 @@ def analyzer(images,targets):
 		avg_dens2 += np.array(density2,dtype=np.float64)
 	return avg_dens1/4,avg_dens2/4
 
+class LRU(OrderedDict):
+
+	def __init__(self, maxsize=128, /, *args, **kwds):
+		self.maxsize = maxsize
+		super().__init__(*args, **kwds)
+
+	def __getitem__(self, key):
+		value = super().__getitem__(key)
+		self.move_to_end(key)
+		return value
+
+	def __setitem__(self, key, value):
+		if key in self:
+			self.move_to_end(key)
+		super().__setitem__(key, value)
+		if len(self) > self.maxsize:
+			oldest = next(iter(self))
+			del self[oldest]
+
 # define a class for transformation
 class Transformer:
 	def __init__(self,name):
+		# need a dict as buffer to store transformed image of a range
 		self.name = name
+		self.lru = LRU(16) # size of clip
 
-	def transform(self, images, targets):
-		# if self.name=='analyzer':
-		# 	analyzer(images,targets)
-		# else:
-		# 	images = region_disturber(images,targets,1,1)
+	def transform(self, image, img=None, label=None, C_param=None, img_index=None):
+		# analyze features in image, 
+		# derive the quality in each tile based on the compression param
+
+		# downsample the image based on the quality
+		if img_index in self.LRU:
+			image = self.lru[img_index]
+		else:
+			image = path_to_disturbed_image(img, label, 0.5, 1)
+			self.lru[img_index] = image
 		return images
 
 def get_clip(root, imgpath, train_dur, dataset):
