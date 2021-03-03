@@ -278,7 +278,7 @@ class Transformer:
 		else:
 			image = path_to_disturbed_image(image, label, 0.5, 1)
 			self.lru[img_index] = image
-		return images
+		return image
 
 def get_clip(root, imgpath, train_dur, dataset):
 	im_split = imgpath.split('/')
