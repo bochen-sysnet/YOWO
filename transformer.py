@@ -271,13 +271,14 @@ class Transformer:
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# analyze features in image, 
 		# divide [320,240] image to 8*6 tiles
+		# count distribution of features in 48 tiles
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
 		if img_index in self.lru:
 			image = self.lru[img_index]
 		else:
-			image = path_to_disturbed_image(image, label, 0.5, 1)
+			image = path_to_disturbed_image(image, label, 1, 1)
 			self.lru[img_index] = image
 		return image
 
