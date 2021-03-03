@@ -317,7 +317,9 @@ class Transformer:
 			roi_end = time.perf_counter()
 
 		calc_end = time.perf_counter()
+		print(counts)
 		print(img_index,feat_end-feat_start, calc_end-calc_start)
+		exit(0)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
