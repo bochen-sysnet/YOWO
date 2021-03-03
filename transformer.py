@@ -293,17 +293,17 @@ class Transformer:
 		point_features = [gftt, fast, star, orb]
 		map_features = [edge,hc]
 		# divide [320,240] image to 8*6 tiles
-		ROIs = []
-		tilew,tileh = 40,40
-		for row in range(6):
-			for col in range(8):
-				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
-				ROIs.append([x1,y1,x2,y2])
-		for ROI in ROIs:
-			for mf in map_features:
-				c = count_map_ROIs(ROIs,mf)
-			for pf in point_features:
-				c = count_point_ROIs(ROIs,pf)
+		# ROIs = []
+		# tilew,tileh = 40,40
+		# for row in range(6):
+		# 	for col in range(8):
+		# 		x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
+		# 		ROIs.append([x1,y1,x2,y2])
+		# for ROI in ROIs:
+		# 	for mf in map_features:
+		# 		c = count_map_ROIs(ROIs,mf)
+		# 	for pf in point_features:
+		# 		c = count_point_ROIs(ROIs,pf)
 
 		end = time.perf_counter()
 		print(img_index,end-start)
