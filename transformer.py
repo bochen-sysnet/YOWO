@@ -273,7 +273,7 @@ class Transformer:
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
-		if img_index in self.LRU:
+		if img_index in self.lru:
 			image = self.lru[img_index]
 		else:
 			image = path_to_disturbed_image(img, label, 0.5, 1)
