@@ -266,14 +266,14 @@ class Transformer:
 	def __init__(self,name):
 		# need a dict as buffer to store transformed image of a range
 		self.name = name
-		self.lru = {}#LRU(16) # size of clip
+		self.lru = []#LRU(16) # size of clip
 
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
-		if img_index in self.lru: 
-			im1 = self.lru[img_index]
+		if img_index <= len(self.lru): 
+			im1 = self.lru[img_index-1]
 			im2 = image #path_to_disturbed_image(image, label, 1, 1)
 			diff = ImageChops.difference(im1, im2).getbbox()
 			print(img_index,diff)
@@ -321,8 +321,8 @@ class Transformer:
 		# downsample the image based on the quality
 
 		# image = path_to_disturbed_image(image, label, 1, 1)
-		self.lru[img_index] = image
-		return self.lru[img_index]
+		self.lru.append(image)
+		return image
 
 if __name__ == "__main__":
     # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
