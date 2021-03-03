@@ -277,7 +277,7 @@ class Transformer:
 			im2 = path_to_disturbed_image(image, label, 1, 1)
 			# diff = ImageChops.difference(im1, im2).getbbox()
 			# print(img_index,diff)
-			return im1
+			return im2
 
 		# analyze features in image
 		# start = time.perf_counter()
