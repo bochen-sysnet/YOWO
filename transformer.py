@@ -10,6 +10,7 @@ from utils import *
 from eval_results import *
 from cfg import parse_cfg
 from collections import OrderedDict
+from PIL import  ImageChops
 # todo
 # change quality in a tile
 
@@ -272,13 +273,11 @@ class Transformer:
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
 		if img_index in self.lru: 
-			new = path_to_disturbed_image(image, label, 1, 1)
-			img = self.lru[img_index]
-			h1,h2 = img.histogram(), new.histogram()
-			rms = math.sqrt(reduce(operator.add,
-				    map(lambda a,b: (a-b)**2, h1, h2))/len(h1))
-			print(img_index,rms)
-			return img
+			im1 = path_to_disturbed_image(image, label, 1, 1)
+			im2 = self.lru[img_index]
+			diff = ImageChops.difference(im1, im2).getbbox()
+			print(img_index,diff)
+			return im1
 
 		# analyze features in image
 		# start = time.perf_counter()
