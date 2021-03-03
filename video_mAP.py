@@ -68,8 +68,19 @@ def setup_opt(opt):
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
-def get_clip(root, imgpath, train_dur, dataset, params):
-    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+def simulate(dataset, data_range):
+    opt = parse_opts()
+    setup_opt(opt)
+    opt.dataset = dataset
+    AD_param = setup_param(opt)
+    if opt.dataset == 'ucf101-24':
+        video_mAP_ucf(AD_param, data_range)
+    elif opt.dataset == 'jhmdb-21':
+        video_mAP_jhmdb(AD_param, data_range)
+    return ans
+
+def get_clip(root, imgpath, train_dur, dataset, AD_param):
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
     im_split = imgpath.split('/')
     num_parts = len(im_split)
     class_name = im_split[-3]
@@ -120,10 +131,10 @@ def get_clip(root, imgpath, train_dur, dataset, params):
     return clip, label, img_name
 
 class testData(Dataset):
-    def __init__(self, root, params, shape=None, transform=None, clip_duration=16):
+    def __init__(self, root, AD_param, shape=None, transform=None, clip_duration=16):
 
-        self.params = params
-        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+        self.AD_param = AD_param
+        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
         self.root = root
         if dataset == 'ucf101-24':
             self.label_paths = sorted(glob.glob(os.path.join(root, '*.jpg')))
@@ -138,11 +149,11 @@ class testData(Dataset):
         return len(self.label_paths)
 
     def __getitem__(self, index):
-        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = self.params
+        dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = self.AD_param
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
 
-        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.params)
+        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.AD_param)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
@@ -152,11 +163,11 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(params):
+def video_mAP_ucf(AD_param,data_range=None):
     """
     Calculate video_mAP over the test dataset
     """
-    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -181,7 +192,9 @@ def video_mAP_ucf(params):
     gt_data = loadmat(gt_file)['annot']
     n_videos = gt_data.shape[1]
     for i in range(n_videos):
-        if i==10:break
+        if data_range is not None:
+            if i < data_range[0]: continue
+            elif i >= data_range[1]: break
         video_name = gt_data[0][i][1][0]
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
@@ -210,11 +223,13 @@ def video_mAP_ucf(params):
             gt_videos[video_name] = v_annotation
 
     for lidx,line in enumerate(lines):
-        if lidx==10:break
+        if data_range is not None:
+            if lidx < data_range[0]: continue
+            elif lidx >= data_range[1]: break
         print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), params,
+                          testData(os.path.join(base_path, 'rgb-images', line), AD_param,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, **kwargs)
@@ -249,17 +264,18 @@ def video_mAP_ucf(params):
 
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    ans = []
     for iou_th in iou_list:
-        print('iou is: ', iou_th)
-        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
+        eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)
+        ans.append(eval_result)
+    return ans
 
 
-
-def video_mAP_jhmdb(params):
+def video_mAP_jhmdb(AD_param, data_range):
     """
     Calculate video_mAP over the test set
     """
-    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = params
+    dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -275,13 +291,16 @@ def video_mAP_jhmdb(params):
 
     detected_boxes = {}
     gt_videos = {}
-    for line in lines:
+    for i, line in enumerate(lines):
+        if data_range is not None:
+            if i < data_range[0]: continue
+            elif i >= data_range[1]: break
         print(line)
 
         line = line.rstrip()
 
         test_loader = torch.utils.data.DataLoader(
-                          testData(os.path.join(base_path, 'rgb-images', line), params,
+                          testData(os.path.join(base_path, 'rgb-images', line), AD_param,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=1, shuffle=False, **kwargs)
@@ -344,17 +363,21 @@ def video_mAP_jhmdb(params):
         gt_videos[video_name] = v_annotation
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    ans = []
     for iou_th in iou_list:
-        print('iou is: ', iou_th)
-        print(evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True))
+        eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)
+        ans.append(eval_result)
+    return ans
 
 
 if __name__ == '__main__':
     opt = parse_opts()
-    params = setup_param(opt)
+    AD_param = setup_param(opt)
 
     if opt.dataset == 'ucf101-24':
-        video_mAP_ucf(params)
+        ans = video_mAP_ucf(AD_param, (0,5))
     elif opt.dataset == 'jhmdb-21':
-        video_mAP_jhmdb(params)
+        ans = video_mAP_jhmdb(AD_param)
+    print(ans)
+
     
