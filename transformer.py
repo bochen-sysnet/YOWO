@@ -318,7 +318,7 @@ class Transformer:
 
 		image = path_to_disturbed_image(image, label, 1, 1)
 		self.lru[img_index] = image.copy()
-		print(img_index,np.sum(image-self.lru[img_index]))
+		print(img_index,image,self.lru[img_index])
 		return image
 
 if __name__ == "__main__":
