@@ -129,7 +129,7 @@ def count_point_ROIs(ROIs, points):
 				inROI = True
 				break
 		if inROI:counter += 1
-	return counter*1.0/len(points), 1-counter*1.0/len(points)
+	return counter
 
 def count_map_ROIs(ROIs, mp):
 	total_pts = np.count_nonzero(mp)
