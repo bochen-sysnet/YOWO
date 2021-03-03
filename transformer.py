@@ -135,14 +135,14 @@ def count_map_ROIs(ROIs, mp):
 	for x1,y1,x2,y2 in ROIs:
 		mp[y1:y2,x1:x2] = 0
 	nonroi_pts = np.count_nonzero(mp)
-	return 1-nonroi_pts*1.0/total_pts, nonroi_pts*1.0/total_pts
+	return total_pts-nonroi_pts
 
 def ROI_area(ROIs,w,h):
 	im = np.zeros((h,w),dtype=np.uint8)
 	for x1,y1,x2,y2 in ROIs:
 		im[y1:y2,x1:x2] = 1
 	roi = np.count_nonzero(im)
-	return roi*1.0/(w*h), 1-roi*1.0/(w*h)
+	return roi
 
 # change quality of non-ROI
 # r_in is the scaled ratio of ROIs
@@ -288,17 +288,29 @@ class Transformer:
 		point_features = [gftt, fast, star, orb]
 		map_features = [edge,hc]
 		# divide [320,240] image to 8*6 tiles
+		ROIs = []
+		tilew,tileh = 40,40
+		for row in range(6):
+			for col in range(8):
+				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
+				ROIs.append([x1,y1,x2,y2])
+		for ROI in ROIs:
+			for mf in map_features:
+				c = count_map_ROIs(ROIs,mf)
+			for pf in point_features:
+				c = count_point_ROIs(ROIs,pf)
+
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
 		# 0 <= score <= 1
 		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# downsample the image based on the quality
 
-		# if img_index in self.lru:
-		# 	image = self.lru[img_index]
-		# else:
-		image = path_to_disturbed_image(image, label, 0.2, 1)
-		# self.lru[img_index] = image
+		if img_index in self.lru:
+			image = self.lru[img_index]
+		else:
+			image = path_to_disturbed_image(image, label, 0.2, 1)
+			self.lru[img_index] = image
 		return image
 
 if __name__ == "__main__":
