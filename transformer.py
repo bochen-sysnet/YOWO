@@ -271,7 +271,22 @@ class Transformer:
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 
-		# analyze features in image, 
+		# analyze features in image
+		# edge diff
+		edge, _ = get_edge_feature(bgr_frame)
+		# harris corner
+		hc, _ = get_harris_corner(bgr_frame)
+		# GFTT
+		gftt, _ = get_GFTT(bgr_frame)
+		# FAST
+		fast, _ = get_FAST(bgr_frame)
+		# STAR
+		star, _ = get_STAR(bgr_frame)
+		# ORB
+		orb, _ = get_ORB(bgr_frame)
+
+		point_features = [gftt, fast, star, orb]
+		map_features = [edge,hc]
 		# divide [320,240] image to 8*6 tiles
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
