@@ -319,11 +319,12 @@ class Transformer:
 		calc_end = time.perf_counter()
 		normalized_score = counts/np.sum(counts,axis=0)
 		weights = C_param[:num_features]
-		# weighted_scores = 
+		weighted_scores = np.matmul(normalized_score,weights)
 
 
 		print(counts,np.sum(counts,axis=0))
 		print(normalized_score,weights)
+		print(weighted_scores)
 		print(img_index,feat_end-feat_start, calc_end-calc_start)
 		exit(0)
 
