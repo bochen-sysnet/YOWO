@@ -294,6 +294,7 @@ class Transformer:
 		calc_start = time.perf_counter()
 		point_features = [gftt, fast, star, orb]
 		map_features = [edge,hc]
+		num_features = len(point_features) + len(map_features)
 		# divide [320,240] image to 4*3 tiles
 		ROIs = []
 		num_w, num_h = 8,6
@@ -302,14 +303,21 @@ class Transformer:
 			for col in range(num_h):
 				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
 				ROIs.append([x1,y1,x2,y2])
-		for ROI in ROIs:
+		counts = np.zeros((num_w*num_h,num_features))
+		for roi_idx,ROI in enumerate(ROIs):
 			roi_start = time.perf_counter()
+			feat_idx = 0
 			for mf in map_features:
 				c = count_map_ROIs(ROIs,mf)
+				counts[roi_idx,feat_idx] = c
+				feat_idx += 1
 			for pf in point_features:
 				c = count_point_ROIs(ROIs,pf)
+				counts[roi_idx,feat_idx] = c
+				feat_idx += 1
 			roi_end = time.perf_counter()
 			print(ROI, roi_end-roi_start)
+		print(counts)
 
 		calc_end = time.perf_counter()
 		print(img_index,feat_end-feat_start, calc_end-calc_start)
