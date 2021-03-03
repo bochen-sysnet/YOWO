@@ -274,39 +274,45 @@ class Transformer:
 		if img_index in self.lru: return self.lru[img_index]
 
 		# analyze features in image
-		# start = time.perf_counter()
-		# bgr_frame = np.array(image)
-		# # edge diff
-		# edge, _ = get_edge_feature(bgr_frame)
-		# # harris corner
-		# hc, _ = get_harris_corner(bgr_frame)
-		# # GFTT
-		# gftt, _ = get_GFTT(bgr_frame)
-		# # FAST
-		# fast, _ = get_FAST(bgr_frame)
-		# # STAR
-		# star, _ = get_STAR(bgr_frame)
-		# # ORB
-		# orb, _ = get_ORB(bgr_frame)
+		feat_start = time.perf_counter()
+		bgr_frame = np.array(image)
+		# edge diff
+		edge, _ = get_edge_feature(bgr_frame)
+		# harris corner
+		hc, _ = get_harris_corner(bgr_frame)
+		# GFTT
+		gftt, _ = get_GFTT(bgr_frame)
+		# FAST
+		fast, _ = get_FAST(bgr_frame)
+		# STAR
+		star, _ = get_STAR(bgr_frame)
+		# ORB
+		orb, _ = get_ORB(bgr_frame)
+		feat_end = time.perf_counter()
 
 		# !!!!!!!!!! need to adjust this to real-time, maybe use matrix operation
-		# point_features = [gftt, fast, star, orb]
-		# map_features = [edge,hc]
-		# # divide [320,240] image to 4*3 tiles
-		# ROIs = []
-		# tilew,tileh = 80,80
-		# for row in range(3):
-		# 	for col in range(4):
-		# 		x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
-		# 		ROIs.append([x1,y1,x2,y2])
-		# for ROI in ROIs:
-		# 	for mf in map_features:
-		# 		c = count_map_ROIs(ROIs,mf)
-		# 	for pf in point_features:
-		# 		c = count_point_ROIs(ROIs,pf)
+		calc_start = time.perf_counter()
+		point_features = [gftt, fast, star, orb]
+		map_features = [edge,hc]
+		# divide [320,240] image to 4*3 tiles
+		ROIs = []
+		tilew,tileh = 80,80
+		for row in range(3):
+			for col in range(4):
+				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
+				ROIs.append([x1,y1,x2,y2])
+		for ROI in ROIs:
+			roi_start = time.perf_counter()
+			for mf in map_features:
+				c = count_map_ROIs(ROIs,mf)
+			for pf in point_features:
+				c = count_point_ROIs(ROIs,pf)
+			roi_end = time.perf_counter()
+			print(ROI, roi_end-roi_start)
 
-		# end = time.perf_counter()
-		# print(img_index,end-start)
+		calc_end = time.perf_counter()
+		print(img_index,feat_end-feat_start, calc_end-calc_start)
+		exit(0)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
