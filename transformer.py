@@ -317,7 +317,7 @@ class Transformer:
 			roi_end = time.perf_counter()
 
 		calc_end = time.perf_counter()
-		print(counts)
+		print(counts,np.sum(counts,axis=0))
 		print(img_index,feat_end-feat_start, calc_end-calc_start)
 		exit(0)
 
