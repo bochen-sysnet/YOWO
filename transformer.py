@@ -330,30 +330,29 @@ class Transformer:
 		print(1,weighted_scores)
 		# the weight is more valuable when its value is higher
 		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
-		weighted_scores /= np.sum(weighted_scores)
+		weighted_scores /= np.max(weighted_scores)
 		print(2,weighted_scores)
-		# quality of each tile
+		# quality of each tile?
 		quality = A*weighted_scores
 
 		# not used for training,but can be used for 
 		# ploting the pareto front
-		# compressed_size = 0
-		# tile_size = tilew * tileh
-		# for roi,q in zip(ROIs,quality):
-		# 	r = int(q*10)/10.0; r = max(1,r)
-		# 	if r==1:
-		# 		compressed_size += tile_size
-		# 		continue
-		# 	x1,y1,x2,y2 = roi
-		# 	crop = bgr_frame[y1:y2,x1:x2]
-		# 	if r==0:
-		# 		crop = np.zeros((tileh,tilew,3),dtype=np.uint8)
-		# 	else:
-		# 		dsize = (int((x2-x1)*r),int((y2-y1)*r))
-		# 		crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
-		# 		crop = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
-		# 		compressed_size += dsize[0]*dsize[1]
-		# 	bgr_frame[y1:y2,x1:x2] = crop
+		compressed_size = 0
+		tile_size = tilew * tileh
+		for roi,q in zip(ROIs,quality):
+			dsize = (np.rint(tilew*r),int(tileh*r))
+			if dsize == (tilew,tileh):
+				compressed_size += tilew*tileh
+				continue
+			x1,y1,x2,y2 = roi
+			crop = bgr_frame[y1:y2,x1:x2]
+			if dsize[0]==0 or dsize[1]==0:
+				crop = np.zeros((tileh,tilew,3),dtype=np.uint8)
+			else:
+				crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+				crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
+				compressed_size += dsize[0]*dsize[1]
+			bgr_frame[y1:y2,x1:x2] = crop
 		pil_image = Image.fromarray(bgr_frame)
 
 
@@ -368,7 +367,7 @@ class Transformer:
 		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# downsample the image based on the quality
 
-		image = path_to_disturbed_image(image, label, 0.5, 0.5)
+		# image = path_to_disturbed_image(image, label, 0.5, 0.5)
 		self.lru[img_index] = image
 		return image
 
