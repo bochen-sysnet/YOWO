@@ -272,6 +272,7 @@ class Transformer:
 		# Rule 2: some features are more important
 
 		# analyze features in image
+		start = time.perf_counter()
 		bgr_frame = np.array(image)
 		# edge diff
 		edge, _ = get_edge_feature(bgr_frame)
@@ -300,6 +301,9 @@ class Transformer:
 				c = count_map_ROIs(ROIs,mf)
 			for pf in point_features:
 				c = count_point_ROIs(ROIs,pf)
+
+		end = time.perf_counter()
+		print(img_index,end-start)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
