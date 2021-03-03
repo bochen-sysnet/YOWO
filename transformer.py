@@ -271,9 +271,9 @@ class Transformer:
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
-		# if img_index in self.lru:
-		# 	image = self.lru[img_index]
-		# 	return image
+		if img_index in self.lru:
+			image = self.lru[img_index]
+			return image
 
 		# analyze features in image
 		# start = time.perf_counter()
