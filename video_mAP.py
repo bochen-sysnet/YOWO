@@ -47,7 +47,7 @@ def setup_param(opt):
     model       = YOWO(opt)
     model       = model.cuda()
     model       = nn.DataParallel(model, device_ids=None) # in multi-gpu case
-    print(model)
+    # print(model)
 
     # Load resume path 
     if opt.resume_path:
