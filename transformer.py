@@ -315,6 +315,7 @@ class Transformer:
 				c = count_point_ROIs(ROIs,pf)
 				counts[roi_idx,feat_idx] = c
 				feat_idx += 1
+				print(pf,c)
 			roi_end = time.perf_counter()
 			print(ROI, roi_end-roi_start)
 		print(counts)
