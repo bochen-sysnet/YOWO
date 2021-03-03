@@ -270,6 +270,7 @@ class Transformer:
 
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# analyze features in image, 
+		# divide [320,240] image to 8*6 tiles
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
@@ -280,107 +281,7 @@ class Transformer:
 			self.lru[img_index] = image
 		return image
 
-def get_clip(root, imgpath, train_dur, dataset):
-	im_split = imgpath.split('/')
-	num_parts = len(im_split)
-	class_name = im_split[-3]
-	file_name = im_split[-2]
-	im_ind = int(im_split[num_parts - 1][0:5])
-	if dataset == 'ucf101-24':
-		img_name = os.path.join(class_name, file_name, '{:05d}.jpg'.format(im_ind))
-	elif dataset == 'jhmdb-21':
-		img_name = os.path.join(class_name, file_name, '{:05d}.png'.format(im_ind))
-	labpath = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(im_ind))
-	img_folder = os.path.join(base_path, 'rgb-images', class_name, file_name)
-	max_num = len(os.listdir(img_folder))
-	clip = [] 
-
-	for i in reversed(range(train_dur)):
-		i_img = im_ind - i * 1
-		if i_img < 1:
-			i_img = 1
-		elif i_img > max_num:
-			i_img = max_num
-
-		if dataset == 'ucf101-24':
-			path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.jpg'.format(i_img))
-		elif dataset == 'jhmdb-21':
-			path_tmp = os.path.join(base_path, 'rgb-images', class_name, file_name, '{:05d}.png'.format(i_img)) 
-
-		# read label from file, then apply transformer
-		lab_path_tmp = os.path.join(base_path, 'labels', class_name, file_name, '{:05d}.txt'.format(i_img)) 
-		pil_image = path_to_disturbed_image(path_tmp, lab_path_tmp,0.5,1)
-
-		clip.append(pil_image.convert('RGB'))
-
-	label = torch.zeros(50 * 5)
-	try:
-		tmp = torch.from_numpy(read_truths_args(labpath, 8.0 / clip[0].width).astype('float32'))
-	except Exception:
-		tmp = torch.zeros(1, 5)
-
-	tmp = tmp.view(-1)
-	tsz = tmp.numel()
-
-	if tsz > 50 * 5:
-		label = tmp[0:50 * 5]
-	elif tsz > 0:
-		label[0:tsz] = tmp
-
-	return clip, label, img_name
-
-class testData(Dataset):
-    def __init__(self, root, shape=None, transform=None, clip_duration=16):
-
-        self.root = root
-        if dataset == 'ucf101-24':
-            self.label_paths = sorted(glob.glob(os.path.join(root, '*.jpg')))
-        elif dataset == 'jhmdb-21':
-            self.label_paths = sorted(glob.glob(os.path.join(root, '*.png')))
-
-        self.shape = shape
-        self.transform = transform
-        self.clip_duration = clip_duration
-
-    def __len__(self):
-        return len(self.label_paths)
-
-    def __getitem__(self, index):
-        assert index <= len(self), 'index range error'
-        label_path = self.label_paths[index]
-
-        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset)
-        clip = [img.resize(self.shape) for img in clip]
-
-        if self.transform is not None:
-            clip = [self.transform(img) for img in clip]
-
-        clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
-
-        return clip, label, img_name
-
 if __name__ == "__main__":
     # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
     # img = cv2.imread('/home/bo/research/dataset/ucf24/rgb-images/Basketball/v_Basketball_g01_c01/00001.jpg')
-
-	use_cuda = True
-	kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
-
-	datacfg       = 'cfg/ucf24.data'
-	cfgfile       = 'cfg/ucf24.cfg'
-
-	net_options   = parse_cfg(cfgfile)[0]
-	base_path     = '/home/bo/research/dataset/ucf24'
-
-	clip_duration = int(net_options['clip_duration'])
-
-	line = 'Basketball/v_Basketball_g01_c01'
-
-	test_loader = torch.utils.data.DataLoader(
-					testData(os.path.join(base_path, 'rgb-images', line),
-					shape=(224, 224), transform=transforms.Compose([
-					transforms.ToTensor()]), clip_duration=clip_duration),
-					batch_size=1, shuffle=False, **kwargs)
-	for batch_idx, (data, target, img_name) in enumerate(test_loader):
-		print(data.shape,target.shape)
-		if batch_idx==10:break
+    pass

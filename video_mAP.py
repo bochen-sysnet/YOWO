@@ -74,9 +74,9 @@ def simulate(dataset, data_range=None, TF=None, C_param=None):
     opt.dataset = dataset
     AD_param = setup_param(opt)
     if opt.dataset == 'ucf101-24':
-        video_mAP_ucf(AD_param, data_range, TF, C_param)
+        ans = video_mAP_ucf(AD_param, data_range, TF, C_param)
     elif opt.dataset == 'jhmdb-21':
-        video_mAP_jhmdb(AD_param, data_range, TF, C_param)
+        ans = video_mAP_jhmdb(AD_param, data_range, TF, C_param)
     return ans
 
 def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
