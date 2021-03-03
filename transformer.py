@@ -120,21 +120,20 @@ def get_ORB(frame):
 	points = [p.pt for p in kps]
 	return points, end-start
 
-def count_point_ROIs(ROIs, points):
+def count_point_in_ROI(ROI, points):
 	counter = 0
 	for px,py in points:
 		inROI = False
-		for x1,y1,x2,y2 in ROIs:
-			if x1<=px and x2>px and y1<=py and y2>py:
-				inROI = True
-				break
+		x1,y1,x2,y2 = ROI
+		if x1<=px and x2>px and y1<=py and y2>py:
+			inROI = True
 		if inROI:counter += 1
 	return counter
 
-def count_map_ROIs(ROIs, mp):
+def count_mask_in_ROI(ROI, mp):
 	total_pts = np.count_nonzero(mp)
-	for x1,y1,x2,y2 in ROIs:
-		mp[y1:y2,x1:x2] = 0
+	x1,y1,x2,y2 = ROI
+	mp[y1:y2,x1:x2] = 0
 	nonroi_pts = np.count_nonzero(mp)
 	return total_pts-nonroi_pts
 
@@ -226,11 +225,11 @@ def analyzer(images,targets):
 		in_roi,out_roi = ROI_area(ROIs,w,h)
 		density1,density2 = [],[]
 		for mp in map_features:
-			c1,c2 = count_map_ROIs(ROIs,mp)
+			c1,c2 = count_mask_in_ROI(ROIs,mp)
 			density1+=['{:0.6f}'.format(c1*1.0/in_roi)]
 			density2+=['{:0.6f}'.format(c2*1.0/out_roi)]
 		for points in point_features:
-			c1,c2 = count_point_ROIs(ROIs,points)
+			c1,c2 = count_point_in_ROI(ROIs,points)
 			density1+=['{:0.6f}'.format(c1*1.0/in_roi)]
 			density2+=['{:0.6f}'.format(c2*1.0/out_roi)]
 
@@ -308,16 +307,14 @@ class Transformer:
 			roi_start = time.perf_counter()
 			feat_idx = 0
 			for mf in map_features:
-				c = count_map_ROIs(ROIs,mf)
+				c = count_mask_in_ROI(ROI,mf)
 				counts[roi_idx,feat_idx] = c
 				feat_idx += 1
 			for pf in point_features:
-				c = count_point_ROIs(ROIs,pf)
+				c = count_point_in_ROI(ROI,pf)
 				counts[roi_idx,feat_idx] = c
-				print(feat_idx,c)
 				feat_idx += 1
 			roi_end = time.perf_counter()
-			print(ROI, roi_end-roi_start)
 		print(counts)
 
 		calc_end = time.perf_counter()
