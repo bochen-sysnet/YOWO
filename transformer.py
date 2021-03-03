@@ -314,7 +314,7 @@ class Transformer:
 		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# downsample the image based on the quality
 
-		image = path_to_disturbed_image(image, label, 0.2, 0.2)
+		image = path_to_disturbed_image(image, label, 0.5, 0.5)
 		self.lru[img_index] = image
 		return image
 
