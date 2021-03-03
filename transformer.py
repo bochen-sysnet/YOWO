@@ -243,9 +243,9 @@ def analyzer(images,targets):
 
 class LRU(OrderedDict):
 
-	def __init__(self, maxsize=128, /, *args, **kwds):
+	def __init__(self, maxsize=128):
 		self.maxsize = maxsize
-		super().__init__(*args, **kwds)
+		super().__init__()
 
 	def __getitem__(self, key):
 		value = super().__getitem__(key)
