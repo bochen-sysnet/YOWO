@@ -287,9 +287,7 @@ class Transformer:
 		star, _ = get_STAR(bgr_frame)
 		# ORB
 		orb, _ = get_ORB(bgr_frame)
-		feat_end = time.perf_counter()
 
-		# !!!!!!!!!! need to adjust this to real-time, maybe use matrix operation
 		calc_start = time.perf_counter()
 		point_features = [gftt, fast, star, orb]
 		map_features = [edge,hc]
@@ -316,19 +314,51 @@ class Transformer:
 				feat_idx += 1
 			roi_end = time.perf_counter()
 
-		calc_end = time.perf_counter()
-		normalized_score = counts/np.sum(counts,axis=0)
+		# weight of different features
 		weights = C_param[:num_features]
-		weights /= np.sum(weights)
-		weighted_scores = np.matmul(normalized_score,weights)
+		# (0,1) indicating the total quality after compression
 		A = C_param[num_features]
+		# parameter of the function to amplify the score
+		# sigma=0,1,...,9; k=0,...,3: no big difference with larger value
 		sigma = C_param[num_features+1]
-		quality = A*np.exp(-sigma*(1-weighted_scores))
+		k = C_param[num_features+2]
+		normalized_score = counts/np.sum(counts,axis=0)
+		weights /= np.sum(weights)
+		# ws of all tiles sum up to 1
+		weighted_scores = np.matmul(normalized_score,weights)
+		print(1,weighted_scores)
+		# the weight is more valuable when its value is higher
+		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
+		weighted_scores /= np.sum(weighted_scores)
+		print(2,weighted_scores)
+		# quality of each tile
+		quality = A*weighted_scores
 
-		print(normalized_score,weights)
-		print(weighted_scores)
+		# not used for training,but can be used for 
+		# ploting the pareto front
+		# compressed_size = 0
+		# tile_size = tilew * tileh
+		# for roi,q in zip(ROIs,quality):
+		# 	r = int(q*10)/10.0; r = max(1,r)
+		# 	if r==1:
+		# 		compressed_size += tile_size
+		# 		continue
+		# 	x1,y1,x2,y2 = roi
+		# 	crop = bgr_frame[y1:y2,x1:x2]
+		# 	if r==0:
+		# 		crop = np.zeros((tileh,tilew,3),dtype=np.uint8)
+		# 	else:
+		# 		dsize = (int((x2-x1)*r),int((y2-y1)*r))
+		# 		crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+		# 		crop = cv2.resize(crop_d, dsize=(x2-x1,y2-y1), interpolation=cv2.INTER_LINEAR)
+		# 		compressed_size += dsize[0]*dsize[1]
+		# 	bgr_frame[y1:y2,x1:x2] = crop
+		pil_image = Image.fromarray(bgr_frame)
+
+
 		print(quality)
-		print(img_index,feat_end-feat_start, calc_end-calc_start)
+		feat_end = time.perf_counter()
+		print(img_index,feat_end-feat_start)
 		exit(0)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
