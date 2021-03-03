@@ -275,7 +275,8 @@ class Transformer:
 		# !!!!!!!!!! some problems with lru
 		if img_index in self.lru: 
 			im1 = self.lru[img_index]
-			# im2 = path_to_disturbed_image(image, label, 1, 1)
+			im2 = path_to_disturbed_image(image, label, 1, 1)
+			print(img_index,np.sum(im1-im2))
 			# diff = ImageChops.difference(im1, im2).getbbox()
 			# print(img_index,diff)
 			return Image.fromarray(im1)
