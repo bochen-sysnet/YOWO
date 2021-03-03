@@ -320,13 +320,11 @@ class Transformer:
 		normalized_score = counts/np.sum(counts,axis=0)
 		weights = C_param[:num_features]
 		weights /= np.sum(weights)
-		weighted_scores = 1 - np.matmul(normalized_score,weights)
+		weighted_scores = np.matmul(normalized_score,weights)
 		A = C_param[num_features]
 		sigma = C_param[num_features+1]
-		quality = A*np.exp(-sigma*weighted_scores)
+		quality = A*np.exp(-sigma*(1-weighted_scores))
 
-
-		print(counts,np.sum(counts,axis=0))
 		print(normalized_score,weights)
 		print(weighted_scores)
 		print(quality)
