@@ -270,9 +270,9 @@ class Transformer:
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
-		if img_index in self.lru:
-			image = self.lru[img_index]
-			return image
+		# if img_index in self.lru:
+		# 	image = self.lru[img_index]
+		# 	return image
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -290,6 +290,7 @@ class Transformer:
 		# # ORB
 		# orb, _ = get_ORB(bgr_frame)
 
+		# need to adjust this to real-time, maybe use matrix operation
 		# point_features = [gftt, fast, star, orb]
 		# map_features = [edge,hc]
 		# # divide [320,240] image to 4*3 tiles
