@@ -341,6 +341,7 @@ class Transformer:
 		tile_size = tilew * tileh
 		for roi,r in zip(ROIs,quality):
 			dsize = (np.rint(tilew*r),np.rint(tileh*r))
+			print(roi,dsize)
 			if dsize == (tilew,tileh):
 				compressed_size += tilew*tileh
 				continue
