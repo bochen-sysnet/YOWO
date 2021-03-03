@@ -339,7 +339,7 @@ class Transformer:
 		# ploting the pareto front
 		compressed_size = 0
 		tile_size = tilew * tileh
-		for roi,q in zip(ROIs,quality):
+		for roi,r in zip(ROIs,quality):
 			dsize = (np.rint(tilew*r),int(tileh*r))
 			if dsize == (tilew,tileh):
 				compressed_size += tilew*tileh
