@@ -272,9 +272,13 @@ class Transformer:
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
 		if img_index in self.lru: 
-			image = self.lru[img_index]
-			print(img_index,image,self.lru[img_index])
-			return image
+			new = path_to_disturbed_image(image, label, 1, 1)
+			img = self.lru[img_index]
+			h1,h2 = img.histogram(), new.histogram()
+			rms = math.sqrt(reduce(operator.add,
+				    map(lambda a,b: (a-b)**2, h1, h2))/len(h1))
+			print(img_index,rms)
+			return img
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -319,7 +323,6 @@ class Transformer:
 
 		image = path_to_disturbed_image(image, label, 1, 1)
 		self.lru[img_index] = image
-		print(img_index,'?',image,self.lru[img_index])
 		return image
 
 if __name__ == "__main__":
