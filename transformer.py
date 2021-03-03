@@ -323,7 +323,7 @@ class Transformer:
 		# downsample the image based on the quality
 
 		image = path_to_disturbed_image(image, label, 1, 1)
-		self.lru[img_index] = image
+		self.lru[img_index] = image.copy()
 		return Image.fromarray(image)
 
 if __name__ == "__main__":
