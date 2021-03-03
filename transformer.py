@@ -270,9 +270,9 @@ class Transformer:
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
-		# if img_index in self.lru:
-		# 	image = self.lru[img_index]
-		# 	return image
+		if img_index in self.lru:
+			image = self.lru[img_index]
+			return image
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -315,7 +315,7 @@ class Transformer:
 		# downsample the image based on the quality
 
 		image = path_to_disturbed_image(image, label, 0.2, 1)
-		# self.lru[img_index] = image
+		self.lru[img_index] = image.copy()
 		return image
 
 if __name__ == "__main__":
