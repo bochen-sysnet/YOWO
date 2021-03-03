@@ -327,11 +327,9 @@ class Transformer:
 		weights /= np.sum(weights)
 		# ws of all tiles sum up to 1
 		weighted_scores = np.matmul(normalized_score,weights)
-		print(1,weighted_scores)
 		# the weight is more valuable when its value is higher
 		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
 		weighted_scores /= np.max(weighted_scores)
-		print(2,weighted_scores)
 		# quality of each tile?
 		quality = A*weighted_scores
 
@@ -341,7 +339,6 @@ class Transformer:
 		tile_size = tilew * tileh
 		for roi,r in zip(ROIs,quality):
 			dsize = (int(np.rint(tilew*r)),int(np.rint(tileh*r)))
-			print(roi,dsize)
 			if dsize == (tilew,tileh):
 				compressed_size += tilew*tileh
 				continue
@@ -356,11 +353,8 @@ class Transformer:
 				bgr_frame[y1:y2,x1:x2] = crop
 		pil_image = Image.fromarray(bgr_frame)
 
-
-		print(quality)
 		feat_end = time.perf_counter()
 		print(img_index,feat_end-feat_start)
-		exit(0)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
