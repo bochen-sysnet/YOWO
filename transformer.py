@@ -319,7 +319,8 @@ class Transformer:
 		# (0,1) indicating the total quality after compression
 		A = C_param[num_features]
 		# parameter of the function to amplify the score
-		# sigma=0,1,...,9; k=0,...,3: no big difference with larger value
+		# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
+		# k decides the weights should have small or big difference
 		sigma = C_param[num_features+1]
 		k = C_param[num_features+2]
 		normalized_score = counts/np.sum(counts,axis=0)
