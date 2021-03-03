@@ -271,7 +271,10 @@ class Transformer:
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
-		if img_index in self.lru: return self.lru[img_index]
+		if img_index in self.lru: 
+			image = self.lru[img_index]
+			print(img_index,np.sum(image))
+			return image
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -315,10 +318,11 @@ class Transformer:
 		# downsample the image based on the quality
 
 		# image = path_to_disturbed_image(image, label, 1, 1)
+		print(img_index,np.sum(image),np.sum(self.lru[img_index]))
 		self.lru[img_index] = image.copy()
 		return image
 
 if __name__ == "__main__":
     # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
-    # img = cv2.imread('/home/bo/research/dataset/ucf24/rgb-images/Basketball/v_Basketball_g01_c01/00001.jpg')
-    pass
+    img = cv2.imread('/home/bo/research/dataset/ucf24/rgb-images/Basketball/v_Basketball_g01_c01/00001.jpg')
+    
