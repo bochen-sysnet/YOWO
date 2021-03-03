@@ -273,7 +273,7 @@ class Transformer:
 		# divide [320,240] image to 8*6 tiles
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
-		# the score should be divided by the number of features such that 0 <= score <= 1
+		# 0 <= score <= 1
 		# use f(x)=e^(-sigma*x) to 
 		# derive the quality in each tile based on the compression param
 
@@ -281,7 +281,7 @@ class Transformer:
 		# if img_index in self.lru:
 		# 	image = self.lru[img_index]
 		# else:
-		image = path_to_disturbed_image(image, label, 1, 1)
+		image = path_to_disturbed_image(image, label, .2, .2)
 		# self.lru[img_index] = image
 		return image
 
