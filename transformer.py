@@ -265,13 +265,13 @@ class Transformer:
 	def __init__(self,name):
 		# need a dict as buffer to store transformed image of a range
 		self.name = name
-		self.lru = LRU(16) # size of clip
+		self.lru = {}#LRU(16) # size of clip
 
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
-		# if img_index in self.lru: return self.lru[img_index]
+		if img_index in self.lru: return self.lru[img_index]
 
 		# analyze features in image
 		# start = time.perf_counter()
