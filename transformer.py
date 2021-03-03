@@ -271,7 +271,9 @@ class Transformer:
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# analyze features in image, 
 		# divide [320,240] image to 8*6 tiles
-		# count distribution of features in 48 tiles
+		# count distribution of features in 48 tiles (normalized sum to 1)
+		# get weighted sum of distribution of features, which is the score of each tile
+		# 
 		# derive the quality in each tile based on the compression param
 
 		# downsample the image based on the quality
