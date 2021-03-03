@@ -346,13 +346,14 @@ class Transformer:
 				compressed_size += tilew*tileh
 				continue
 			x1,y1,x2,y2 = roi
-			crop = bgr_frame[y1:y2,x1:x2]
+			crop = bgr_frame[y1:y2,x1:x2].copy()
 			if dsize[0]==0 or dsize[1]==0:
 				crop = np.zeros((tileh,tilew,3),dtype=np.uint8)
 			else:
 				crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
 				crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
 				compressed_size += dsize[0]*dsize[1]
+			print(bgr_frame[y1:y2,x1:x2].shape)
 			bgr_frame[y1:y2,x1:x2] = crop
 		pil_image = Image.fromarray(bgr_frame)
 
