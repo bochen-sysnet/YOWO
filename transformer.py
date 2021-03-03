@@ -268,7 +268,7 @@ class Transformer:
 		self.name = name
 		self.lru = LRU(16) # size of clip
 
-	def transform(self, image, img=None, label=None, C_param=None, img_index=None):
+	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# analyze features in image, 
 		# derive the quality in each tile based on the compression param
 

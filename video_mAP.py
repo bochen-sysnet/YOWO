@@ -116,7 +116,7 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
         except Exception:
             label = []
         pil_image = Image.open(path_tmp)
-        pil_image = TF.transform(C_param=C_param, img=pil_image, label=label, img_index=im_ind)
+        pil_image = TF.transform(C_param=C_param, image=pil_image, label=label, img_index=im_ind)
 
         # clip.append(Image.open(path_tmp).convert('RGB'))
         clip.append(pil_image.convert('RGB'))
