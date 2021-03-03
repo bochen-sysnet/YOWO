@@ -322,6 +322,8 @@ class Transformer:
 
 		image = path_to_disturbed_image(image, label, 1, 1)
 		self.lru[img_index] = image
+		diff = ImageChops.difference(self.lru[img_index], image).getbbox()
+		print('!!!!',img_index,diff)
 		return image
 
 if __name__ == "__main__":
