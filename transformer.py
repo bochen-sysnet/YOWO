@@ -296,9 +296,10 @@ class Transformer:
 		map_features = [edge,hc]
 		# divide [320,240] image to 4*3 tiles
 		ROIs = []
-		tilew,tileh = 80,80
-		for row in range(3):
-			for col in range(4):
+		num_w, num_h = 8,6
+		tilew,tileh = 320/num_w,240/num_h
+		for row in range(num_w):
+			for col in range(num_h):
 				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
 				ROIs.append([x1,y1,x2,y2])
 		for ROI in ROIs:
