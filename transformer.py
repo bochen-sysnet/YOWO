@@ -271,9 +271,7 @@ class Transformer:
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		# !!!!!!!!!! some problems with lru
-		if img_index in self.lru:
-			image = self.lru[img_index]
-			return image
+		if img_index in self.lru: return self.lru[img_index]
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -316,7 +314,7 @@ class Transformer:
 		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
 		# downsample the image based on the quality
 
-		image = path_to_disturbed_image(image, label, 1, 1)
+		# image = path_to_disturbed_image(image, label, 1, 1)
 		self.lru[img_index] = image.copy()
 		return image
 
