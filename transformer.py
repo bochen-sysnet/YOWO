@@ -272,7 +272,7 @@ class Transformer:
 		# Rule 2: some features are more important
 
 		# analyze features in image
-		bgr_frame = np.array(pil_image)
+		bgr_frame = np.array(image)
 		# edge diff
 		edge, _ = get_edge_feature(bgr_frame)
 		# harris corner
