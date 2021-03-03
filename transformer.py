@@ -296,7 +296,7 @@ class Transformer:
 		num_features = len(point_features) + len(map_features)
 		# divide [320,240] image to 4*3 tiles
 		ROIs = []
-		num_w, num_h = 4,3
+		num_w, num_h = 8,6
 		tilew,tileh = 320//num_w,240//num_h
 		for row in range(num_w):
 			for col in range(num_h):
