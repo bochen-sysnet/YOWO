@@ -265,7 +265,7 @@ class Transformer:
 	def __init__(self,name):
 		# need a dict as buffer to store transformed image of a range
 		self.name = name
-		self.lru = LRU(16) # size of clip
+		self.lru = {}#LRU(16) # size of clip
 
 	def transform(self, image=None, label=None, C_param=None, img_index=None):
 		# Rule 1: more feature more quality
@@ -275,28 +275,28 @@ class Transformer:
 			return image
 
 		# analyze features in image
-		start = time.perf_counter()
-		bgr_frame = np.array(image)
-		# edge diff
-		edge, _ = get_edge_feature(bgr_frame)
-		# harris corner
-		hc, _ = get_harris_corner(bgr_frame)
-		# GFTT
-		gftt, _ = get_GFTT(bgr_frame)
-		# FAST
-		fast, _ = get_FAST(bgr_frame)
-		# STAR
-		star, _ = get_STAR(bgr_frame)
-		# ORB
-		orb, _ = get_ORB(bgr_frame)
+		# start = time.perf_counter()
+		# bgr_frame = np.array(image)
+		# # edge diff
+		# edge, _ = get_edge_feature(bgr_frame)
+		# # harris corner
+		# hc, _ = get_harris_corner(bgr_frame)
+		# # GFTT
+		# gftt, _ = get_GFTT(bgr_frame)
+		# # FAST
+		# fast, _ = get_FAST(bgr_frame)
+		# # STAR
+		# star, _ = get_STAR(bgr_frame)
+		# # ORB
+		# orb, _ = get_ORB(bgr_frame)
 
-		point_features = [gftt, fast, star, orb]
-		map_features = [edge,hc]
-		# divide [320,240] image to 8*6 tiles
+		# point_features = [gftt, fast, star, orb]
+		# map_features = [edge,hc]
+		# # divide [320,240] image to 4*3 tiles
 		# ROIs = []
-		# tilew,tileh = 40,40
-		# for row in range(6):
-		# 	for col in range(8):
+		# tilew,tileh = 80,80
+		# for row in range(3):
+		# 	for col in range(4):
 		# 		x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
 		# 		ROIs.append([x1,y1,x2,y2])
 		# for ROI in ROIs:
@@ -305,8 +305,8 @@ class Transformer:
 		# 	for pf in point_features:
 		# 		c = count_point_ROIs(ROIs,pf)
 
-		end = time.perf_counter()
-		print(img_index,end-start)
+		# end = time.perf_counter()
+		# print(img_index,end-start)
 
 		# count distribution of features in 48 tiles (normalized sum to 1)
 		# get weighted sum of distribution of features, which is the score of each tile
