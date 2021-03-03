@@ -178,9 +178,8 @@ def path_to_disturbed_image(pil_image, label, r_in, r_out):
 	b,g,r = cv2.split(np.array(pil_image))
 	np_img = cv2.merge((b,g,r))
 	np_img = region_disturber(np_img,label, r_in, r_out)
-	return np_img
-	# pil_image = Image.fromarray(np_img)
-	# return pil_image
+	pil_image = Image.fromarray(np_img)
+	return pil_image
 
 
 # analyze static and motion feature points
@@ -276,10 +275,9 @@ class Transformer:
 		if img_index in self.lru: 
 			im1 = self.lru[img_index]
 			im2 = path_to_disturbed_image(image, label, 1, 1)
-			print(img_index,np.sum(im1-im2))
 			# diff = ImageChops.difference(im1, im2).getbbox()
 			# print(img_index,diff)
-			return Image.fromarray(im1)
+			return im1
 
 		# analyze features in image
 		# start = time.perf_counter()
@@ -324,7 +322,7 @@ class Transformer:
 
 		image = path_to_disturbed_image(image, label, 1, 1)
 		self.lru[img_index] = image
-		return Image.fromarray(image)
+		return self.lru[img_index]
 
 if __name__ == "__main__":
     # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
