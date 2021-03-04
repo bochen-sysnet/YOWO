@@ -68,7 +68,7 @@ def setup_opt(opt):
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
-def simulate(dataset, data_range=None, TF=None, C_param=None, AD_param):
+def simulate(dataset, data_range=None, TF=None, C_param=None, AD_param=None):
     if dataset == 'ucf101-24':
         ans = video_mAP_ucf(AD_param, data_range, TF, C_param)
     elif dataset == 'jhmdb-21':
