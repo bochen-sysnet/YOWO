@@ -197,9 +197,9 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
     n_videos = gt_data.shape[1]
     key2start = {}
     for i in range(n_videos):
-        if data_range is not None:
-            if i < data_range[0]: continue
-            elif i >= data_range[1]: break
+        # if data_range is not None:
+        #     if i < data_range[0]: continue
+        #     elif i >= data_range[1]: break
         video_name = gt_data[0][i][1][0]
         if video_name in video_testlist:
             # record the first frame of every 
@@ -237,7 +237,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         # record the first frame of every 
         key = line.split('/')[0]
         if key not in key2start:
-            key2start[key] = i
+            key2start[key] = lidx
         continue
         if data_range is not None:
             if lidx < data_range[0]: continue
