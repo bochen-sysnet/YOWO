@@ -233,6 +233,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             gt_videos[video_name] = v_annotation
     print(key2start)
     key2start = {}
+    print(lines[:40])
     for lidx,line in enumerate(lines):
         # record the first frame of every 
         key = line.split('/')[0]
