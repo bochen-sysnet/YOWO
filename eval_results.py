@@ -141,7 +141,7 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
     # update new pr
     pr_new, fn_new, fp_new, tp_new = pr_new_tuple
     pr_tmp = np.empty((len(pred), 2), dtype=np.float32)
-    i_new = pr_tmp.shape[0]
+    i_new = pr_new.shape[0]
     pr_new = np.concatenate((pr_new,pr_tmp),axis=0)
 
     gt_v_index = [g[0] for g in gt]
@@ -261,7 +261,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     fp_new = 0
     tp_new = 0
     pr_new_tuple = (pr_new, fn_new, fp_new, tp_new)
-    print(len(gt_videos_format))
+    print([g[0] for g in gt_videos_format])
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
