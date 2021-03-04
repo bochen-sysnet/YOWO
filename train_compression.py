@@ -10,6 +10,14 @@ from transformer import Transformer
 from opts import parse_opts
 
 
+# setup
+range_size = 10 # number of videos we test
+video_num = 910
+batch_size = 2
+num_batch = 2 # video_num//(batch_size*range_size)
+print_step = 1
+eval_step = 1
+
 class RSNet(nn.Module):
 	def __init__(self, settings):
 		super(RSNet, self).__init__()
@@ -47,16 +55,8 @@ class C_Generator:
 
 def train(net):
 	np.random.seed(123)
-	criterion = nn.CrossEntropyLoss()
+	criterion = nn.MSELoss(reduction='sum')
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-
-	# setup
-	range_size = 10 # number of videos we test
-	video_num = 910
-	batch_size = 2
-	num_batch = 2 # video_num//(batch_size*range_size)
-	print_step = 1
-	eval_step = 1
 
 	# setup target network
 	# so that we only do this once
@@ -77,7 +77,7 @@ def train(net):
 				data_range = (di*range_size,di*range_size+range_size)
 				fetch_start = time.perf_counter()
 				C_param = cgen.get()
-				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
 				print(data_range,C_param,sim_result[0][1],fetch_end-fetch_start)
 				inputs.append(C_param)
@@ -105,19 +105,24 @@ def train(net):
 	PATH = 'backup/rsnet.pth'
 	torch.save(net.state_dict(), PATH)
 
+	val_loss = validate(net)
+	ptr_str = "loss:{:6.3f}".format(val_loss)
+	log_file = open('training.log', "w", 1)
+	log_file.write(ptr_str)
+
 # load if needed
 # net.load_state_dict(torch.load(PATH))
 def validate(net):
 	np.random.seed(321)
+	# setup target network
+	# so that we only do this once
+	opt = parse_opts()
+	setup_opt(opt)
+	opt.dataset = 'ucf101-24'
+	AD_param = setup_param(opt)
 	with torch.no_grad():
-		# setup
-		range_size = 10 # number of videos we test
-		video_num = 137557 # 9126 for J-HMDB
-		batch_size = 4
-		num_batch = 1 # video_num//batch_size
-		print_step = 1
-		eval_step = 1
-
+		val_loss = 0.0
+		val_cnt = 0
 		for epoch in range(1):
 			running_loss = 0.0
 			cgen = C_Generator()
@@ -125,17 +130,18 @@ def validate(net):
 
 			for bi in range(num_batch):
 				inputs,labels = [],[]
-				for di in range(batch_size):
-					data_range = (bi*range_size,(bi+1)*range_size)
+				for k in range(batch_size):
+					di = bi*batch_size + k # data index
+					data_range = (di*range_size,di*range_size+range_size)
+					fetch_start = time.perf_counter()
 					C_param = cgen.get()
-					sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param)
+					sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+					fetch_end = time.perf_counter()
+					print(data_range,C_param,sim_result[0][1],fetch_end-fetch_start)
 					inputs.append(C_param)
-					labels.append(sim_result[0][4]) # accuracy of IoU=0.5
+					labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 				inputs = torch.FloatTensor(inputs).cuda()
 				labels = torch.FloatTensor(labels).cuda()
-
-				# zero gradient
-				optimizer.zero_grad()
 
 				# forward + backward + optimize
 				outputs = net(inputs)
@@ -143,9 +149,12 @@ def validate(net):
 
 				# print statistics
 				running_loss += loss.item()
+				val_loss += abs(torch.mean(labels.cpu()-outputs.cpu()))
+				val_cnt += 1
 				if i % print_step == 0:    # print every 200 mini-batches
 					print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / print_step))
 					running_loss = 0.0
+	return val_loss/val_cnt
 
 
 if __name__ == "__main__":
