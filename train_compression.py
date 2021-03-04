@@ -60,10 +60,10 @@ def train(net):
 
 	# setup target network
 	# so that we only do this once
-    opt = parse_opts()
-    setup_opt(opt)
-    opt.dataset = 'ucf101-24'
-    AD_param = setup_param(opt)
+	opt = parse_opts()
+	setup_opt(opt)
+	opt.dataset = 'ucf101-24'
+	AD_param = setup_param(opt)
 
 	for epoch in range(1):
 		running_loss = 0.0
