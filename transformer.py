@@ -324,6 +324,7 @@ class Transformer:
 		sigma = C_param[num_features+1]
 		k = C_param[num_features+2]
 		normalized_score = counts/np.sum(counts,axis=0)
+		print(weights)
 		weights /= np.sum(weights)
 		# ws of all tiles sum up to 1
 		weighted_scores = np.matmul(normalized_score,weights)
