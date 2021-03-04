@@ -34,7 +34,7 @@ class C_Generator:
 		# the 8th parameter is multiplier (0,1)
 		# the 9th parameter is order [-3,3]
 		# dirichlet?
-		C_param = uniform_init_gen()
+		C_param = self,uniform_init_gen()
 		return C_param
 
 	def uniform_init_gen(self):
