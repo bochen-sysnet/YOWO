@@ -255,7 +255,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     pr_new = np.empty((1, 2), dtype=np.float32) # precision, recall
     pr_new[0,0] = 1.0
     pr_new[0,1] = 0.0
-    fn_new = len(gt_videos_format) #sum([len(a[1]) for a in gt])
+    fn_new = len(gt_videos_format) 
     fp_new = 0
     tp_new = 0
     for cls_ind, cls in enumerate(CLASSES[0:]):
