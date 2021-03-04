@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from video_mAP import simulate, setup_param
 from transformer import Transformer
+from opts import parse_opts
 
 
 class RSNet(nn.Module):
@@ -58,6 +59,10 @@ def train(net):
 	eval_step = 1
 
 	# setup target network
+	# so that we only do this once
+    opt = parse_opts()
+    setup_opt(opt)
+    opt.dataset = 'ucf101-24'
     AD_param = setup_param(opt)
 
 	for epoch in range(1):
@@ -71,7 +76,7 @@ def train(net):
 				di = bi*batch_size + k # data index
 				data_range = (di*range_size,di*range_size+range_size)
 				C_param = cgen.get()
-				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param)
+				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				print(data_range,C_param,sim_result)
 				inputs.append(C_param)
 				labels.append(sim_result[1]) # accuracy of IoU=0.5

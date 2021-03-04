@@ -69,12 +69,9 @@ def setup_opt(opt):
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
 def simulate(dataset, data_range=None, TF=None, C_param=None, AD_param):
-    opt = parse_opts()
-    setup_opt(opt)
-    opt.dataset = dataset
-    if opt.dataset == 'ucf101-24':
+    if dataset == 'ucf101-24':
         ans = video_mAP_ucf(AD_param, data_range, TF, C_param)
-    elif opt.dataset == 'jhmdb-21':
+    elif dataset == 'jhmdb-21':
         ans = video_mAP_jhmdb(AD_param, data_range, TF, C_param)
     return ans
 
