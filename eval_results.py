@@ -188,12 +188,10 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
         # update new pr
-        print(i_new,fn_new, fp_new, tp_new)
         pr_new[i_new,0] = float(tp_new)/float(tp_new+fp_new)
         pr_new[i_new,1] = float(tp_new)/float(tp_new+fn_new+0.00001)
         i_new += 1
     ap = voc_ap(pr)
-    print(ap,len(pred))
 
     return ap, (pr_new, fn_new, fp_new, tp_new)
 
@@ -261,7 +259,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     fp_new = 0
     tp_new = 0
     pr_new_tuple = (pr_new, fn_new, fp_new, tp_new)
-    print([g[0] for g in gt_videos_format],len(pred_videos_format))
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
@@ -270,7 +267,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         cls_len = None
         ap, pr_new_tuple = video_ap_one_class(gt, pred_cls, pr_new_tuple, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
-    print(pr_new_tuple[0])
     ap_new = voc_ap(pr_new_tuple[0])
 
     return ap_all,ap_new
