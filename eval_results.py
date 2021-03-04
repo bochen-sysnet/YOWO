@@ -192,7 +192,7 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
         pr_new[i_new,1] = float(tp_new)/float(tp_new+fn_new+0.00001)
         i_new += 1
     ap = voc_ap(pr)
-    print(ap,pred)
+    print(ap,len(pred))
 
     return ap, (pr_new, fn_new, fp_new, tp_new)
 
