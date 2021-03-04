@@ -16,10 +16,6 @@ from PIL import  ImageChops
 
 dataset = 'ucf101-24'
 
-def tile_disturber(images,rows,cols,r):
-	pass
-
-
 def get_edge_feature(frame, edge_blur_rad=11, edge_blur_var=0, edge_canny_low=101, edge_canny_high=255):
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 	start = time.perf_counter()
@@ -356,13 +352,6 @@ class Transformer:
 		feat_end = time.perf_counter()
 		print(img_index,feat_end-feat_start)
 
-		# count distribution of features in 48 tiles (normalized sum to 1)
-		# get weighted sum of distribution of features, which is the score of each tile
-		# 0 <= score <= 1
-		# use f(x)=A*e^(-sigma*(1-x)) to calculate a quality from the score
-		# downsample the image based on the quality
-
-		# image = path_to_disturbed_image(image, label, 0.5, 0.5)
 		self.lru[img_index] = image
 		return image
 
