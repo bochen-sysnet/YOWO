@@ -29,12 +29,12 @@ class C_Generator:
 		pass
 
 	def get(self):
-	    # the first 6 parameters are the weights of 6 features (0,1)
-	    # the 7th parameter is max ratio (0,1)
-	    # the 8th parameter is multiplier (0,1)
-	    # the 9th parameter is order [-3,3]
-	    # dirichlet?
-	    C_param = uniform_init_gen()
+		# the first 6 parameters are the weights of 6 features (0,1)
+		# the 7th parameter is max ratio (0,1)
+		# the 8th parameter is multiplier (0,1)
+		# the 9th parameter is order [-3,3]
+		# dirichlet?
+		C_param = uniform_init_gen()
 		return C_param
 
 	def uniform_init_gen(self):
