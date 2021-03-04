@@ -14,7 +14,7 @@ from opts import parse_opts
 range_size = 10 # number of videos we test
 video_num = 910
 batch_size = 2
-num_batch = 2 # video_num//(batch_size*range_size)
+num_batch = video_num//(batch_size*range_size)
 print_step = 1
 eval_step = 1
 
@@ -57,6 +57,7 @@ def train(net):
 	np.random.seed(123)
 	criterion = nn.MSELoss(reduction='sum')
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+	log_file = open('training.log', "w", 1)
 
 	# setup target network
 	# so that we only do this once
@@ -65,7 +66,7 @@ def train(net):
 	opt.dataset = 'ucf101-24'
 	AD_param = setup_param(opt)
 
-	for epoch in range(1):
+	for epoch in range(4):
 		running_loss = 0.0
 		cgen = C_Generator()
 		TF = Transformer('compression')
@@ -79,7 +80,9 @@ def train(net):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print(data_range,C_param,sim_result[0][1],fetch_end-fetch_start)
+				print_str = str(data_range)+str(C_param)+'\t'+sim_result[0][1]+'\t'+str(fetch_end-fetch_start)+'\n'
+				print(print_str)
+				log_file.write(print_str)
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
@@ -97,7 +100,9 @@ def train(net):
 			# print statistics
 			running_loss += loss.item()
 			if bi % print_step == 0 and print_step>0:    
-				print('[%d, %5d] loss: %.3f' % (epoch + 1, bi + 1, running_loss / print_step))
+				print_str = '{:d}, {:d}, loss {%.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
+				print(print_str)
+				log_file.write(print_str)
 				running_loss = 0.0
 		# evaluation
 		# if epoch%eval_step==0 and epoch>0:
@@ -105,14 +110,13 @@ def train(net):
 	PATH = 'backup/rsnet.pth'
 	torch.save(net.state_dict(), PATH)
 
-	val_loss = validate(net)
+	val_loss = validate(net,log_file)
 	ptr_str = "loss:{:6.3f}".format(val_loss)
-	log_file = open('training.log', "w", 1)
 	log_file.write(ptr_str)
 
 # load if needed
 # net.load_state_dict(torch.load(PATH))
-def validate(net):
+def validate(net,log_file):
 	np.random.seed(321)
 	# setup target network
 	# so that we only do this once
@@ -123,37 +127,40 @@ def validate(net):
 	with torch.no_grad():
 		val_loss = 0.0
 		val_cnt = 0
-		for epoch in range(1):
-			running_loss = 0.0
-			cgen = C_Generator()
-			TF = Transformer('compression')
+		running_loss = 0.0
+		cgen = C_Generator()
+		TF = Transformer('compression')
+		log_file.write('evaluation...')
 
-			for bi in range(num_batch):
-				inputs,labels = [],[]
-				for k in range(batch_size):
-					di = bi*batch_size + k # data index
-					data_range = (di*range_size,di*range_size+range_size)
-					fetch_start = time.perf_counter()
-					C_param = cgen.get()
-					sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
-					fetch_end = time.perf_counter()
-					print(data_range,C_param,sim_result[0][1],fetch_end-fetch_start)
-					inputs.append(C_param)
-					labels.append(sim_result[0][1]) # accuracy of IoU=0.5
-				inputs = torch.FloatTensor(inputs).cuda()
-				labels = torch.FloatTensor(labels).cuda()
+		for bi in range(num_batch):
+			inputs,labels = [],[]
+			for k in range(batch_size):
+				di = bi*batch_size + k # data index
+				data_range = (di*range_size,di*range_size+range_size)
+				fetch_start = time.perf_counter()
+				C_param = cgen.get()
+				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+				fetch_end = time.perf_counter()
+				print_str = str(data_range)+str(C_param)+'\t'+sim_result[0][1]+'\t'+str(fetch_end-fetch_start)+'\n'
+				print(print_str)
+				log_file.write(print_str)
+				inputs.append(C_param)
+				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
+			inputs = torch.FloatTensor(inputs).cuda()
+			labels = torch.FloatTensor(labels).cuda()
 
-				# forward + backward + optimize
-				outputs = net(inputs)
-				loss = criterion(outputs, labels)
+			# forward + backward + optimize
+			outputs = net(inputs)
 
-				# print statistics
-				running_loss += loss.item()
-				val_loss += abs(torch.mean(labels.cpu()-outputs.cpu()))
-				val_cnt += 1
-				if i % print_step == 0:    # print every 200 mini-batches
-					print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / print_step))
-					running_loss = 0.0
+			# print statistics
+			running_loss += loss.item()
+			val_loss += abs(torch.mean(labels.cpu()-outputs.cpu()))
+			val_cnt += 1
+			if bi % print_step == 0:    # print every 200 mini-batches
+				print_str = '{:d}, loss {%.3f}\n'.format(bi + 1, running_loss / print_step)
+				print(print_str)
+				log_file.write(print_str)
+				running_loss = 0.0
 	return val_loss/val_cnt
 
 
