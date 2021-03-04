@@ -269,7 +269,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                     detected_boxes[img_name[i]] = img_annotation
 
 
-    iou_list = [0.05] #[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.2] #[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
     for iou_th in iou_list:
         eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)

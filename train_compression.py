@@ -51,7 +51,7 @@ def train(net):
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 	# setup
-	range_size = 10 # number of videos we test
+	range_size = 5 # number of videos we test
 	video_num = 910
 	batch_size = 4
 	num_batch = 2 # video_num//(batch_size*range_size)
@@ -75,9 +75,11 @@ def train(net):
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
 				data_range = (di*range_size,di*range_size+range_size)
+				fetch_start = time.perf_counter()
 				C_param = cgen.get()
 				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
-				print(data_range,C_param,sim_result)
+				fetch_end = time.perf_counter()
+				print(data_range,C_param,sim_result,fetch_end-fetch_start)
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
