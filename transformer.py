@@ -325,6 +325,7 @@ class Transformer:
 		weighted_scores = np.matmul(normalized_score,weights)
 		# the weight is more valuable when its value is higher
 		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
+		print(img_index,weighted_scores)
 		weighted_scores /= np.max(weighted_scores)
 		# quality of each tile?
 		quality = A*weighted_scores
@@ -350,7 +351,7 @@ class Transformer:
 		pil_image = Image.fromarray(bgr_frame)
 
 		feat_end = time.perf_counter()
-		print(img_index,feat_end-feat_start)
+		# print(img_index,feat_end-feat_start)
 
 		self.lru[img_index] = image
 		return image
