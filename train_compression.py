@@ -51,7 +51,7 @@ def train(net):
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 	# setup
-	range_size = 1 # number of videos we test
+	range_size = 10 # number of videos we test
 	video_num = 910
 	batch_size = 4
 	num_batch = 2 # video_num//(batch_size*range_size)
