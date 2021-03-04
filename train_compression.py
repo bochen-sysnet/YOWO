@@ -51,7 +51,7 @@ def train(net):
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 	# setup
-	range_size = 5 # number of videos we test
+	range_size = 10 # number of videos we test
 	video_num = 910
 	batch_size = 2
 	num_batch = 2 # video_num//(batch_size*range_size)
@@ -100,8 +100,8 @@ def train(net):
 				print('[%d, %5d] loss: %.3f' % (epoch + 1, bi + 1, running_loss / print_step))
 				running_loss = 0.0
 		# evaluation
-		if epoch%eval_step==0 and epoch>0:
-			validate(net)
+		# if epoch%eval_step==0 and epoch>0:
+		# 	validate(net)
 	PATH = 'backup/rsnet.pth'
 	torch.save(net.state_dict(), PATH)
 
@@ -150,7 +150,7 @@ def validate(net):
 
 if __name__ == "__main__":
 	# prepare network
-	net = RSNet([8,255,255,1])
+	net = RSNet([9,255,255,1])
 	net = net.cuda()
 	train(net)
 
