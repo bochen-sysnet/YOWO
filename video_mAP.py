@@ -204,7 +204,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         if video_name in video_testlist:
             # record the first frame of every 
             key = video_name.split('/')[0]
-            if ket not in key2start:
+            if key not in key2start:
                 key2start[key] = i
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
@@ -239,7 +239,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         print(line)
         # record the first frame of every 
         key = line.split('/')[0]
-        if ket not in key2start:
+        if key not in key2start:
             key2start[key] = i
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
