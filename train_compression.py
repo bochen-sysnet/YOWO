@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from video_mAP import simulate, setup_param
+from video_mAP import simulate, setup_param, setup_opt
 from transformer import Transformer
 from opts import parse_opts
 
