@@ -53,7 +53,7 @@ def train(net):
 	# setup
 	range_size = 5 # number of videos we test
 	video_num = 910
-	batch_size = 4
+	batch_size = 2
 	num_batch = 2 # video_num//(batch_size*range_size)
 	print_step = 1
 	eval_step = 1
@@ -79,7 +79,7 @@ def train(net):
 				C_param = cgen.get()
 				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print(data_range,C_param,sim_result,fetch_end-fetch_start)
+				print(data_range,C_param,sim_result[0][1],fetch_end-fetch_start)
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
@@ -96,8 +96,8 @@ def train(net):
 
 			# print statistics
 			running_loss += loss.item()
-			if i % print_step == 0 and print_step>0:    
-				print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / print_step))
+			if bi % print_step == 0 and print_step>0:    
+				print('[%d, %5d] loss: %.3f' % (epoch + 1, bi + 1, running_loss / print_step))
 				running_loss = 0.0
 		# evaluation
 		if epoch%eval_step==0 and epoch>0:
