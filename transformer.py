@@ -53,7 +53,7 @@ def get_GFTT(frame):
 
 	start = time.perf_counter()
 	corners = cv2.goodFeaturesToTrack(gray,25,0.01,10)
-	if corners:
+	if corners is not None:
 		corners = np.int0(corners) 
 	end = time.perf_counter()
 	points = [i.ravel() for i in corners]
