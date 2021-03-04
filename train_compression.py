@@ -58,6 +58,7 @@ def train(net):
 	criterion = nn.MSELoss(reduction='sum')
 	optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 	log_file = open('training.log', "w", 1)
+	log_file.write('Training...\n')
 
 	# setup target network
 	# so that we only do this once
@@ -80,7 +81,7 @@ def train(net):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+sim_result[0][1]+'\t'+str(fetch_end-fetch_start)+'\n'
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result[0][1])+'\t'+str(fetch_end-fetch_start)+'\n'
 				print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
@@ -111,7 +112,7 @@ def train(net):
 	torch.save(net.state_dict(), PATH)
 
 	val_loss = validate(net,log_file)
-	ptr_str = "loss:{:6.3f}".format(val_loss)
+	ptr_str = "loss:{:6.3f}\n".format(val_loss)
 	log_file.write(ptr_str)
 
 # load if needed
@@ -130,7 +131,7 @@ def validate(net,log_file):
 		running_loss = 0.0
 		cgen = C_Generator()
 		TF = Transformer('compression')
-		log_file.write('evaluation...')
+		log_file.write('Evaluation...\n')
 
 		for bi in range(num_batch):
 			inputs,labels = [],[]
@@ -141,7 +142,7 @@ def validate(net,log_file):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+sim_result[0][1]+'\t'+str(fetch_end-fetch_start)+'\n'
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result[0][1])+'\t'+str(fetch_end-fetch_start)+'\n'
 				print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
