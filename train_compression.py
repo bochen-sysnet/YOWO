@@ -101,7 +101,7 @@ def train(net):
 			# print statistics
 			running_loss += loss.item()
 			if bi % print_step == 0 and print_step>0:    
-				print_str = '{:d}, {:d}, loss {.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
+				print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str)
 				running_loss = 0.0
@@ -158,7 +158,7 @@ def validate(net,log_file):
 			val_loss += abs(torch.mean(labels.cpu()-outputs.cpu()))
 			val_cnt += 1
 			if bi % print_step == 0:    # print every 200 mini-batches
-				print_str = '{:d}, loss {.3f}\n'.format(bi + 1, running_loss / print_step)
+				print_str = '{:d}, loss {:.3f}\n'.format(bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str)
 				running_loss = 0.0
