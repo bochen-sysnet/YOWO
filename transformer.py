@@ -53,7 +53,8 @@ def get_GFTT(frame):
 
 	start = time.perf_counter()
 	corners = cv2.goodFeaturesToTrack(gray,25,0.01,10)
-	corners = np.int0(corners)
+	if corners:
+		corners = np.int0(corners) 
 	end = time.perf_counter()
 	points = [i.ravel() for i in corners]
 	return points, end-start
@@ -272,7 +273,7 @@ class Transformer:
 		feat_start = time.perf_counter()
 		bgr_frame = np.array(image)
 		# edge diff
-		edge, _ = get_edge_feature(bgr_frame)
+		# edge, _ = get_edge_feature(bgr_frame)
 		# harris corner
 		hc, _ = get_harris_corner(bgr_frame)
 		# GFTT
@@ -286,7 +287,7 @@ class Transformer:
 
 		calc_start = time.perf_counter()
 		point_features = [gftt, fast, star, orb]
-		map_features = [edge,hc]
+		map_features = [hc]
 		num_features = len(point_features) + len(map_features)
 		# divide [320,240] image to 4*3 tiles
 		ROIs = []

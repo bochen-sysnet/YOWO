@@ -47,9 +47,9 @@ class C_Generator:
 		return C_param
 
 	def uniform_init_gen(self):
-		output = np.zeros(9,dtype=np.float64)
-		output[:8] = np.random.randint(0,10,8)/10
-		output[8] = np.random.randint(-3,3)
+		output = np.zeros(8,dtype=np.float64)
+		output[:7] = np.random.randint(0,10,7)/10
+		output[7] = np.random.randint(-3,3)
 		return output
 
 
@@ -170,7 +170,7 @@ def validate(net,log_file):
 
 if __name__ == "__main__":
 	# prepare network
-	net = RSNet([9,255,255,1])
+	net = RSNet([8,255,255,1])
 	net = net.cuda()
 	train(net)
 
