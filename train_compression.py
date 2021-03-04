@@ -52,7 +52,7 @@ def train(net):
 
 	# setup
 	range_size = 1 # number of videos we test
-	video_num = 137557 # 9126 for J-HMDB
+	video_num = 910
 	batch_size = 4
 	num_batch = 2 # video_num//(batch_size*range_size)
 	print_step = 1

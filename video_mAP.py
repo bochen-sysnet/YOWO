@@ -195,18 +195,12 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
 
     gt_data = loadmat(gt_file)['annot']
     n_videos = gt_data.shape[1]
-    key2start = {}
     for i in range(n_videos):
-        # if data_range is not None:
-        #     if i < data_range[0]: continue
-        #     elif i >= data_range[1]: break
+        if data_range is not None:
+            if i < data_range[0]: continue
+            elif i >= data_range[1]: break
         video_name = gt_data[0][i][1][0]
         if video_name in video_testlist:
-            # record the first frame of every 
-            key = video_name.split('/')[0]
-            if key not in key2start:
-                key2start[key] = i
-            continue
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
             all_gt_boxes = []
@@ -231,14 +225,12 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             v_annotation['gt_classes'] = tube_class
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
-    print(key2start)
-    key2start = {}
-    print(lines[:40])
+
+    import collections
+    count = collections.defaultdict(int)
     for lidx,line in enumerate(lines):
-        # record the first frame of every 
         key = line.split('/')[0]
-        if key not in key2start:
-            key2start[key] = lidx
+        count[key] += 1
         continue
         if data_range is not None:
             if lidx < data_range[0]: continue
@@ -279,8 +271,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-    print(key2start)
-    exit(0)
+
 
     iou_list = [0.05] #[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
