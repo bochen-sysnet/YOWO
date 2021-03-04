@@ -188,7 +188,7 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
         # update new pr
-        print(inew,fn_new, fp_new, tp_new)
+        print(i_new,fn_new, fp_new, tp_new)
         pr_new[i_new,0] = float(tp_new)/float(tp_new+fp_new)
         pr_new[i_new,1] = float(tp_new)/float(tp_new+fn_new+0.00001)
         i_new += 1
