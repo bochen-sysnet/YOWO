@@ -226,12 +226,8 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
 
-    import collections
-    count = collections.defaultdict(int)
     for lidx,line in enumerate(lines):
-        key = line.split('/')[0]
-        count[key] += 1
-        continue
+        # need to consider how this sampling is done
         if data_range is not None:
             if lidx < data_range[0]: continue
             elif lidx >= data_range[1]: break
@@ -272,8 +268,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
 
-    print(count)
-    exit(0)
+
     iou_list = [0.05] #[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
     for iou_th in iou_list:
