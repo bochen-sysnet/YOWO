@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from video_mAP import simulate
+from video_mAP import simulate, setup_param
 from transformer import Transformer
 
 
@@ -56,6 +56,9 @@ def train(net):
 	num_batch = 2 # video_num//(batch_size*range_size)
 	print_step = 1
 	eval_step = 1
+
+	# setup target network
+    AD_param = setup_param(opt)
 
 	for epoch in range(1):
 		running_loss = 0.0

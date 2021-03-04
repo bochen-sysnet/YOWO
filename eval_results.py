@@ -267,6 +267,6 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         cls_len = None
         ap, pr_new_tuple = video_ap_one_class(gt, pred_cls, pr_new_tuple, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
-    ap_new = voc_ap(pr_new)
+    ap_new = voc_ap(pr_new_tuple[0])
 
     return ap_all,ap_new
