@@ -15,7 +15,7 @@ range_size = 10 # number of videos we test
 video_num = 910
 batch_size = 2
 num_batch = video_num//(batch_size*range_size)
-print_step = 1
+print_step = 10
 eval_step = 1
 
 class RSNet(nn.Module):
@@ -82,7 +82,7 @@ def train(net):
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
 				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result[0][1])+'\t'+str(fetch_end-fetch_start)+'\n'
-				print(print_str)
+				# print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
@@ -100,6 +100,9 @@ def train(net):
 
 			# print statistics
 			running_loss += loss.item()
+			print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, loss.item())
+			print(print_str)
+			log_file.write(print_str)
 			if bi % print_step == 0 and print_step>0:    
 				print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
