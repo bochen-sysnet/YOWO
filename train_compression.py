@@ -71,7 +71,7 @@ def train(net):
 				sim_result = simulate('ucf101-24', data_range=data_range, TF=TF, C_param=C_param)
 				print(data_range,C_param,sim_result)
 				inputs.append(C_param)
-				labels.append(sim_result[0][4]) # accuracy of IoU=0.5
+				labels.append(sim_result[1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
 
