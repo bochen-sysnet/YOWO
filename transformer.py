@@ -324,15 +324,12 @@ class Transformer:
 		sigma = C_param[num_features+1]
 		k = C_param[num_features+2]
 		normalized_score = counts/np.sum(counts,axis=0)
-		print(weights)
 		weights /= np.sum(weights)
 		# ws of all tiles sum up to 1
 		weighted_scores = np.matmul(normalized_score,weights)
-		print(1,weighted_scores)
 		# the weight is more valuable when its value is higher
 		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
 		weighted_scores /= np.max(weighted_scores)
-		print(2,weighted_scores)
 		# quality of each tile?
 		quality = A*weighted_scores
 
