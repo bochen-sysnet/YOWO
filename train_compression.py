@@ -103,7 +103,7 @@ def train(net):
 			print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, loss.item())
 			print(print_str)
 			log_file.write(print_str)
-			if bi % print_step == 0 and print_step>0:    
+			if bi % print_step == 0 and bi>0:    
 				print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str)
