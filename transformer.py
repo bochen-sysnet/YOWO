@@ -277,7 +277,7 @@ def tile_disturber(image, C_param):
 
 	calc_start = time.perf_counter()
 	point_features = [gftt, fast, star, orb]
-	map_features = [hc]
+	map_features = []
 	num_features = len(point_features) + len(map_features)
 	# divide [320,240] image to 4*3 tiles
 	ROIs = []
@@ -308,14 +308,14 @@ def tile_disturber(image, C_param):
 	# parameter of the function to amplify the score
 	# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
 	# k decides the weights should have small or big difference
-	sigma = C_param[num_features+1]
-	k = C_param[num_features+2]
+	# sigma = C_param[num_features+1]
+	k = C_param[num_features+1]
 	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
 	# the weight is more valuable when its value is higher
-	weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
+	weighted_scores = np.exp((10**k)*weighted_scores) - 1
 	weighted_scores /= (np.max(weighted_scores)+1e-6)
 	# quality of each tile?
 	quality = A*weighted_scores

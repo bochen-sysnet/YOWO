@@ -17,6 +17,7 @@ batch_size = 2
 num_batch = video_num//(batch_size*range_size)
 print_step = 10
 eval_step = 1
+PATH = 'backup/rsnet.pth'
 
 class RSNet(nn.Module):
 	def __init__(self, settings):
@@ -40,16 +41,15 @@ class C_Generator:
 	def get(self):
 		# the first 6 parameters are the weights of 6 features (0,1)
 		# the 7th parameter is max ratio (0,1)
-		# the 8th parameter is multiplier (0,1)
-		# the 9th parameter is order [-3,3]
+		# the 8th parameter is order [-3,3]
 		# dirichlet?
 		C_param = self.uniform_init_gen()
 		return C_param
 
 	def uniform_init_gen(self):
-		output = np.zeros(8,dtype=np.float64)
-		output[:7] = np.random.randint(0,10,7)/10
-		output[7] = np.random.randint(-3,3)
+		output = np.zeros(6,dtype=np.float64)
+		output[:5] = np.random.randint(0,10,5)/10
+		output[5] = np.random.randint(-3,3)
 		return output
 
 
@@ -100,26 +100,25 @@ def train(net):
 
 			# print statistics
 			running_loss += loss.item()
-			print_str = '{:d}, {:d}, loss {:.3f}'.format(epoch + 1, bi + 1, loss.item())
+			print_str = '{:d}, {:d}, loss {:.6f}'.format(epoch + 1, bi + 1, loss.item())
 			print(print_str)
 			log_file.write(print_str + '\n')
 			if bi % print_step == 0 and bi>0:    
-				print_str = '{:d}, {:d}, loss {:.3f}'.format(epoch + 1, bi + 1, running_loss / print_step)
+				print_str = '{:d}, {:d}, loss {:.6f}'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str + '\n')
 				running_loss = 0.0
+		torch.save(net.state_dict(), PATH)
 		# evaluation
 		# if epoch%eval_step==0 and epoch>0:
 		# 	validate(net)
-	PATH = 'backup/rsnet.pth'
-	torch.save(net.state_dict(), PATH)
 
 	val_loss = validate(net,log_file)
-	ptr_str = "loss:{:6.3f}\n".format(val_loss)
+	ptr_str = "loss:{:1.6f}\n".format(val_loss)
 	log_file.write(ptr_str)
 
 # load if needed
-# net.load_state_dict(torch.load(PATH))
+# net.load_state_dict(torch.load('backup/rsnet.pth'))
 def validate(net,log_file):
 	np.random.seed(321)
 	# setup target network
@@ -161,7 +160,7 @@ def validate(net,log_file):
 			val_loss += abs(torch.mean(labels.cpu()-outputs.cpu()))
 			val_cnt += 1
 			if bi % print_step == 0:    # print every 200 mini-batches
-				print_str = '{:d}, loss {:.3f}\n'.format(bi + 1, running_loss / print_step)
+				print_str = '{:d}, loss {:.6}\n'.format(bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str)
 				running_loss = 0.0
@@ -170,7 +169,8 @@ def validate(net,log_file):
 
 if __name__ == "__main__":
 	# prepare network
-	net = RSNet([8,255,255,1])
+	net = RSNet([6,255,255,1])
+	# net.load_state_dict(torch.load('backup/rsnet.pth'))
 	net = net.cuda()
 	train(net)
 
