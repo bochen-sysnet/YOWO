@@ -312,17 +312,13 @@ def tile_disturber(image, C_param):
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
-	print(C_param)
-	print(weighted_scores)
 	# the weight is more valuable when its value is higher
 	weighted_scores = weighted_scores**order_choices[k]
 	weighted_scores /= (np.max(weighted_scores)+1e-6)
 	# quality of each tile?
 	quality = A*weighted_scores
-	print(quality)
 
 	tile_sizes = [(int(np.rint(tilew*max(r,0.1))),int(np.rint(tileh*max(r,0.1)))) for r in quality]
-	print(tile_sizes)
 
 	# not used for training,but can be used for 
 	# ploting the pareto front
@@ -337,7 +333,6 @@ def tile_disturber(image, C_param):
 		if dsize[0]==0 or dsize[1]==0:
 			bgr_frame[y1:y2,x1:x2] = [0]
 		else:
-			print(roi,bgr_frame.shape,crop.shape,dsize)
 			crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
 			crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
 			compressed_size += dsize[0]*dsize[1]
@@ -364,8 +359,6 @@ class Transformer:
 		if img_index in self.lru: return self.lru[img_index]
 
 		image,_,tile_sizes = tile_disturber(image, C_param)
-		print(img_index,tile_sizes)
-		exit(0)
 
 		self.lru[img_index] = image
 		return image
