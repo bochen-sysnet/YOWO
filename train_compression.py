@@ -11,7 +11,7 @@ from opts import parse_opts
 
 
 # setup
-range_size = 20 # number of videos we test
+range_size = 10 # number of videos we test
 video_num = 910
 batch_size = 2
 num_batch = video_num//(batch_size*range_size)
@@ -49,12 +49,12 @@ class C_Generator:
 
 	def uniform_init_gen(self):
 		# 0,1,2:feature weights; 3,4:lower and upper; 5:order
-		# output = np.zeros(6,dtype=np.float64)
-		# output[:4] = np.random.randint(1,10,5)
-		# output[4] = np.random.randint(output[3],11)
-		# output[:5] /= 10
-		# output[5] = np.random.randint(0,5) #[1/3,1/2,1,2,3]
-		output = np.array([1,1,1,1,1,2],dtype=np.float64)
+		output = np.zeros(6,dtype=np.float64)
+		output[:4] = np.random.randint(1,10,5)
+		output[4] = np.random.randint(output[3],11)
+		output[:5] /= 10
+		output[5] = np.random.randint(0,5) #[1/3,1/2,1,2,3]
+		# output = np.array([1,1,1,1,1,2],dtype=np.float64)
 		return output
 
 def get_approx_pareto_front(net):
