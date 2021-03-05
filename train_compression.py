@@ -43,13 +43,14 @@ class C_Generator:
 		# the 7th parameter is max ratio (0,1)
 		# the 8th parameter is order [-3,3]
 		# dirichlet?
+		# can we reject bad config at the begining?
 		C_param = self.uniform_init_gen()
 		return C_param
 
 	def uniform_init_gen(self):
 		output = np.zeros(6,dtype=np.float64)
-		output[:5] = np.random.randint(0,10,5)/10
-		output[5] = np.random.randint(-3,3)
+		output[:5] = np.random.randint(1,10,5)/10
+		output[5] = np.random.randint(-2,2)
 		return output
 
 
@@ -81,7 +82,7 @@ def train(net):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result[0][1])+'\t'+str(fetch_end-fetch_start)+'\n'
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)+'\n'
 				# print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
@@ -145,8 +146,8 @@ def validate(net,log_file):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result[0][1])+'\t'+str(fetch_end-fetch_start)+'\n'
-				print(print_str)
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)+'\n'
+				# print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
