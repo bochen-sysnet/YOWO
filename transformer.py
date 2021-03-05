@@ -312,6 +312,8 @@ def tile_disturber(image, C_param):
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
+	print(C_param)
+	print(weighted_scores)
 	# the weight is more valuable when its value is higher
 	weighted_scores = weighted_scores**order_choices[k]
 	weighted_scores /= (np.max(weighted_scores)+1e-6)
