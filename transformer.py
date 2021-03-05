@@ -337,6 +337,7 @@ def tile_disturber(image, C_param):
 		if dsize[0]==0 or dsize[1]==0:
 			bgr_frame[y1:y2,x1:x2] = [0]
 		else:
+			print(crop.shape,dsize)
 			crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
 			crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
 			compressed_size += dsize[0]*dsize[1]
