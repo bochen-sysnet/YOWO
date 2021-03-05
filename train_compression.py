@@ -67,7 +67,7 @@ def train(net):
 	opt.dataset = 'ucf101-24'
 	AD_param = setup_param(opt)
 
-	for epoch in range(4):
+	for epoch in range(10):
 		running_loss = 0.0
 		cgen = C_Generator()
 		TF = Transformer('compression')
@@ -100,7 +100,8 @@ def train(net):
 
 			# print statistics
 			running_loss += loss.item()
-			print_str = '{:d}, {:d}, loss {:.6f}'.format(epoch + 1, bi + 1, loss.item())
+			val_loss = abs(torch.mean(labels.cpu()-outputs.cpu()))
+			print_str = '{:d}, {:d}, loss {:.6f}, val loss {:.6f}'.format(epoch + 1, bi + 1, loss.item(), val_loss)
 			print(print_str)
 			log_file.write(print_str + '\n')
 			if bi % print_step == 0 and bi>0:    
