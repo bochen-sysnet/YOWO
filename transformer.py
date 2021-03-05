@@ -305,7 +305,7 @@ def tile_disturber(image, C_param):
 	weights = C_param[:num_features]
 	# (0,1) indicating the total quality after compression
 	A = C_param[num_features]
-	# order to adjust the score
+	# order to adjust the concentration of the  scores
 	k = int(C_param[num_features+1])
 	order_choices = [1./3,1./2,1,2,3]
 	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
