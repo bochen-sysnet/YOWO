@@ -146,9 +146,9 @@ def validate(net,log_file):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)+'\n'
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
-				log_file.write(print_str)
+				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
