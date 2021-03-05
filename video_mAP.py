@@ -232,7 +232,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         if data_range is not None:
             if lidx < data_range[0]: continue
             elif lidx >= data_range[1]: break
-        # print(line)
+        print(line)
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
