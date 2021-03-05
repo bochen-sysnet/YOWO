@@ -97,7 +97,7 @@ def train(net):
 				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
-				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
+				labels.append(sim_result[2][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
 
