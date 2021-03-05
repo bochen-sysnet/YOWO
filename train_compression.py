@@ -100,13 +100,13 @@ def train(net):
 
 			# print statistics
 			running_loss += loss.item()
-			print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, loss.item())
+			print_str = '{:d}, {:d}, loss {:.3f}'.format(epoch + 1, bi + 1, loss.item())
 			print(print_str)
-			log_file.write(print_str)
+			log_file.write(print_str + '\n')
 			if bi % print_step == 0 and bi>0:    
-				print_str = '{:d}, {:d}, loss {:.3f}\n'.format(epoch + 1, bi + 1, running_loss / print_step)
+				print_str = '{:d}, {:d}, loss {:.3f}'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
-				log_file.write(print_str)
+				log_file.write(print_str + '\n')
 				running_loss = 0.0
 		# evaluation
 		# if epoch%eval_step==0 and epoch>0:

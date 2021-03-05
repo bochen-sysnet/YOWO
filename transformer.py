@@ -53,10 +53,12 @@ def get_GFTT(frame):
 
 	start = time.perf_counter()
 	corners = cv2.goodFeaturesToTrack(gray,25,0.01,10)
+	end = time.perf_counter()
 	if corners is not None:
 		corners = np.int0(corners) 
-	end = time.perf_counter()
-	points = [i.ravel() for i in corners]
+		points = [i.ravel() for i in corners]
+	else:
+		points = []
 	return points, end-start
 
 # pip install opencv-python==3.4.2.16
@@ -141,6 +143,13 @@ def ROI_area(ROIs,w,h):
 	roi = np.count_nonzero(im)
 	return roi
 
+def path_to_disturbed_image(pil_image, label, r_in, r_out):
+	b,g,r = cv2.split(np.array(pil_image))
+	np_img = cv2.merge((b,g,r))
+	np_img = region_disturber(np_img,label, r_in, r_out)
+	pil_image = Image.fromarray(np_img)
+	return pil_image
+
 # change quality of non-ROI
 # r_in is the scaled ratio of ROIs
 # r_out is the scaled ratio of the whole image
@@ -169,14 +178,6 @@ def region_disturber(image,label,r_in,r_out):
 		image[y1:y2,x1:x2] = crop
 	
 	return image
-
-def path_to_disturbed_image(pil_image, label, r_in, r_out):
-	b,g,r = cv2.split(np.array(pil_image))
-	np_img = cv2.merge((b,g,r))
-	np_img = region_disturber(np_img,label, r_in, r_out)
-	pil_image = Image.fromarray(np_img)
-	return pil_image
-
 
 # analyze static and motion feature points
 # need to count the number of features ROI and not in ROI
@@ -257,6 +258,95 @@ class LRU(OrderedDict):
 			oldest = next(iter(self))
 			del self[oldest]
 
+def tile_disturber(image, C_param):
+	# analyze features in image
+	feat_start = time.perf_counter()
+	bgr_frame = np.array(image)
+	# edge diff
+	# edge, _ = get_edge_feature(bgr_frame)
+	# harris corner
+	hc, _ = get_harris_corner(bgr_frame)
+	# GFTT
+	gftt, _ = get_GFTT(bgr_frame)
+	# FAST
+	fast, _ = get_FAST(bgr_frame)
+	# STAR
+	star, _ = get_STAR(bgr_frame)
+	# ORB
+	orb, _ = get_ORB(bgr_frame)
+
+	calc_start = time.perf_counter()
+	point_features = [gftt, fast, star, orb]
+	map_features = [hc]
+	num_features = len(point_features) + len(map_features)
+	# divide [320,240] image to 4*3 tiles
+	ROIs = []
+	num_w, num_h = 4,3
+	tilew,tileh = 320//num_w,240//num_h
+	for row in range(num_w):
+		for col in range(num_h):
+			x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
+			ROIs.append([x1,y1,x2,y2])
+	counts = np.zeros((num_w*num_h,num_features))
+	for roi_idx,ROI in enumerate(ROIs):
+		roi_start = time.perf_counter()
+		feat_idx = 0
+		for mf in map_features:
+			c = count_mask_in_ROI(ROI,mf)
+			counts[roi_idx,feat_idx] = c
+			feat_idx += 1
+		for pf in point_features:
+			c = count_point_in_ROI(ROI,pf)
+			counts[roi_idx,feat_idx] = c
+			feat_idx += 1
+		roi_end = time.perf_counter()
+
+	# weight of different features
+	weights = C_param[:num_features]
+	# (0,1) indicating the total quality after compression
+	A = C_param[num_features]
+	# parameter of the function to amplify the score
+	# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
+	# k decides the weights should have small or big difference
+	sigma = C_param[num_features+1]
+	k = C_param[num_features+2]
+	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
+	weights /= (np.sum(weights)+1e-6)
+	# ws of all tiles sum up to 1
+	weighted_scores = np.matmul(normalized_score,weights)
+	# the weight is more valuable when its value is higher
+	weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
+	weighted_scores /= (np.max(weighted_scores)+1e-6)
+	# quality of each tile?
+	quality = A*weighted_scores
+
+	# not used for training,but can be used for 
+	# ploting the pareto front
+	compressed_size = 0
+	tile_size = tilew * tileh
+	for roi,r in zip(ROIs,quality):
+		dsize = (int(np.rint(tilew*r)),int(np.rint(tileh*r)))
+		if dsize == (tilew,tileh):
+			compressed_size += tilew*tileh
+			continue
+		x1,y1,x2,y2 = roi
+		crop = bgr_frame[y1:y2,x1:x2].copy()
+		if dsize[0]==0 or dsize[1]==0:
+			bgr_frame[y1:y2,x1:x2] = [0]
+		else:
+			crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+			crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
+			compressed_size += dsize[0]*dsize[1]
+			bgr_frame[y1:y2,x1:x2] = crop
+	pil_image = Image.fromarray(bgr_frame)
+
+	feat_end = time.perf_counter()
+	# print(img_index,feat_end-feat_start)
+	return image
+
+def JPEG_disturber(image, C_param):
+	return image
+
 # define a class for transformation
 class Transformer:
 	def __init__(self,name):
@@ -269,89 +359,7 @@ class Transformer:
 		# Rule 2: some features are more important
 		if img_index in self.lru: return self.lru[img_index]
 
-		# analyze features in image
-		feat_start = time.perf_counter()
-		bgr_frame = np.array(image)
-		# edge diff
-		# edge, _ = get_edge_feature(bgr_frame)
-		# harris corner
-		hc, _ = get_harris_corner(bgr_frame)
-		# GFTT
-		gftt, _ = get_GFTT(bgr_frame)
-		# FAST
-		fast, _ = get_FAST(bgr_frame)
-		# STAR
-		star, _ = get_STAR(bgr_frame)
-		# ORB
-		orb, _ = get_ORB(bgr_frame)
-
-		calc_start = time.perf_counter()
-		point_features = [gftt, fast, star, orb]
-		map_features = [hc]
-		num_features = len(point_features) + len(map_features)
-		# divide [320,240] image to 4*3 tiles
-		ROIs = []
-		num_w, num_h = 4,3
-		tilew,tileh = 320//num_w,240//num_h
-		for row in range(num_w):
-			for col in range(num_h):
-				x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
-				ROIs.append([x1,y1,x2,y2])
-		counts = np.zeros((num_w*num_h,num_features))
-		for roi_idx,ROI in enumerate(ROIs):
-			roi_start = time.perf_counter()
-			feat_idx = 0
-			for mf in map_features:
-				c = count_mask_in_ROI(ROI,mf)
-				counts[roi_idx,feat_idx] = c
-				feat_idx += 1
-			for pf in point_features:
-				c = count_point_in_ROI(ROI,pf)
-				counts[roi_idx,feat_idx] = c
-				feat_idx += 1
-			roi_end = time.perf_counter()
-
-		# weight of different features
-		weights = C_param[:num_features]
-		# (0,1) indicating the total quality after compression
-		A = C_param[num_features]
-		# parameter of the function to amplify the score
-		# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
-		# k decides the weights should have small or big difference
-		sigma = C_param[num_features+1]
-		k = C_param[num_features+2]
-		normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
-		weights /= (np.sum(weights)+1e-6)
-		# ws of all tiles sum up to 1
-		weighted_scores = np.matmul(normalized_score,weights)
-		# the weight is more valuable when its value is higher
-		weighted_scores = np.exp(sigma*(10**k)*weighted_scores) - 1
-		weighted_scores /= (np.max(weighted_scores)+1e-6)
-		# quality of each tile?
-		quality = A*weighted_scores
-
-		# not used for training,but can be used for 
-		# ploting the pareto front
-		compressed_size = 0
-		tile_size = tilew * tileh
-		for roi,r in zip(ROIs,quality):
-			dsize = (int(np.rint(tilew*r)),int(np.rint(tileh*r)))
-			if dsize == (tilew,tileh):
-				compressed_size += tilew*tileh
-				continue
-			x1,y1,x2,y2 = roi
-			crop = bgr_frame[y1:y2,x1:x2].copy()
-			if dsize[0]==0 or dsize[1]==0:
-				bgr_frame[y1:y2,x1:x2] = [0]
-			else:
-				crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
-				crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
-				compressed_size += dsize[0]*dsize[1]
-				bgr_frame[y1:y2,x1:x2] = crop
-		pil_image = Image.fromarray(bgr_frame)
-
-		feat_end = time.perf_counter()
-		# print(img_index,feat_end-feat_start)
+		image = tile_disturber(image, C_param)
 
 		self.lru[img_index] = image
 		return image
