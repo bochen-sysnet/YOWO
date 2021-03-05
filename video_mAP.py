@@ -112,7 +112,8 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
         except Exception:
             label = []
         pil_image = Image.open(path_tmp)
-        pil_image = TF.transform(image=pil_image, label=label, C_param=C_param, img_index=i_img)
+        if TF is not None:
+            pil_image = TF.transform(image=pil_image, label=label, C_param=C_param, img_index=i_img)
 
         clip.append(pil_image.convert('RGB'))
 
@@ -382,7 +383,7 @@ if __name__ == '__main__':
     AD_param = setup_param(opt)
 
     if opt.dataset == 'ucf101-24':
-        ans = video_mAP_ucf(AD_param, (0,5))
+        ans = video_mAP_ucf(AD_param, data_range=(0,10))
     elif opt.dataset == 'jhmdb-21':
         ans = video_mAP_jhmdb(AD_param)
     print(ans)
