@@ -266,8 +266,8 @@ def tile_disturber(image, C_param):
 	# edge, _ = get_edge_feature(bgr_frame)
 	# harris corner
 	hc, _ = get_harris_corner(bgr_frame)
-	# GFTT
-	gftt, _ = get_GFTT(bgr_frame)
+	# # GFTT
+	# gftt, _ = get_GFTT(bgr_frame)
 	# FAST
 	fast, _ = get_FAST(bgr_frame)
 	# STAR
@@ -276,7 +276,7 @@ def tile_disturber(image, C_param):
 	orb, _ = get_ORB(bgr_frame)
 
 	calc_start = time.perf_counter()
-	point_features = [gftt, fast, star, orb]
+	point_features = [fast, star, orb]
 	map_features = []
 	num_features = len(point_features) + len(map_features)
 	# divide [320,240] image to 4*3 tiles
@@ -303,22 +303,20 @@ def tile_disturber(image, C_param):
 
 	# weight of different features
 	weights = C_param[:num_features]
-	# (0,1) indicating the total quality after compression
-	A = C_param[num_features]
+	# lower and upper
+	lower,upper = C_param[num_features:num_features+2]
 	# order to adjust the concentration of the  scores
-	k = int(C_param[num_features+1])
+	k = int(C_param[num_features+2])
 	order_choices = [1./3,1./2,1,2,3]
+	# score of each feature sum to 1
 	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
 	# the weight is more valuable when its value is higher
-	weighted_scores = weighted_scores**order_choices[k]
-	weighted_scores /= (np.max(weighted_scores)+1e-6)
-	# quality of each tile?
-	quality = A*weighted_scores
+	quality = (upper-lower)*weighted_scores**order_choices[k] + lower
 
-	tile_sizes = [(int(np.rint(tilew*max(r,0.1))),int(np.rint(tileh*max(r,0.1)))) for r in quality]
+	tile_sizes = [(int(np.rint(tilew*r)),int(np.rint(tileh*r))) for r in quality]
 
 	# not used for training,but can be used for 
 	# ploting the pareto front
