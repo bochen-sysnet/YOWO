@@ -107,7 +107,7 @@ def train(net):
 				tilesizes = cgen.c_param_to_tilesizes(C_param)
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, tilesizes=tilesizes, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				result = [np.sum(APs),AP_new for APs,AP_new in sim_result]
+				result = [(np.sum(APs),AP_new) for APs,AP_new in sim_result]
 				print_str = str(data_range)+str(C_param)+str(tilesizes)+' '+str(result)+' '+str(fetch_end-fetch_start)+'\n'
 				print(print_str)
 				log_file.write(print_str)
