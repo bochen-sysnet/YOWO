@@ -317,6 +317,7 @@ def tile_disturber(image, C_param):
 	weighted_scores /= (np.max(weighted_scores)+1e-6)
 	# quality of each tile?
 	quality = A*weighted_scores
+	print(quality)
 
 	tile_sizes = [(int(np.rint(tilew*r)),int(np.rint(tileh*r))) for r in quality]
 
