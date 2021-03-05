@@ -305,17 +305,15 @@ def tile_disturber(image, C_param):
 	weights = C_param[:num_features]
 	# (0,1) indicating the total quality after compression
 	A = C_param[num_features]
-	# parameter of the function to amplify the score
-	# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
-	# k decides the weights should have small or big difference
-	# sigma = C_param[num_features+1]
+	# order to adjust the score
 	k = C_param[num_features+1]
+	order_choices = [1./3,1./2,1,2,3]
 	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
 	# the weight is more valuable when its value is higher
-	weighted_scores = np.exp((10**k)*weighted_scores) - 1
+	weighted_scores = weighted_scores**order_choices[k]
 	weighted_scores /= (np.max(weighted_scores)+1e-6)
 	# quality of each tile?
 	quality = A*weighted_scores
