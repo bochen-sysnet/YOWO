@@ -67,15 +67,16 @@ def setup_opt(opt):
     opt.backbone_3d = 'resnext101'
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
+    opt.tile_settings = [320,240,4,3]
 
-def simulate(dataset, data_range=None, TF=None, C_param=None, AD_param=None):
+def simulate(dataset, data_range=None, TF=None, tilesizes=None, AD_param=None):
     if dataset == 'ucf101-24':
-        ans = video_mAP_ucf(AD_param, data_range, TF, C_param)
+        ans = video_mAP_ucf(AD_param, data_range, TF, tilesizes)
     elif dataset == 'jhmdb-21':
-        ans = video_mAP_jhmdb(AD_param, data_range, TF, C_param)
+        ans = video_mAP_jhmdb(AD_param, data_range, TF, tilesizes)
     return ans
 
-def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
+def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, tilesizes):
     dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
     im_split = imgpath.split('/')
     num_parts = len(im_split)
@@ -112,7 +113,7 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
         except Exception:
             label = []
         pil_image = Image.open(path_tmp)
-        pil_image = TF.transform(image=pil_image, label=label, C_param=C_param, img_index=i_img)
+        pil_image = TF.transform(image=pil_image, label=label, tilesizes=tilesizes, img_index=i_img)
 
         clip.append(pil_image.convert('RGB'))
 
@@ -133,10 +134,10 @@ def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
     return clip, label, img_name
 
 class testData(Dataset):
-    def __init__(self, root, AD_param, TF, C_param, shape=None, transform=None, clip_duration=16):
+    def __init__(self, root, AD_param, TF, tilesizes, shape=None, transform=None, clip_duration=16):
 
         self.AD_param = AD_param
-        self.C_param = C_param
+        self.tilesizes = tilesizes
         self.TF = TF
         dataset, gt_file, base_path, testlist, clip_duration, anchors, num_anchors, num_classes, conf_thresh, nms_thresh, eps, use_cuda, kwargs, model = AD_param
         self.root = root
@@ -157,7 +158,7 @@ class testData(Dataset):
         assert index <= len(self), 'index range error'
         label_path = self.label_paths[index]
 
-        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.AD_param, self.TF, self.C_param)
+        clip, label, img_name = get_clip(self.root, label_path, self.clip_duration, dataset, self.AD_param, self.TF, self.tile_settings)
         clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
@@ -167,7 +168,7 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
+def video_mAP_ucf(AD_param,data_range=None,TF=None,tilesizes=None):
     """
     Calculate video_mAP over the test dataset
     """
@@ -235,7 +236,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
-                          AD_param, TF, C_param,
+                          AD_param, TF, tilesizes,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=64, shuffle=False, **kwargs)
@@ -269,7 +270,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                     detected_boxes[img_name[i]] = img_annotation
 
 
-    iou_list = [0.2] #[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
     for iou_th in iou_list:
         eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)
@@ -307,7 +308,7 @@ def video_mAP_jhmdb(AD_param, data_range):
 
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
-                          AD_param, TF, C_param,
+                          AD_param, TF, tilesizes,
                           shape=(224, 224), transform=transforms.Compose([
                           transforms.ToTensor()]), clip_duration=clip_duration),
                           batch_size=1, shuffle=False, **kwargs)

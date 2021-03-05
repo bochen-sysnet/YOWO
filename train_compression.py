@@ -11,11 +11,11 @@ from opts import parse_opts
 
 
 # setup
-range_size = 10 # number of videos we test
+range_size = 1 # number of videos we test
 video_num = 910
-batch_size = 2
+batch_size = 1
 num_batch = video_num//(batch_size*range_size)
-print_step = 10
+print_step = 1
 eval_step = 1
 PATH = 'backup/rsnet.pth'
 
@@ -35,8 +35,9 @@ class RSNet(nn.Module):
 
 
 class C_Generator:
-	def __init__(self):
-		pass
+	def __init__(self,opt):
+		img_w,img_h,num_w,num_h = opt.tile_settings
+		self.tilew,self.tileh = img_w//num_w,img_h//num_h
 
 	def get(self):
 		# the first 6 parameters are the weights of 6 features (0,1)
@@ -53,6 +54,29 @@ class C_Generator:
 		output[5] = np.random.randint(-2,2)
 		return output
 
+	def c_param_to_tilesizes(self,C_param):
+		# weight of different features
+		weights = C_param[:num_features]
+		# (0,1) indicating the total quality after compression
+		A = C_param[num_features]
+		# parameter of the function to amplify the score
+		# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
+		# k decides the weights should have small or big difference
+		# sigma = C_param[num_features+1]
+		k = C_param[num_features+1]
+		normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
+		weights /= (np.sum(weights)+1e-6)
+		# ws of all tiles sum up to 1
+		weighted_scores = np.matmul(normalized_score,weights)
+		# the weight is more valuable when its value is higher
+		weighted_scores = np.exp((10**k)*weighted_scores) - 1
+		weighted_scores /= (np.max(weighted_scores)+1e-6)
+		# quality of each tile?
+		quality = A*weighted_scores
+
+		tilesizes = [(int(np.rint(self.tilew*q)),int(np.rint(self.tileh*r))) for q in quality]
+		return tilesizes
+
 
 def train(net):
 	np.random.seed(123)
@@ -68,10 +92,10 @@ def train(net):
 	opt.dataset = 'ucf101-24'
 	AD_param = setup_param(opt)
 
-	for epoch in range(10):
+	for epoch in range(1):
 		running_loss = 0.0
-		cgen = C_Generator()
-		TF = Transformer('compression')
+		cgen = C_Generator(opt)
+		TF = Transformer('compression',opt)
 
 		for bi in range(num_batch):
 			inputs,labels = [],[]
@@ -80,13 +104,15 @@ def train(net):
 				data_range = (di*range_size,di*range_size+range_size)
 				fetch_start = time.perf_counter()
 				C_param = cgen.get()
-				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+				tilesizes = cgen.c_param_to_tilesizes(C_param)
+				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, tilesizes=tilesizes, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)+'\n'
-				# print(print_str)
+				result = [np.sum(APs),AP_new for APs,AP_new in sim_result]
+				print_str = str(data_range)+str(C_param)+str(tilesizes)+' '+str(result)+' '+str(fetch_end-fetch_start)+'\n'
+				print(print_str)
 				log_file.write(print_str)
 				inputs.append(C_param)
-				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
+				labels.append(sim_result[4][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
 
@@ -115,9 +141,9 @@ def train(net):
 		# if epoch%eval_step==0 and epoch>0:
 		# 	validate(net)
 
-	val_loss = validate(net,log_file)
-	ptr_str = "loss:{:1.6f}\n".format(val_loss)
-	log_file.write(ptr_str)
+	# val_loss = validate(net,log_file)
+	# ptr_str = "loss:{:1.6f}\n".format(val_loss)
+	# log_file.write(ptr_str)
 
 # load if needed
 # net.load_state_dict(torch.load('backup/rsnet.pth'))

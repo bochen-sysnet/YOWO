@@ -258,7 +258,9 @@ class LRU(OrderedDict):
 			oldest = next(iter(self))
 			del self[oldest]
 
-def tile_disturber(image, C_param):
+def tile_disturber(image, tilesizes, tile_settings):
+	img_w,img_h,num_w,num_h = tile_settings
+	tilew,tileh = img_w//num_w,img_h//num_h
 	# analyze features in image
 	feat_start = time.perf_counter()
 	bgr_frame = np.array(image)
@@ -281,8 +283,6 @@ def tile_disturber(image, C_param):
 	num_features = len(point_features) + len(map_features)
 	# divide [320,240] image to 4*3 tiles
 	ROIs = []
-	num_w, num_h = 4,3
-	tilew,tileh = 320//num_w,240//num_h
 	for row in range(num_w):
 		for col in range(num_h):
 			x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
@@ -301,31 +301,11 @@ def tile_disturber(image, C_param):
 			feat_idx += 1
 		roi_end = time.perf_counter()
 
-	# weight of different features
-	weights = C_param[:num_features]
-	# (0,1) indicating the total quality after compression
-	A = C_param[num_features]
-	# parameter of the function to amplify the score
-	# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
-	# k decides the weights should have small or big difference
-	# sigma = C_param[num_features+1]
-	k = C_param[num_features+1]
-	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
-	weights /= (np.sum(weights)+1e-6)
-	# ws of all tiles sum up to 1
-	weighted_scores = np.matmul(normalized_score,weights)
-	# the weight is more valuable when its value is higher
-	weighted_scores = np.exp((10**k)*weighted_scores) - 1
-	weighted_scores /= (np.max(weighted_scores)+1e-6)
-	# quality of each tile?
-	quality = A*weighted_scores
-
 	# not used for training,but can be used for 
 	# ploting the pareto front
 	compressed_size = 0
 	tile_size = tilew * tileh
-	for roi,r in zip(ROIs,quality):
-		dsize = (int(np.rint(tilew*r)),int(np.rint(tileh*r)))
+	for roi,dsize in zip(ROIs,tilesizes):
 		if dsize == (tilew,tileh):
 			compressed_size += tilew*tileh
 			continue
@@ -344,22 +324,21 @@ def tile_disturber(image, C_param):
 	# print(img_index,feat_end-feat_start)
 	return image
 
-def JPEG_disturber(image, C_param):
-	return image
 
 # define a class for transformation
 class Transformer:
-	def __init__(self,name):
+	def __init__(self,name,opt):
 		# need a dict as buffer to store transformed image of a range
 		self.name = name
 		self.lru = LRU(16) # size of clip
+		self.tile_settings = opt.tile_settings
 
-	def transform(self, image=None, label=None, C_param=None, img_index=None):
+	def transform(self, image=None, label=None, tilesizes=None, img_index=None):
 		# Rule 1: more feature more quality
 		# Rule 2: some features are more important
 		if img_index in self.lru: return self.lru[img_index]
 
-		image = tile_disturber(image, C_param)
+		image = tile_disturber(image, tilesizes, self.tile_settings)
 
 		self.lru[img_index] = image
 		return image
