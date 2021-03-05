@@ -317,25 +317,24 @@ def tile_disturber(image, C_param):
 	quality = (upper-lower)*weighted_scores**order_choices[k] + lower
 
 	tile_sizes = [(int(np.rint(tilew*r)),int(np.rint(tileh*r))) for r in quality]
-	print(tile_sizes)
 
 	# not used for training,but can be used for 
 	# ploting the pareto front
 	compressed_size = 0
 	tile_size = tilew * tileh
-	for roi,dsize in zip(ROIs,tile_sizes):
-		if dsize == (tilew,tileh):
-			compressed_size += tilew*tileh
-			continue
-		x1,y1,x2,y2 = roi
-		crop = bgr_frame[y1:y2,x1:x2].copy()
-		if dsize[0]==0 or dsize[1]==0:
-			bgr_frame[y1:y2,x1:x2] = [0]
-		else:
-			crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
-			crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
-			compressed_size += dsize[0]*dsize[1]
-			bgr_frame[y1:y2,x1:x2] = crop
+	# for roi,dsize in zip(ROIs,tile_sizes):
+	# 	if dsize == (tilew,tileh):
+	# 		compressed_size += tilew*tileh
+	# 		continue
+	# 	x1,y1,x2,y2 = roi
+	# 	crop = bgr_frame[y1:y2,x1:x2].copy()
+	# 	if dsize[0]==0 or dsize[1]==0:
+	# 		bgr_frame[y1:y2,x1:x2] = [0]
+	# 	else:
+	# 		crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+	# 		crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
+	# 		compressed_size += dsize[0]*dsize[1]
+	# 		bgr_frame[y1:y2,x1:x2] = crop
 	pil_image = Image.fromarray(bgr_frame)
 
 	feat_end = time.perf_counter()
