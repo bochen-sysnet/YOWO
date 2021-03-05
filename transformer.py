@@ -283,8 +283,8 @@ def tile_disturber(image, C_param):
 	ROIs = []
 	num_w, num_h = 4,3
 	tilew,tileh = 320//num_w,240//num_h
-	for row in range(num_w):
-		for col in range(num_h):
+	for row in range(num_h):
+		for col in range(num_w):
 			x1 = col*tilew; x2 = (col+1)*tilew; y1 = row*tileh; y2 = (row+1)*tileh
 			ROIs.append([x1,y1,x2,y2])
 	counts = np.zeros((num_w*num_h,num_features))
@@ -365,6 +365,7 @@ class Transformer:
 
 		image,_,tile_sizes = tile_disturber(image, C_param)
 		print(img_index,tile_sizes)
+		exit(0)
 
 		self.lru[img_index] = image
 		return image
