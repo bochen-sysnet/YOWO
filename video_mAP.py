@@ -383,7 +383,7 @@ if __name__ == '__main__':
     AD_param = setup_param(opt)
 
     if opt.dataset == 'ucf101-24':
-        ans = video_mAP_ucf(AD_param, data_range=(0,10))
+        ans = video_mAP_ucf(AD_param, data_range=(0,20))
     elif opt.dataset == 'jhmdb-21':
         ans = video_mAP_jhmdb(AD_param)
     print(ans)
