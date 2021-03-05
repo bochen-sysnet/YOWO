@@ -38,6 +38,7 @@ class C_Generator:
 	def __init__(self,opt):
 		img_w,img_h,num_w,num_h = opt.tile_settings
 		self.tilew,self.tileh = img_w//num_w,img_h//num_h
+		self.num_features = 4
 
 	def get(self):
 		# the first 6 parameters are the weights of 6 features (0,1)
@@ -49,21 +50,21 @@ class C_Generator:
 		return C_param
 
 	def uniform_init_gen(self):
-		output = np.zeros(6,dtype=np.float64)
-		output[:5] = np.random.randint(1,10,5)/10
-		output[5] = np.random.randint(-2,2)
+		output = np.zeros(self.num_features+2,dtype=np.float64)
+		output[:self.num_features+1] = np.random.randint(1,10,self.num_features+1)/10
+		output[self.num_features+1] = np.random.randint(-2,2)
 		return output
 
 	def c_param_to_tilesizes(self,C_param):
 		# weight of different features
-		weights = C_param[:num_features]
+		weights = C_param[:self.num_features]
 		# (0,1) indicating the total quality after compression
-		A = C_param[num_features]
+		A = C_param[self.num_features]
 		# parameter of the function to amplify the score
 		# sigma=0,1,...,9; k=-3,...,3: no big difference with larger value
 		# k decides the weights should have small or big difference
 		# sigma = C_param[num_features+1]
-		k = C_param[num_features+1]
+		k = C_param[self.num_features+1]
 		normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
 		weights /= (np.sum(weights)+1e-6)
 		# ws of all tiles sum up to 1
