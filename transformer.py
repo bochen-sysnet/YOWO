@@ -321,7 +321,7 @@ def tile_disturber(image, C_param):
 	quality = A*weighted_scores
 	print(quality)
 
-	tile_sizes = [(int(np.rint(tilew*max(r,0.1))),int(np.rint(tileh*max(r*0.1)))) for r in quality]
+	tile_sizes = [(int(np.rint(tilew*max(r,0.1))),int(np.rint(tileh*max(r,0.1)))) for r in quality]
 
 	# not used for training,but can be used for 
 	# ploting the pareto front
