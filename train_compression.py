@@ -54,7 +54,7 @@ class C_Generator:
 		# output[4] = np.random.randint(output[3],11)
 		# output[:5] /= 10
 		# output[5] = np.random.randint(0,5) #[1/3,1/2,1,2,3]
-		np.array([1,1,1,1,1,2],dtype=np.float64)
+		output = np.array([1,1,1,1,1,2],dtype=np.float64)
 		return output
 
 def get_approx_pareto_front(net):
