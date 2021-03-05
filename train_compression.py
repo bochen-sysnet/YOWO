@@ -11,11 +11,11 @@ from opts import parse_opts
 
 
 # setup
-range_size = 1 # number of videos we test
+range_size = 10 # number of videos we test
 video_num = 910
-batch_size = 1
+batch_size = 2
 num_batch = video_num//(batch_size*range_size)
-print_step = 11
+print_step = 10
 eval_step = 1
 PATH = 'backup/rsnet.pth'
 
@@ -82,9 +82,9 @@ def train(net):
 				C_param = cgen.get()
 				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)+'\n'
+				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
-				log_file.write(print_str)
+				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[0][1]) # accuracy of IoU=0.5
 			inputs = torch.FloatTensor(inputs).cuda()
