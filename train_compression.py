@@ -50,7 +50,7 @@ class C_Generator:
 	def uniform_init_gen(self):
 		# 0,1,2:feature weights; 3,4:lower and upper; 5:order
 		output = np.zeros(6,dtype=np.float64)
-		output[:4] = np.random.randint(1,10,5)
+		output[:4] = np.random.randint(1,10,4)
 		output[4] = np.random.randint(output[3],11)
 		output[:5] /= 10
 		output[5] = np.random.randint(0,5) #[1/3,1/2,1,2,3]
