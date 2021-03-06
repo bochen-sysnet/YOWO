@@ -193,49 +193,17 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
 
     detected_boxes = {}
     gt_videos = {}
-
-    gt_data = loadmat(gt_file)['annot']
-    n_videos = gt_data.shape[1]
-    for i in range(n_videos):
-        if data_range is not None:
-            if i < data_range[0]: continue
-            elif i >= data_range[1]: break
-        video_name = gt_data[0][i][1][0]
-        print(i,video_name)
-        if video_name in video_testlist:
-            n_tubes = len(gt_data[0][i][2][0])
-            v_annotation = {}
-            all_gt_boxes = []
-            for j in range(n_tubes):  
-                gt_one_tube = [] 
-                tube_start_frame = gt_data[0][i][2][0][j][1][0][0]
-                tube_end_frame = gt_data[0][i][2][0][j][0][0][0]
-                tube_class = gt_data[0][i][2][0][j][2][0][0]
-                tube_data = gt_data[0][i][2][0][j][3]
-                tube_length = tube_end_frame - tube_start_frame + 1
-            
-                for k in range(tube_length):
-                    gt_boxes = []
-                    gt_boxes.append(int(tube_start_frame+k))
-                    gt_boxes.append(float(tube_data[k][0]))
-                    gt_boxes.append(float(tube_data[k][1]))
-                    gt_boxes.append(float(tube_data[k][0]) + float(tube_data[k][2]))
-                    gt_boxes.append(float(tube_data[k][1]) + float(tube_data[k][3]))
-                    gt_one_tube.append(gt_boxes)
-                all_gt_boxes.append(gt_one_tube)
-
-            v_annotation['gt_classes'] = tube_class
-            v_annotation['tubes'] = np.array(all_gt_boxes)
-            gt_videos[video_name] = v_annotation
+    video_range_names = set()
 
     for lidx,line in enumerate(lines):
         # need to consider how this sampling is done
         if data_range is not None:
             if lidx < data_range[0]: continue
             elif lidx >= data_range[1]: break
-        print(lidx,line)
-        continue
         line = line.rstrip()
+        print(lidx,line)
+        video_range_names.add(line)
+        continue
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
                           AD_param, TF, C_param,
@@ -270,6 +238,37 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+
+    gt_data = loadmat(gt_file)['annot']
+    n_videos = gt_data.shape[1]
+    for i in range(n_videos):
+        video_name = gt_data[0][i][1][0]
+        if video_name in video_testlist and video_name in video_range_names:
+            print(i,video_name)
+            n_tubes = len(gt_data[0][i][2][0])
+            v_annotation = {}
+            all_gt_boxes = []
+            for j in range(n_tubes):  
+                gt_one_tube = [] 
+                tube_start_frame = gt_data[0][i][2][0][j][1][0][0]
+                tube_end_frame = gt_data[0][i][2][0][j][0][0][0]
+                tube_class = gt_data[0][i][2][0][j][2][0][0]
+                tube_data = gt_data[0][i][2][0][j][3]
+                tube_length = tube_end_frame - tube_start_frame + 1
+            
+                for k in range(tube_length):
+                    gt_boxes = []
+                    gt_boxes.append(int(tube_start_frame+k))
+                    gt_boxes.append(float(tube_data[k][0]))
+                    gt_boxes.append(float(tube_data[k][1]))
+                    gt_boxes.append(float(tube_data[k][0]) + float(tube_data[k][2]))
+                    gt_boxes.append(float(tube_data[k][1]) + float(tube_data[k][3]))
+                    gt_one_tube.append(gt_boxes)
+                all_gt_boxes.append(gt_one_tube)
+
+            v_annotation['gt_classes'] = tube_class
+            v_annotation['tubes'] = np.array(all_gt_boxes)
+            gt_videos[video_name] = v_annotation
     exit(0)
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
