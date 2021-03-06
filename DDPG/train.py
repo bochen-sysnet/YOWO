@@ -7,8 +7,8 @@ from torch.autograd import Variable
 import numpy as np
 import math
 
-import utils
-import model
+import DDPG.utils
+import DDPG.model
 
 BATCH_SIZE = 128
 LEARNING_RATE = 0.001

@@ -7,8 +7,8 @@ import os
 import psutil
 import gc
 
-import train
-import buffer
+import DDPG.train
+import DDPG.buffer
 
 # env = gym.make('BipedalWalker-v3')
 env = gym.make('Pendulum-v0')
