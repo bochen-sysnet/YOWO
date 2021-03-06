@@ -167,7 +167,7 @@ def train(net):
 				# get the compression ratio
 				cr = TF.get_compression_ratio()
 				# optimize generator
-				cgen.optimize((sim_result[2][class_idx],cr))
+				cgen.optimize((sim_result[2][class_idx],cr),False)
 
 				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result)
 				log_file.write(print_str+'\n')
@@ -196,6 +196,7 @@ def train(net):
 				print(print_str)
 				log_file.write(print_str + '\n')
 				running_loss = 0.0
+		cgen.optimize(None,True)
 		torch.save(net.state_dict(), PATH)
 		# evaluation
 		# if epoch%eval_step==0 and epoch>0:

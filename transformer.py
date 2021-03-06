@@ -364,6 +364,7 @@ class Transformer:
 		self.original_size += 320*240
 
 		self.lru[img_index] = image
+		print('Compress',img_index)
 		return image
 
 	def reset(self):
