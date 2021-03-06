@@ -87,7 +87,7 @@ class Trainer:
 		# y_pred = Q( s1, a1)
 		y_predicted = torch.squeeze(self.critic.forward(s1, a1))
 		# compute critic loss, and update the critic
-		print('ddpgtrain',y_predicted, y_expected)
+		print('ddpgtrain',y_predicted, y_expected, r1, next_val)
 		loss_critic = F.smooth_l1_loss(y_predicted, y_expected)
 		self.critic_optimizer.zero_grad()
 		loss_critic.backward()
