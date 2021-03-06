@@ -203,7 +203,6 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
         line = line.rstrip()
         print(lidx,line)
         video_range_names.add(line)
-        continue
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
                           AD_param, TF, C_param,
@@ -244,7 +243,6 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
     for i in range(n_videos):
         video_name = gt_data[0][i][1][0]
         if video_name in video_testlist and video_name in video_range_names:
-            print(i,video_name)
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
             all_gt_boxes = []
@@ -269,7 +267,6 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             v_annotation['gt_classes'] = tube_class
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
-    exit(0)
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []

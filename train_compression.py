@@ -95,7 +95,7 @@ def train(net):
 				data_range = (di*range_size,di*range_size+range_size)
 				fetch_start = time.perf_counter()
 				C_param = cgen.get()
-				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+				sim_result = simulate(opt.dataset, data_range=(874,910), TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
 				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
