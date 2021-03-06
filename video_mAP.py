@@ -68,11 +68,11 @@ def setup_opt(opt):
     opt.backbone_2d = 'darknet'
     opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
-def simulate(dataset, data_range=None, TF=None, C_param=None, AD_param=None):
+def simulate(dataset, class_idx=None, TF=None, C_param=None, AD_param=None):
     if dataset == 'ucf101-24':
-        ans = video_mAP_ucf(AD_param, data_range, TF, C_param)
+        ans = video_mAP_ucf(AD_param, class_idx, TF, C_param)
     elif dataset == 'jhmdb-21':
-        ans = video_mAP_jhmdb(AD_param, data_range, TF, C_param)
+        ans = video_mAP_jhmdb(AD_param, class_idx, TF, C_param)
     return ans
 
 def get_clip(root, imgpath, train_dur, dataset, AD_param, TF, C_param):
@@ -168,7 +168,7 @@ class testData(Dataset):
 
         return clip, label, img_name
 
-def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
+def video_mAP_ucf(AD_param, class_idx=None,TF=None,C_param=None):
     """
     Calculate video_mAP over the test dataset
     """
@@ -196,11 +196,10 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
     video_range_names = set()
 
     for lidx,line in enumerate(lines):
-        # need to consider how this sampling is done
-        if data_range is not None:
-            if lidx < data_range[0]: continue
-            elif lidx >= data_range[1]: break
         line = line.rstrip()
+        if class_idx is not None:
+            if CLASSES[class_idx] != line.split('/')[0]:
+                continue
         print(lidx,line)
         video_range_names.add(line)
         test_loader = torch.utils.data.DataLoader(
@@ -268,7 +267,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
 
-    iou_list = [0.05]#[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
     for iou_th in iou_list:
         eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)
@@ -276,7 +275,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
     return ans
 
 
-def video_mAP_jhmdb(AD_param, data_range):
+def video_mAP_jhmdb(AD_param, class_idx):
     """
     Calculate video_mAP over the test set
     """
@@ -297,9 +296,9 @@ def video_mAP_jhmdb(AD_param, data_range):
     detected_boxes = {}
     gt_videos = {}
     for i, line in enumerate(lines):
-        if data_range is not None:
-            if i < data_range[0]: continue
-            elif i >= data_range[1]: break
+        if class_idx is not None:
+            if CLASSES[class_idx] != line.split('/')[0]:
+                continue
         print(line)
 
         line = line.rstrip()
@@ -381,7 +380,7 @@ if __name__ == '__main__':
     AD_param = setup_param(opt)
 
     if opt.dataset == 'ucf101-24':
-        ans = video_mAP_ucf(AD_param, data_range=(0,20))
+        ans = video_mAP_ucf(AD_param)
     elif opt.dataset == 'jhmdb-21':
         ans = video_mAP_jhmdb(AD_param)
     print(ans)

@@ -11,10 +11,9 @@ from opts import parse_opts
 
 
 # setup
-range_size = 910 # number of videos we test
-video_num = 910
+classes_num = 24
 batch_size = 1
-num_batch = video_num//(batch_size*range_size)
+num_batch = classes_num//batch_size
 print_step = 10
 eval_step = 1
 PATH = 'backup/rsnet.pth'
@@ -92,14 +91,13 @@ def train(net):
 			inputs,labels = [],[]
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
-				data_range = (di*range_size,di*range_size+range_size)
+				class_idx = di%24
 				fetch_start = time.perf_counter()
 				C_param = cgen.get()
-				sim_result = simulate(opt.dataset, data_range=(874,880), TF=TF, C_param=C_param, AD_param=AD_param)
+				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
+				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
-				exit(0)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[2][1]) # accuracy of IoU=0.5
@@ -157,12 +155,12 @@ def validate(net,log_file):
 			inputs,labels = [],[]
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
-				data_range = (di*range_size,di*range_size+range_size)
+				class_idx = di%24
 				fetch_start = time.perf_counter()
 				C_param = cgen.get()
-				sim_result = simulate(opt.dataset, data_range=data_range, TF=TF, C_param=C_param, AD_param=AD_param)
+				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=C_param, AD_param=AD_param)
 				fetch_end = time.perf_counter()
-				print_str = str(data_range)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
+				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
@@ -195,5 +193,5 @@ if __name__ == "__main__":
 	# cgen = C_Generator()
 	# TF = Transformer('compression')
 	# C_param = cgen.get()
-	# sim_result = simulate('ucf101-24', data_range=(0,1), TF=TF, C_param=C_param)
+	# sim_result = simulate('ucf101-24', class_idx=(0,1), TF=TF, C_param=C_param)
 	# print(sim_result)

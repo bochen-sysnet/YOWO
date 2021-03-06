@@ -116,7 +116,7 @@ def link_video_one_class(vid_det, bNMS3d = False, gtlen=None):
     return vres
 
 
-def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTemporal = False, gtlen = None):
+def video_ap_one_class(gt, pred_videos, iou_thresh = 0.2, bTemporal = False, gtlen = None):
     '''
     gt: [ video_index, array[frame_index, x1,y1,x2,y2] ]
     pred_videos: [ video_index, [ [frame_index, [[x1,y1,x2,y2, score]] ] ] ]
@@ -135,15 +135,8 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
     pr[0,0] = 1.0
     pr[0,1] = 0.0
     fn = len(gt) #sum([len(a[1]) for a in gt])
-    print('fn',fn,len(pred))
     fp = 0
     tp = 0
-
-    # update new pr
-    pr_new, fn_new, fp_new, tp_new = pr_new_tuple
-    pr_tmp = np.empty((len(pred), 2), dtype=np.float32)
-    i_new = pr_new.shape[0]
-    pr_new = np.concatenate((pr_new,pr_tmp),axis=0)
 
     gt_v_index = [g[0] for g in gt]
     for i, k in enumerate(argsort_scores):
@@ -179,23 +172,13 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
         if ispositive:
             tp += 1
             fn -= 1
-            # update new pr
-            tp_new += 1
-            fn_new -= 1
         else:
             fp += 1
-            # update new pr
-            fp_new += 1
         pr[i+1,0] = float(tp)/float(tp+fp)
         pr[i+1,1] = float(tp)/float(tp+fn + 0.00001)
-        # update new pr
-        pr_new[i_new,0] = float(tp_new)/float(tp_new+fp_new)
-        pr_new[i_new,1] = float(tp_new)/float(tp_new+fn_new+0.00001)
-        i_new += 1
-    print(pr)
     ap = voc_ap(pr)
 
-    return ap, (pr_new, fn_new, fp_new, tp_new)
+    return ap
 
 
 def gt_to_videts(gt_v):
@@ -253,24 +236,13 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     gt_videos_format = gt_to_videts(gt_videos)
     pred_videos_format = imagebox_to_videts(all_boxes, CLASSES)
     ap_all = []   
-    # counts precision,recall regardless of the class
-    pr_new = np.empty((1, 2), dtype=np.float32) # precision, recall
-    pr_new[0,0] = 1.0
-    pr_new[0,1] = 0.0
-    fn_new = len(gt_videos_format) 
-    print('fn_new',fn_new)
-    fp_new = 0
-    tp_new = 0
-    pr_new_tuple = (pr_new, fn_new, fp_new, tp_new)
     for cls_ind, cls in enumerate(CLASSES[0:]):
         cls_ind += 1
         # [ video_index, [[frame_index, x1,y1,x2,y2]] ]
         gt = [g[1:] for g in gt_videos_format if g[0]==cls_ind]
         pred_cls = [p[1:] for p in pred_videos_format if p[0]==cls_ind]
         cls_len = None
-        ap, pr_new_tuple = video_ap_one_class(gt, pred_cls, pr_new_tuple, iou_thresh, bTemporal, cls_len)
+        ap = video_ap_one_class(gt, pred_cls, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
-    print(pr_new_tuple[0])
-    ap_new = voc_ap(pr_new_tuple[0])
 
-    return ap_all,ap_new
+    return ap_all
