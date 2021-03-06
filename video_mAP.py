@@ -200,7 +200,7 @@ def video_mAP_ucf(AD_param, class_idx=None,TF=None,C_param=None):
         if class_idx is not None:
             if CLASSES[class_idx] != line.split('/')[0]:
                 continue
-        print(lidx,line)
+        # print(lidx,line)
         video_range_names.add(line)
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
