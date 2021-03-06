@@ -301,14 +301,12 @@ def tile_disturber(image, C_param):
 			feat_idx += 1
 		roi_end = time.perf_counter()
 
-	# adjust C_param to [0,1]
-	C_param += 0.5
 	# weight of different features
-	weights = C_param[:num_features]
+	weights = C_param[:num_features] + 0.5
 	# lower and upper
-	lower,upper = sorted(C_param[num_features:num_features+2])
+	lower,upper = sorted(C_param[num_features:num_features+2]) + 0.5
 	# order to adjust the concentration of the  scores
-	k = int((C_param[num_features+2]*5))
+	k = int(((C_param[num_features+2]+0.5)*5))
 	k = min(k,4); k = max(k,0)
 	order_choices = [1./3,1./2,1,2,3]
 	# score of each feature sum to 1
@@ -372,6 +370,7 @@ class Transformer:
 
 	def get_compression_ratio(self):
 		assert(self.original_size>0)
+		print('sizes:',self.compressed_size,self.original_size)
 		return 1-1.0*self.compressed_size/self.original_size
 
 if __name__ == "__main__":

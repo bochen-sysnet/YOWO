@@ -66,7 +66,9 @@ class ParetoFront:
 			else:
 				reward = max(reward,dp[0]-point[0],dp[1]-point[1])
 				add_new = True
-		if not self.data: add_new = True
+		if not self.data: 
+			reward = 1
+			add_new = True
 
 		# remove dominated points
 		for point in to_remove:
@@ -129,7 +131,7 @@ class C_Generator:
 		new_state = self.paretoFront.get_observation()
 		# add experience to ram
 		self.ram.add(state, self.action, reward, new_state)
-		print(state, self.action, reward, new_state)
+		print('rollout:',state, self.action, reward, new_state)
 		# optimize the network 
 		self.trainer.optimize()
 
