@@ -6,9 +6,10 @@ from torch.autograd import Variable
 
 import numpy as np
 import math
-
-import DDPG.utils
-import DDPG.model
+import sys
+sys.path.insert(0, '/home/monet/research/YOWO/DDPG')
+import ddpgutils
+import ddpgmodel
 
 BATCH_SIZE = 128
 LEARNING_RATE = 0.001
@@ -31,18 +32,18 @@ class Trainer:
 		self.action_lim = action_lim
 		self.ram = ram
 		self.iter = 0
-		self.noise = utils.OrnsteinUhlenbeckActionNoise(self.action_dim)
+		self.noise = ddpgutils.OrnsteinUhlenbeckActionNoise(self.action_dim)
 
-		self.actor = model.Actor(self.state_dim, self.action_dim, self.action_lim)
-		self.target_actor = model.Actor(self.state_dim, self.action_dim, self.action_lim)
+		self.actor = ddpgmodel.Actor(self.state_dim, self.action_dim, self.action_lim)
+		self.target_actor = ddpgmodel.Actor(self.state_dim, self.action_dim, self.action_lim)
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),LEARNING_RATE)
 
-		self.critic = model.Critic(self.state_dim, self.action_dim)
-		self.target_critic = model.Critic(self.state_dim, self.action_dim)
+		self.critic = ddpgmodel.Critic(self.state_dim, self.action_dim)
+		self.target_critic = ddpgmodel.Critic(self.state_dim, self.action_dim)
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),LEARNING_RATE)
 
-		utils.hard_update(self.target_actor, self.actor)
-		utils.hard_update(self.target_critic, self.critic)
+		ddpgutils.hard_update(self.target_actor, self.actor)
+		ddpgutils.hard_update(self.target_critic, self.critic)
 
 	def get_exploitation_action(self, state):
 		"""
@@ -98,8 +99,8 @@ class Trainer:
 		loss_actor.backward()
 		self.actor_optimizer.step()
 
-		utils.soft_update(self.target_actor, self.actor, TAU)
-		utils.soft_update(self.target_critic, self.critic, TAU)
+		ddpgutils.soft_update(self.target_actor, self.actor, TAU)
+		ddpgutils.soft_update(self.target_critic, self.critic, TAU)
 
 		# if self.iter % 100 == 0:
 		# 	print 'Iteration :- ', self.iter, ' Loss_actor :- ', loss_actor.data.numpy(),\
@@ -124,6 +125,6 @@ class Trainer:
 		"""
 		self.actor.load_state_dict(torch.load('./backup/' + str(episode) + '_actor.pt'))
 		self.critic.load_state_dict(torch.load('./backup/' + str(episode) + '_critic.pt'))
-		utils.hard_update(self.target_actor, self.actor)
-		utils.hard_update(self.target_critic, self.critic)
+		ddpgutils.hard_update(self.target_actor, self.actor)
+		ddpgutils.hard_update(self.target_critic, self.critic)
 		print ('Models loaded succesfully')

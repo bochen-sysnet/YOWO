@@ -8,8 +8,8 @@ import torch.optim as optim
 from video_mAP import simulate, setup_param, setup_opt
 from transformer import Transformer
 from opts import parse_opts
-from DDPG.train import Trainer
-from DDPG.buffer import MemoryBuffer
+from DDPG.ddpgtrain import Trainer
+from DDPG.ddpgbuffer import MemoryBuffer
 
 
 # setup
