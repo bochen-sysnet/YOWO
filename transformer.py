@@ -304,7 +304,7 @@ def tile_disturber(image, C_param):
 	# weight of different features
 	weights = C_param[:num_features] + 0.5
 	# lower and upper
-	lower,upper = sorted(C_param[num_features:num_features+2]) + 0.5
+	lower,upper = sorted((C_param[num_features:num_features+2]+0.5))
 	# order to adjust the concentration of the  scores
 	k = int(((C_param[num_features+2]+0.5)*5))
 	k = min(k,4); k = max(k,0)
