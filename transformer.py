@@ -301,12 +301,15 @@ def tile_disturber(image, C_param):
 			feat_idx += 1
 		roi_end = time.perf_counter()
 
+	# adjust C_param to [0,1]
+	C_param += 0.5
 	# weight of different features
 	weights = C_param[:num_features]
 	# lower and upper
-	lower,upper = C_param[num_features:num_features+2]
+	lower,upper = sorted(C_param[num_features:num_features+2])
 	# order to adjust the concentration of the  scores
-	k = int(C_param[num_features+2])
+	k = int((C_param[num_features+2]*5))
+	k = min(k,4); k = max(k,0)
 	order_choices = [1./3,1./2,1,2,3]
 	# score of each feature sum to 1
 	normalized_score = counts/(np.sum(counts,axis=0)+1e-6)
@@ -339,7 +342,7 @@ def tile_disturber(image, C_param):
 
 	feat_end = time.perf_counter()
 	# print(img_index,feat_end-feat_start)
-	return image,compressed_size,tile_sizes
+	return image,compressed_size
 
 def JPEG_disturber(image, C_param):
 	return image
@@ -356,10 +359,20 @@ class Transformer:
 		# Rule 2: some features are more important
 		if img_index in self.lru: return self.lru[img_index]
 
-		image,_,tile_sizes = tile_disturber(image, C_param)
+		image,comp_sz = tile_disturber(image, C_param)
+		self.compressed_size += comp_sz
+		self.original_size += 320*240
 
 		self.lru[img_index] = image
 		return image
+
+	def reset(self):
+		self.compressed_size = 0
+		self.original_size = 0
+
+	def get_compression_ratio(self):
+		assert(self.original_size>0)
+		return 1-1.0*self.compressed_size/self.original_size
 
 if __name__ == "__main__":
     # img = cv2.imread('/home/bo/research/dataset/ucf24/compressed/000000.jpg')
