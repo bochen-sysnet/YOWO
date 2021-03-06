@@ -188,7 +188,7 @@ def train(net):
 				inputs.append(C_param)
 				labels.append(sim_result[2][class_idx]) # accuracy of IoU=0.5
 			# optimize generator
-			cgen.optimize((mean(batch_acc),mean(batch_cr)),False)
+			cgen.optimize((np.mean(batch_acc),np.mean(batch_cr)),False)
 			# transform to tensor
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
