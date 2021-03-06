@@ -91,7 +91,7 @@ class ParetoFront:
 			self.dominated_c_param += c_param
 			self.dominated_cnt += 1
 		# what if there is a noisy point (.99,.99)
-		print(self.data.keys())
+		print(self.data.keys(),dp)
 
 		return reward
 
@@ -133,6 +133,7 @@ class C_Generator:
 		if done: 
 			print('Total rewards:',self.total_rewards)
 			self.total_rewards = 0
+			self.trainer.save_models(0)
 			return
 		# use (accuracy,bandwidth) to update observation
 		state = self.paretoFront.get_observation()

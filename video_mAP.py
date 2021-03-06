@@ -195,13 +195,12 @@ def video_mAP_ucf(AD_param, class_idx=None,TF=None,C_param=None):
     gt_videos = {}
     video_range_names = set()
 
-    needed = 1; cnt = 0
     for lidx,line in enumerate(lines):
         line = line.rstrip()
         if class_idx is not None:
             if CLASSES[class_idx] != line.split('/')[0]:
                 continue
-        print(lidx,line)
+        # print(lidx,line)
         video_range_names.add(line)
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
@@ -237,8 +236,6 @@ def video_mAP_ucf(AD_param, class_idx=None,TF=None,C_param=None):
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-        cnt += 1
-        if cnt == needed:break
 
     gt_data = loadmat(gt_file)['annot']
     n_videos = gt_data.shape[1]
