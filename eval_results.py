@@ -135,7 +135,7 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
     pr[0,0] = 1.0
     pr[0,1] = 0.0
     fn = len(gt) #sum([len(a[1]) for a in gt])
-    print('fn',fn)
+    print('fn',fn,len(pred))
     fp = 0
     tp = 0
 
