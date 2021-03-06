@@ -135,6 +135,7 @@ def video_ap_one_class(gt, pred_videos, pr_new_tuple, iou_thresh = 0.2, bTempora
     pr[0,0] = 1.0
     pr[0,1] = 0.0
     fn = len(gt) #sum([len(a[1]) for a in gt])
+    print('fn',fn)
     fp = 0
     tp = 0
 
@@ -256,6 +257,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
     pr_new[0,0] = 1.0
     pr_new[0,1] = 0.0
     fn_new = len(gt_videos_format) 
+    print('fn_new',fn_new)
     fp_new = 0
     tp_new = 0
     pr_new_tuple = (pr_new, fn_new, fp_new, tp_new)
@@ -267,6 +269,7 @@ def evaluate_videoAP(gt_videos, all_boxes, CLASSES, iou_thresh = 0.2, bTemporal 
         cls_len = None
         ap, pr_new_tuple = video_ap_one_class(gt, pred_cls, pr_new_tuple, iou_thresh, bTemporal, cls_len)
         ap_all.append(ap)
+    print(pr_new_tuple[0])
     ap_new = voc_ap(pr_new_tuple[0])
 
     return ap_all,ap_new

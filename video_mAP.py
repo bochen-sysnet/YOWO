@@ -268,7 +268,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             v_annotation['tubes'] = np.array(all_gt_boxes)
             gt_videos[video_name] = v_annotation
 
-    iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
+    iou_list = [0.05]#[0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
     for iou_th in iou_list:
         eval_result = evaluate_videoAP(gt_videos, detected_boxes, CLASSES, iou_th, True)
