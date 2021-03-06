@@ -173,7 +173,7 @@ def train(net):
 				cgen.optimize((sim_result[2][class_idx],cr),False)
 
 				print_str = str(class_idx)+str(C_param)+'\t'+str(cr)+'\t'+str(sim_result[2][class_idx])
-				print(print_str)
+				# print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[2][class_idx]) # accuracy of IoU=0.5

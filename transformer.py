@@ -370,7 +370,6 @@ class Transformer:
 
 	def get_compression_ratio(self):
 		assert(self.original_size>0)
-		print('sizes:',self.compressed_size,self.original_size)
 		return 1-1.0*self.compressed_size/self.original_size
 
 if __name__ == "__main__":
