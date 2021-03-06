@@ -84,6 +84,7 @@ class ParetoFront:
 		else:
 			self.dominated_c_param += c_param
 			self.dominated_cnt += 1
+		print(self.data,dp)
 
 		return reward
 
@@ -107,7 +108,7 @@ class C_Generator:
 		state = np.float32(self.paretoFront.get_observation())
 		self.action = self.trainer.get_exploration_action(state)
 		# self.C_param = self.uniform_init_gen()
-		return self.action
+		return np.copy(self.action)
 
 	def uniform_init_gen(self):
 		# 0,1,2:feature weights; 3,4:lower and upper; 5:order
@@ -169,7 +170,8 @@ def train(net):
 				# optimize generator
 				cgen.optimize((sim_result[2][class_idx],cr),False)
 
-				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result)
+				print_str = str(class_idx)+str(C_param)+'\t'+str(cr)+'\t'+str(sim_result[2][class_idx])
+				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[2][class_idx]) # accuracy of IoU=0.5
