@@ -14,9 +14,9 @@ from DDPG.ddpgbuffer import MemoryBuffer
 
 # setup
 classes_num = 24
-batch_size = 1
+batch_size = 2
 num_batch = classes_num//batch_size
-print_step = 10
+print_step = num_batch
 eval_step = 1
 PATH = 'backup/rsnet.pth'
 
@@ -91,6 +91,7 @@ class ParetoFront:
 			self.dominated_c_param += c_param
 			self.dominated_cnt += 1
 		# what if there is a noisy point (.99,.99)
+		# batch should be large enough to prevent this, maybe >30 videos
 		print(self.data.keys(),dp)
 
 		return reward
@@ -167,25 +168,28 @@ def train(net):
 
 		for bi in range(num_batch):
 			inputs,labels = [],[]
+			# DDPG-based generator
+			C_param = cgen.get()
+			batch_acc, batch_cr = [],[]
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
 				class_idx = di%24
-				# DDPG-based generator
-				C_param = cgen.get()
 				# start counting the compressed size
 				TF.reset()
 				# apply the compression param chosen by the generator
 				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=C_param, AD_param=AD_param)
 				# get the compression ratio
 				cr = TF.get_compression_ratio()
-				# optimize generator
-				cgen.optimize((sim_result[2][class_idx],cr),False)
-
+				batch_acc += [sim_result[2][class_idx]]
+				batch_cr += [cr]
 				print_str = str(class_idx)+str(C_param)+'\t'+str(cr)+'\t'+str(sim_result[2][class_idx])
-				# print(print_str)
+				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[2][class_idx]) # accuracy of IoU=0.5
+			# optimize generator
+			cgen.optimize((mean(batch_acc),mean(batch_cr)),False)
+			# transform to tensor
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
 
@@ -204,7 +208,7 @@ def train(net):
 			print_str = '{:d}, {:d}, loss {:.6f}, val loss {:.6f}'.format(epoch + 1, bi + 1, loss.item(), val_loss)
 			print(print_str)
 			log_file.write(print_str + '\n')
-			if bi % print_step == 0 and bi>0:    
+			if bi % print_step == (print_step-1) and bi>0:    
 				print_str = '{:d}, {:d}, loss {:.6f}'.format(epoch + 1, bi + 1, running_loss / print_step)
 				print(print_str)
 				log_file.write(print_str + '\n')
