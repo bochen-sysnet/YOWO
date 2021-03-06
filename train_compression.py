@@ -60,8 +60,12 @@ class ParetoFront:
 				reward = 1
 				add_new = True
 			# if the new point is dominated
+			# maybe 0 reward is error is small?
 			elif point[0] >= dp[0] and point[1] >= dp[1]:
-				reward = -1
+				if max(-dp[0]+point[0],-dp[1]+point[1])<=0.1:
+					reward = 0
+				else:
+					reward = -1
 				break
 			else:
 				reward = max(reward,dp[0]-point[0],dp[1]-point[1])
@@ -86,7 +90,8 @@ class ParetoFront:
 		else:
 			self.dominated_c_param += c_param
 			self.dominated_cnt += 1
-		print(self.data,dp)
+		# what if there is a noisy point (.99,.99)
+		print(self.data.keys())
 
 		return reward
 
@@ -104,6 +109,7 @@ class C_Generator:
 		self.ram = MemoryBuffer(MAX_BUFFER)
 		self.trainer = Trainer(S_DIM, A_DIM, A_MAX, self.ram)
 		self.paretoFront = ParetoFront()
+		self.total_rewards = 0
 
 	def get(self):
 		# get an action from the actor
@@ -124,14 +130,16 @@ class C_Generator:
 
 	def optimize(self, datapoint, done):
 		# if one episode ends, do nothing
-		if done: return
+		if done: 
+			print('Total rewards:',self.total_rewards)
+			self.total_rewards = 0
+			return
 		# use (accuracy,bandwidth) to update observation
 		state = self.paretoFront.get_observation()
 		reward = self.paretoFront.add(self.action, datapoint)
 		new_state = self.paretoFront.get_observation()
 		# add experience to ram
 		self.ram.add(state, self.action, reward, new_state)
-		print('rollout:',state, self.action, reward, new_state)
 		# optimize the network 
 		self.trainer.optimize()
 
