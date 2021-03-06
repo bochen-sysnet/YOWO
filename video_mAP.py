@@ -201,6 +201,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             if i < data_range[0]: continue
             elif i >= data_range[1]: break
         video_name = gt_data[0][i][1][0]
+        print(i,video_name)
         if video_name in video_testlist:
             n_tubes = len(gt_data[0][i][2][0])
             v_annotation = {}
@@ -233,6 +234,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
             if lidx < data_range[0]: continue
             elif lidx >= data_range[1]: break
         print(lidx,line)
+        continue
         line = line.rstrip()
         test_loader = torch.utils.data.DataLoader(
                           testData(os.path.join(base_path, 'rgb-images', line), 
@@ -268,7 +270,7 @@ def video_mAP_ucf(AD_param,data_range=None,TF=None,C_param=None):
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
-
+    exit(0)
 
     iou_list = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75]
     ans = []
