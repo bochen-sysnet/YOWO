@@ -161,7 +161,7 @@ def train(net):
 				# DDPG-based generator
 				C_param = cgen.get()
 				# start counting the compressed size
-				TF.start()
+				TF.reset()
 				# apply the compression param chosen by the generator
 				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=C_param, AD_param=AD_param)
 				# get the compression ratio
