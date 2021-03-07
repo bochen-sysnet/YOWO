@@ -11,8 +11,6 @@ from eval_results import *
 from cfg import parse_cfg
 from collections import OrderedDict
 from PIL import  ImageChops
-# todo
-# change quality in a tile
 
 dataset = 'ucf101-24'
 
