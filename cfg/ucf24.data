@@ -3,4 +3,4 @@ train = /shared/data2/xiaotao2/bo/dataset/ucf24/trainlist.txt
 valid = /shared/data2/xiaotao2/bo/dataset/ucf24/testlist.txt
 names = data/ucf24.names
 backup = backup
-gpus  = 0,1,2,3
+gpus  = 4,5
