@@ -313,7 +313,7 @@ def tile_disturber(image, C_param):
 	weights /= (np.sum(weights)+1e-6)
 	# ws of all tiles sum up to 1
 	weighted_scores = np.matmul(normalized_score,weights)
-	# the weight is more valuable when its value is higher
+	# the weight is more valuable when its value is higher?
 	quality = (upper-lower)*weighted_scores**order_choices[k] + lower
 
 	tile_sizes = [(int(np.rint(tilew*r)),int(np.rint(tileh*r))) for r in quality]
@@ -331,8 +331,14 @@ def tile_disturber(image, C_param):
 		if dsize[0]==0 or dsize[1]==0:
 			bgr_frame[y1:y2,x1:x2] = [0]
 		else:
-			crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
-			crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
+			try:
+		        crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+				crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
+		    except Exception as e:
+		        print(repr(e))
+		        print(C_param,tile_sizes)
+		        print('dsize:',dsize,crop.shape)
+		        exit(1)
 			compressed_size += dsize[0]*dsize[1]
 			bgr_frame[y1:y2,x1:x2] = crop
 	pil_image = Image.fromarray(bgr_frame)

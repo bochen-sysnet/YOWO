@@ -1,6 +1,6 @@
-base = /shared/data2/xiaotao2/bo/dataset/ucf24
-train = /shared/data2/xiaotao2/bo/dataset/ucf24/trainlist.txt
-valid = /shared/data2/xiaotao2/bo/dataset/ucf24/testlist.txt
+base = /home/monet/research/dataset/ucf24
+train = /home/monet/research/dataset/ucf24/trainlist.txt
+valid = /home/monet/research/dataset/ucf24/testlist.txt
 names = data/ucf24.names
 backup = backup
-gpus  = 4,5
+gpus  = 0,1

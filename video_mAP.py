@@ -69,8 +69,8 @@ def setup_opt(opt):
     opt.n_classes = 24
     opt.backbone_3d = 'resnext101'
     opt.backbone_2d = 'darknet'
-    # opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
-    opt.resume_path = '/shared/data2/xiaotao2/bo/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
+    opt.resume_path = '/home/monet/research/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
+    # opt.resume_path = '/shared/data2/xiaotao2/bo/YOWO/backup/yowo_ucf101-24_16f_best.pth' 
 
 def simulate(dataset, class_idx=None, TF=None, C_param=None, AD_param=None):
     if dataset == 'ucf101-24':
