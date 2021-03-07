@@ -332,13 +332,13 @@ def tile_disturber(image, C_param):
 			bgr_frame[y1:y2,x1:x2] = [0]
 		else:
 			try:
-		        crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
+				crop_d = cv2.resize(crop, dsize=dsize, interpolation=cv2.INTER_LINEAR)
 				crop = cv2.resize(crop_d, dsize=(tilew,tileh), interpolation=cv2.INTER_LINEAR)
-		    except Exception as e:
-		        print(repr(e))
-		        print(C_param,tile_sizes)
-		        print('dsize:',dsize,crop.shape)
-		        exit(1)
+			except Exception as e:
+				print(repr(e))
+				print(C_param,tile_sizes)
+				print('dsize:',dsize,crop.shape)
+				exit(1)
 			compressed_size += dsize[0]*dsize[1]
 			bgr_frame[y1:y2,x1:x2] = crop
 	pil_image = Image.fromarray(bgr_frame)
