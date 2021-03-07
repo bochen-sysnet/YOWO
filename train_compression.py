@@ -21,6 +21,11 @@ print_step = num_batch
 eval_step = 1
 PATH = 'backup/rsnet.pth'
 
+def fanin_init(size, fanin=None):
+	fanin = fanin or size[0]
+	v = 1. / np.sqrt(fanin)
+	return torch.Tensor(size).uniform_(-v, v)
+
 class RSNet(nn.Module):
 	def __init__(self):
 		super(RSNet, self).__init__()
