@@ -10,6 +10,7 @@ from transformer import Transformer
 from opts import parse_opts
 from DDPG.ddpgtrain import Trainer
 from DDPG.ddpgbuffer import MemoryBuffer
+from sortedcontainers import SortedDict
 
 
 # setup
@@ -21,24 +22,41 @@ eval_step = 1
 PATH = 'backup/rsnet.pth'
 
 class RSNet(nn.Module):
-	def __init__(self, settings):
+	def __init__(self):
 		super(RSNet, self).__init__()
-		num_layer = len(settings)-1
-		self.layers = nn.ModuleList()
-		for i in range(num_layer):
-			self.layers += [nn.Linear(settings[i], settings[i+1])]
+		EPS = 0.003
+		self.fc1 = nn.Linear(6,256)
+		self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+
+		self.fc2 = nn.Linear(256,128)
+		self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+
+		self.fc3 = nn.Linear(128,64)
+		self.fc3.weight.data = fanin_init(self.fc3.weight.data.size())
+
+		self.fc4 = nn.Linear(64,1)
+		self.fc4.weight.data.uniform_(-EPS,EPS)
 
 	def forward(self, x):
-		for layer in self.layers[:-1]:
-			x = F.relu(layer(x))
-		x = self.layers[-1](x)
+		x = F.relu(self.fc1(x))
+		x = F.relu(self.fc2(x))
+		x = F.relu(self.fc3(x))
+		x = F.tanh(self.fc4(x))
+
+		x = x * 0.5 + 0.5
+
 		return x
 
 class ParetoFront:
 	def __init__(self):
+		self.stopping_criterion = 20
+		self._reset()
+
+	def _reset(self):
+		print('Reset environment.')
 		# points on pareto front
 		# (acc,cr,c_param)
-		self.data = {}
+		self.data = SortedDict()
 		# average compression param of cfgs
 		# on and not on pareto front
 		self.dominated_c_param = np.zeros(6,dtype=np.float64)
@@ -50,15 +68,15 @@ class ParetoFront:
 		reward = 0
 		# check the distance of (accuracy,bandwidth) to the previous Pareto Front
 		to_remove = set()
-		add_new = False
+		add_new = True
 		for point in self.data:
 			# if there is a same point, we dont add this
-			if point[:2] == dp: break
+			if point[:2] == dp: 
+				add_new = False
+				break
 			# if a point is dominated
 			if point[0] <= dp[0] and point[1] <= dp[1]:
 				to_remove.add(point)
-				reward = 1
-				add_new = True
 			# if the new point is dominated
 			# maybe 0 reward is error is small?
 			elif point[0] >= dp[0] and point[1] >= dp[1]:
@@ -66,13 +84,8 @@ class ParetoFront:
 					reward = 0
 				else:
 					reward = -1
+				add_new = False
 				break
-			else:
-				reward = max(reward,dp[0]-point[0],dp[1]-point[1])
-				add_new = True
-		if not self.data: 
-			reward = 1
-			add_new = True
 
 		# remove dominated points
 		for point in to_remove:
@@ -87,18 +100,29 @@ class ParetoFront:
 			self.dominating_c_param += c_param
 			self.dominating_cnt += 1
 			self.data[dp] = c_param
+			reward = self._area()
 		else:
 			self.dominated_c_param += c_param
 			self.dominated_cnt += 1
-		# what if there is a noisy point (.99,.99)
-		# batch should be large enough to prevent this, maybe >30 videos
-		print(self.data.keys(),dp)
 
+		# what if there is a noisy point (.99,.99)
 		return reward
+
+	def _area(self):
+		# approximate area
+		area = 0
+		left = 0
+		for datapoint in self.data:
+			area += (datapoint[0]-left)*datapoint[1]
+			left = datapoint[0]
+		return area
 
 
 	def get_observation(self):
-		return np.concatenate((self.dominating_c_param/self.dominating_cnt,self.dominated_c_param/self.dominated_cnt))
+		new_state = np.concatenate((self.dominating_c_param/self.dominating_cnt,self.dominated_c_param/self.dominated_cnt))
+		if int(self.dominated_cnt + self.dominating_cnt)>=self.stopping_criterion:
+			self._reset()
+		return new_state
 
 class C_Generator:
 	def __init__(self):
@@ -110,14 +134,13 @@ class C_Generator:
 		self.ram = MemoryBuffer(MAX_BUFFER)
 		self.trainer = Trainer(S_DIM, A_DIM, A_MAX, self.ram)
 		self.paretoFront = ParetoFront()
-		self.total_rewards = 0
 
 	def get(self):
 		# get an action from the actor
 		state = np.float32(self.paretoFront.get_observation())
 		self.action = self.trainer.get_exploration_action(state)
 		# self.C_param = self.uniform_init_gen()
-		return np.copy(self.action)
+		return self.action
 
 	def uniform_init_gen(self):
 		# 0,1,2:feature weights; 3,4:lower and upper; 5:order
@@ -132,8 +155,6 @@ class C_Generator:
 	def optimize(self, datapoint, done):
 		# if one episode ends, do nothing
 		if done: 
-			print('Total rewards:',self.total_rewards)
-			self.total_rewards = 0
 			self.trainer.save_models(0)
 			return
 		# use (accuracy,bandwidth) to update observation
@@ -165,11 +186,13 @@ def train(net):
 	for epoch in range(10):
 		running_loss = 0.0
 		TF = Transformer('compression')
+		# the pareto front can be restarted, need to try
 
 		for bi in range(num_batch):
 			inputs,labels = [],[]
 			# DDPG-based generator
 			C_param = cgen.get()
+			print(bi,C_param)
 			batch_acc, batch_cr = [],[]
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
@@ -177,18 +200,21 @@ def train(net):
 				# start counting the compressed size
 				TF.reset()
 				# apply the compression param chosen by the generator
-				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=C_param, AD_param=AD_param)
+				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=np.copy(C_param), AD_param=AD_param)
 				# get the compression ratio
 				cr = TF.get_compression_ratio()
 				batch_acc += [sim_result[2][class_idx]]
 				batch_cr += [cr]
-				print_str = str(class_idx)+str(C_param)+'\t'+str(cr)+'\t'+str(sim_result[2][class_idx])
+				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result[2][class_idx])+'\t'+str(cr)
 				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
 				labels.append(sim_result[2][class_idx]) # accuracy of IoU=0.5
 			# optimize generator
 			cgen.optimize((np.mean(batch_acc),np.mean(batch_cr)),False)
+			print_str = str(cgen.paretoFront.data.keys())
+			print(print_str)
+			log_file.write(print_str+'\n')
 			# transform to tensor
 			inputs = torch.FloatTensor(inputs).cuda()
 			labels = torch.FloatTensor(labels).cuda()
@@ -275,7 +301,7 @@ def validate(net,log_file):
 
 if __name__ == "__main__":
 	# prepare network
-	net = RSNet([6,255,255,1])
+	net = RSNet()
 	# net.load_state_dict(torch.load('backup/rsnet.pth'))
 	net = net.cuda()
 	train(net)
