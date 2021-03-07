@@ -197,7 +197,6 @@ def train(net):
 			inputs,labels = [],[]
 			# DDPG-based generator
 			C_param = cgen.get()
-			print(bi,C_param)
 			batch_acc, batch_cr = [],[]
 			for k in range(batch_size):
 				di = bi*batch_size + k # data index
