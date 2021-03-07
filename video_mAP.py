@@ -26,6 +26,7 @@ def setup_param(opt):
     loss_options  = parse_cfg(cfgfile)[1]
 
     base_path     = data_options['base']
+    gpus          = data_options['gpus']
     testlist      = os.path.join(base_path, 'testlist_video.txt')
 
     clip_duration = int(net_options['clip_duration'])
@@ -42,6 +43,8 @@ def setup_param(opt):
     use_cuda = True
     kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
 
+    if use_cuda:
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpus
 
     # Create model
     model       = YOWO(opt)
