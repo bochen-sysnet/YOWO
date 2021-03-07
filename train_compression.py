@@ -204,12 +204,14 @@ def train(net):
 				# start counting the compressed size
 				TF.reset()
 				# apply the compression param chosen by the generator
+				fetch_start = time.perf_counter()
 				sim_result = simulate(opt.dataset, class_idx=class_idx, TF=TF, C_param=np.copy(C_param), AD_param=AD_param)
+				fetch_end = time.perf_counter()
 				# get the compression ratio
 				cr = TF.get_compression_ratio()
 				batch_acc += [sim_result[2][class_idx]]
 				batch_cr += [cr]
-				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result[2][class_idx])+'\t'+str(cr)
+				print_str = str(class_idx)+str(C_param)+'\t'+str(sim_result[2][class_idx])+'\t'+str(cr)+'\t'+str(fetch_end-fetch_start)
 				print(print_str)
 				log_file.write(print_str+'\n')
 				inputs.append(C_param)
