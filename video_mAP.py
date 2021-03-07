@@ -239,6 +239,7 @@ def video_mAP_ucf(AD_param, class_idx=None,TF=None,C_param=None):
                             cls_boxes[b][4] = float(boxes[b][5+(cls_idx-1)*2])
                         img_annotation[cls_idx] = cls_boxes
                     detected_boxes[img_name[i]] = img_annotation
+        break
 
     gt_data = loadmat(gt_file)['annot']
     n_videos = gt_data.shape[1]
