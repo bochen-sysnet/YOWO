@@ -7,7 +7,7 @@ from torch.autograd import Variable
 import numpy as np
 import math
 import sys
-sys.path.insert(0, '/shared/data2/xiaotao2/bo/YOWO/DDPG')
+sys.path.insert(0, './DDPG')
 import ddpgutils
 import ddpgmodel
 
