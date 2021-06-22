@@ -1,6 +1,0 @@
-base = /home/monet/research/dataset/ucf24
-train = /home/monet/research/dataset/ucf24/trainlist.txt
-valid = /home/monet/research/dataset/ucf24/testlist.txt
-names = data/ucf24.names
-backup = backup
-gpus  = 0,1

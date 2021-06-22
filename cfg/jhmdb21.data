@@ -1,6 +1,0 @@
-base = /home/monet/research/dataset/jhmdb
-train = /home/monet/research/dataset/jhmdb/trainlist.txt
-valid = /home/monet/research/dataset/jhmdb/testlist.txt
-names = data/jhmdb21.names
-backup = backup
-gpus  = 0, 1
