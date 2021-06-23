@@ -1,5 +1,5 @@
 TRAIN:
-  RESUME_PATH: "/usr/home/sut/YOWO/backup/jhmdb/yowo_jhmdb21_32f_best.pth"
+  RESUME_PATH: "/home/monet/research/YOWO/backup/jhmdb/yowo_jhmdb21_32f_best.pth"
   DATASET: jhmdb21  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 6
   TOTAL_BATCH_SIZE: 128
@@ -37,10 +37,10 @@ WEIGHTS:
   FREEZE_BACKBONE_3D: True
   FREEZE_BACKBONE_2D: True
 LISTDATA:
-  BASE_PTH: "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb"
-  TRAIN_FILE: "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb/trainlist.txt"
-  TEST_FILE: "/usr/home/sut/Tim-Documents/jhmdb/data/jhmdb/testlist.txt"
-  TEST_VIDEO_FILE: "/data1/jhmdb/testlist_video.txt"
+  BASE_PTH: "/home/monet/research/dataset/jhmdb"
+  TRAIN_FILE: "/home/monet/research/dataset/jhmdb/trainlist.txt"
+  TEST_FILE: "/home/monet/research/dataset/jhmdb/testlist.txt"
+  TEST_VIDEO_FILE: "/home/monet/research/dataset/jhmdb/testlist_video.txt"
   MAX_OBJS: 1
   CLASS_NAMES: [
     "brush_hair", "catch", "clap", "climb_stairs", "golf", 
