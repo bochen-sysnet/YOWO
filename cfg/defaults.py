@@ -569,7 +569,7 @@ _C.AVA = CfgNode()
 
 # Directory path of frames.
 # _C.AVA.FRAME_DIR = "/mnt/fair-flash3-east/ava_trainval_frames.img/"
-_C.AVA.FRAME_DIR = "/home/monet/research/dataset/AVA/frames/"
+_C.AVA.FRAME_DIR = "/home/monet/research/dataset/ava/frames/"
 
 # Directory path for files of frame lists.
 # _C.AVA.FRAME_LIST_DIR = (
