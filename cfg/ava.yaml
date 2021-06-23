@@ -41,7 +41,7 @@ BACKUP_DIR: "backup/ava"
 DEMO:
   ENABLE: False
   OUT_PATH: "ava_detections/videos"
-  LABEL_FILE_PATH: "/home/monet/research/datasets/AVA/annotations/ava_action_list_v2.1_for_activitynet_2018.pbtxt"
+  LABEL_FILE_PATH: "/home/monet/research/datasets/AVA/annotations/ava_classnames.json"
 RNG_SEED: 1
 
 
