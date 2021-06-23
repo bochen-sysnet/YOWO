@@ -576,7 +576,7 @@ _C.AVA.FRAME_DIR = "/home/monet/research/datasets/AVA/frames/"
 #     "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
 # )
 _C.AVA.FRAME_LIST_DIR = (
-    "/home/monet/research/datasets/AVA/frame_lists/"
+    "/home/monet/research/datasets/ava/frame_lists/"
 )
 
 # Directory path for annotation files.
@@ -584,7 +584,7 @@ _C.AVA.FRAME_LIST_DIR = (
 #     "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
 # )
 _C.AVA.ANNOTATION_DIR = (
-    "/home/monet/research/datasets/AVA/annotations/"
+    "/home/monet/research/datasets/ava/annotations/"
 )
 
 # Filenames of training samples list files.
