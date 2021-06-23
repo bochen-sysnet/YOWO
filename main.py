@@ -46,7 +46,7 @@ seed = int(time.time())
 torch.manual_seed(seed)
 use_cuda = True
 if use_cuda:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0' # TODO: add to config e.g. 0,1,2,3
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1' # TODO: add to config e.g. 0,1,2,3
     torch.cuda.manual_seed(seed)
 
 
