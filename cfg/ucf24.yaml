@@ -37,10 +37,10 @@ WEIGHTS:
   FREEZE_BACKBONE_3D: False
   FREEZE_BACKBONE_2D: False
 LISTDATA:
-  BASE_PTH: "/home/monet/research/datasets/ucf24"
-  TRAIN_FILE: "/home/monet/research/datasets/ucf24/trainlist.txt"
-  TEST_FILE: "/home/monet/research/datasets/ucf24/testlist.txt"
-  TEST_VIDEO_FILE: "/home/monet/research/datasets/ucf24/testlist_video.txt"
+  BASE_PTH: "/home/monet/research/dataset/ucf24"
+  TRAIN_FILE: "/home/monet/research/dataset/ucf24/trainlist.txt"
+  TEST_FILE: "/home/monet/research/dataset/ucf24/testlist.txt"
+  TEST_VIDEO_FILE: "/home/monet/research/dataset/ucf24/testlist_video.txt"
   MAX_OBJS: 6
   CLASS_NAMES: [
     "Basketball", "BasketballDunk", "Biking", "CliffDiving", "CricketBowling", 
