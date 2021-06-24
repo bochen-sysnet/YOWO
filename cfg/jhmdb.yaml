@@ -1,5 +1,5 @@
 TRAIN:
-  RESUME_PATH: "/home/monet/research/YOWO/backup/jhmdb/yowo_jhmdb21_32f_best.pth"
+  # RESUME_PATH: "/home/monet/research/YOWO/backup/jhmdb/yowo_jhmdb21_32f_best.pth"
   DATASET: jhmdb21  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 6
   TOTAL_BATCH_SIZE: 128
