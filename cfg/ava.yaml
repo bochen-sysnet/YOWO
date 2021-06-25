@@ -1,11 +1,11 @@
 TRAIN:
-  RESUME_PATH: "/home/monet/research/YOWO/backup/ava/yowo_ava_32f_s1_best_ap_01905.pth"
+  # RESUME_PATH: "/home/monet/research/YOWO/backup/ava/yowo_ava_32f_s1_best_ap_01905.pth"
   DATASET: ava  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 6
   TOTAL_BATCH_SIZE: 128
   LEARNING_RATE: 1e-4
-  EVALUATE: True
-  MODE: "val"  # `train`, `test` or `val`
+  EVALUATE: False
+  MODE: "train"  # `train`, `test` or `val`
   BEGIN_EPOCH: 1
   END_EPOCH: 10
   CLASS_RATIO_FILE: "cfg/ava_categories_ratio.json"
