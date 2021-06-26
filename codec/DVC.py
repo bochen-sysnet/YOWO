@@ -12,18 +12,41 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.autograd import Function
+from compressai import EntropyBottleneck
 
 # Goal: convert images/videos that are compressed by DVC
-# Output: compressed images, bit rate
+# Output: compressed images, predicted bits, actual bits
 class DVC(nn.Module):
     def __init__(self):
         super(DVC, self).__init__()
         self.optical_flow = OpticalFlowNet()
+        self.mv_codec = MV_CODEC_NET()
+        self.MC_network = MCNet()
+        self.res_codec = RES_CODEC_NET()
 
     def forward(self, Y0_com, Y1_raw):
+        # Y0_com: compressed previous frame
+        # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y0_com.shape
+        # estimate optical flow
         flow_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
-        return flow_tensor
+        # compress optical flow
+        flow_hat,flow_likelihood,flow_bytes = self.mv_codec(flow_tensor)
+        # motion compensation
+        loc = get_grid_locations(batch_size, H, W)
+        Y1_warp = F.grid_sample(Y0_com, loc + flow_hat.permute(0,2,3,1))
+        MC_input = torch.cat((flow_hat, Y0_com, Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input)
+        # compress residual
+        Res = Y1_raw - Y1_MC
+        Res_hat,Res_likelihood,Res_bytes = self.res_codec(Res)
+        # reconstruction
+        Y1_com = torch.clip(Res_hat + Y1_MC, min=0, max=1)
+        # calculate bpp
+        bpp_MV = torch.sum(torch.log(flow_likelihood)) / (-torch.log(2) * Height * Width * batch_size)
+        bpp_Res = torch.sum(torch.log(Res_likelihood)) / (-torch.log(2) * Height * Width * batch_size)
+
+        return Y1_com,bpp_MV+bpp_Res,(flow_bytes+Res_bytes)*8
 
 # pyramid flow estimation
 class OpticalFlowNet(nn.Module):
@@ -61,12 +84,13 @@ class LossNet(nn.Module):
 
     def forward(self, flow_course, im1, im2):
         flow = self.upsample(flow_course)
-        # todo: add grid locations
-        im1_warped = F.grid_sample(im1, flow.permute(0,2,3,1))
+        batch_size, _, H, W = flow.shape
+        loc = get_grid_locations(batch_size, H, W)
+        im1_warped = F.grid_sample(im1, loc + flow.permute(0,2,3,1))
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
 
-        im1_warped_fine = F.grid_sample(im1, flow_fine.permute(0,2,3,1))
+        im1_warped_fine = F.grid_sample(im1, loc + flow_fine.permute(0,2,3,1))
         loss_layer = torch.mean(torch.pow(im1_warped_fine-im2,2))
 
         return loss_layer, flow_fine
@@ -89,9 +113,9 @@ class FlowCNN(nn.Module):
         x = F.relu(self.conv5(x))
         return x
 
-class MVNet(nn.Module):
+class MV_CODEC_NET(nn.Module):
     def __init__(self, channels=128):
-        super(MVNet, self).__init__()
+        super(MV_CODEC_NET, self).__init__()
         device = torch.device('cuda')
         self.enc_conv1 = nn.Conv2d(2, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -103,26 +127,105 @@ class MVNet(nn.Module):
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, 2, kernel_size=4, stride=2, padding=1)
         self.igdn = GDN(channels, device, inverse=True)
+        self.entropy_bottleneck = EntropyBottleneck(3)
 
     def forward(self, x):
         x = self.gdn(self.enc_conv1(x))
         x = self.gdn(self.enc_conv2(x))
         x = self.gdn(self.enc_conv3(x))
-        x = self.enc_conv4(x) # latent optical flow
+        latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
+        string = self.entropy_bottleneck.compress(latent)
+        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
 
-        # estimate likelihood from latent optimal flow
-
-        # calculate bit stream length
-
-        # dequantization
-
-        x = self.igdn(self.dec_conv1(x))
+        # decompress
+        x = self.igdn(self.dec_conv1(latent_hat))
         x = self.igdn(self.dec_conv2(x))
         x = self.igdn(self.dec_conv3(x))
-        x = self.dec_conv4(x) # compressed optical flow (less accurate)
-        return x
+        hat = self.dec_conv4(x) # compressed optical flow (less accurate)
+        return hat, likelihoods, len(string.view(-1))
+
+class MCNet(nn.Module):
+    def __init__(self):
+        super(MCNet, self).__init__()
+        self.l1 = nn.Conv2d(8, 64, kernel_size=3, stride=1, padding=1)
+        self.l2 = ResBlock(64,64)
+        self.l3 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
+        self.l4 = ResBlock(64,64)
+        self.l5 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
+        self.l6 = ResBlock(64,64)
+        self.l7 = ResBlock(64,64)
+        self.l8 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.l9 = ResBlock(64,64)
+        self.l10 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.l11 = ResBlock(64,64)
+        self.l12 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
+        self.l13 = nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        m1 = self.l1(x)
+        m2 = self.l2(m1)
+        m3 = self.l3(m2)
+        m4 = self.l4(m3)
+        m5 = self.l5(m4)
+        m6 = self.l6(m5)
+        m7 = self.l7(m6)
+        m8 = self.l8(m7) + m4
+        m9 = self.l9(m8)
+        m10 = self.l10(m9) + m2
+        m11 = self.l11(m10)
+        m12 = F.relu(self.l12(m11))
+        m13 = self.l13(m12)
+        return m13
+
+class ResBlock(nn.Module):
+    def __init__(self, in_channels=64, out_channels=64):
+        super(ResBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_skip = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        skip = self.conv_skip(x)
+        # batch norm?
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        return x + skip
+
+class RES_CODEC_NET(nn.Module):
+    def __init__(self):
+        super(RES_CODEC_NET, self).__init__()
+        device = torch.device('cuda')
+        self.enc_conv1 = nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2)
+        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
+        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
+        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2, bias=False)
+        self.gdn = GDN(channels, device)
+        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, 2, kernel_size=5, stride=2, padding=2)
+        self.igdn = GDN(channels, device, inverse=True)
+        self.entropy_bottleneck = EntropyBottleneck(3)
+
+    def forward(self, x):
+        # compress
+        x = self.gdn(self.enc_conv1(x))
+        x = self.gdn(self.enc_conv2(x))
+        x = self.gdn(self.enc_conv3(x))
+        latent = self.enc_conv4(x) # latent optical flow
+
+        # quantization + entropy coding
+        string = self.entropy_bottleneck.compress(latent)
+        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+
+        # decompress
+        x = self.igdn(self.dec_conv1(latent_hat))
+        x = self.igdn(self.dec_conv2(x))
+        x = self.igdn(self.dec_conv3(x))
+        hat = self.dec_conv4(x) # compressed optical flow (less accurate)
+        return hat, likelihoods, len(string.view(-1))
 
 class LowerBound(Function):
     @staticmethod
@@ -217,3 +320,12 @@ class GDN(nn.Module):
         if unfold:
             outputs = outputs.view(bs, ch, d, w, h)
         return outputs
+
+def get_grid_locations(b, h, w):
+    y_range = torch.linspace(-1, 1, h)
+    x_range = np.linspace(-1, 1, w)
+    y_grid, x_grid = np.meshgrid(y_range, x_range)
+    loc = torch.cat((y_grid.unsqueeze(-1), x_grid.unsqueeze(-1)), -1)
+    loc = loc.unsqueeze(0)
+    loc = loc.repeat(b,1,1,1)
+    return loc
