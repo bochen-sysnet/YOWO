@@ -11,7 +11,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_loader, loss_module, o
     loss_module.reset_meters()
     l_loader = len(train_loader)
 
-    model.train()
+    model.eval()
+    model_codec.train()
     for batch_idx, batch in enumerate(train_loader):
         data = batch['clip'].cuda()
         target = {'cls': batch['cls'], 'boxes': batch['boxes']}
@@ -44,6 +45,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.cuda()
         # process data with codec model
+        print(data.shape)
         output = model(data)
         loss = loss_module(output, target, epoch, batch_idx, l_loader)
 
@@ -76,6 +78,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_loader):
     meter = AVAMeter(cfg, cfg.TRAIN.MODE, 'latest_detection.json')
 
     model.eval()
+    model_codec.eval()
     for batch_idx, batch in enumerate(test_loader):
         data = batch['clip'].cuda()
         target = {'cls': batch['cls'], 'boxes': batch['boxes']}
@@ -136,6 +139,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     nbatch = len(test_loader)
 
     model.eval()
+    model_codec.eval()
 
     for batch_idx, (frame_idx, data, target) in enumerate(test_loader):
         data = data.cuda()
