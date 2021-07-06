@@ -12,41 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.autograd import Function
-from compressai import EntropyBottleneck
-
-# Goal: convert images/videos that are compressed by DVC
-# Output: compressed images, predicted bits, actual bits
-class DVC(nn.Module):
-    def __init__(self):
-        super(DVC, self).__init__()
-        self.optical_flow = OpticalFlowNet()
-        self.mv_codec = MV_CODEC_NET()
-        self.MC_network = MCNet()
-        self.res_codec = RES_CODEC_NET()
-
-    def forward(self, Y0_com, Y1_raw):
-        # Y0_com: compressed previous frame
-        # Y1_raw: uncompressed current frame
-        batch_size, _, Height, Width = Y0_com.shape
-        # estimate optical flow
-        flow_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
-        # compress optical flow
-        flow_hat,flow_likelihood,flow_bytes = self.mv_codec(flow_tensor)
-        # motion compensation
-        loc = get_grid_locations(batch_size, H, W)
-        Y1_warp = F.grid_sample(Y0_com, loc + flow_hat.permute(0,2,3,1))
-        MC_input = torch.cat((flow_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input)
-        # compress residual
-        Res = Y1_raw - Y1_MC
-        Res_hat,Res_likelihood,Res_bytes = self.res_codec(Res)
-        # reconstruction
-        Y1_com = torch.clip(Res_hat + Y1_MC, min=0, max=1)
-        # calculate bpp
-        bpp_MV = torch.sum(torch.log(flow_likelihood)) / (-torch.log(2) * Height * Width * batch_size)
-        bpp_Res = torch.sum(torch.log(Res_likelihood)) / (-torch.log(2) * Height * Width * batch_size)
-
-        return Y1_com,bpp_MV+bpp_Res,(flow_bytes+Res_bytes)*8
+from compressai.entropy_models import EntropyBottleneck
 
 # pyramid flow estimation
 class OpticalFlowNet(nn.Module):
@@ -68,13 +34,13 @@ class OpticalFlowNet(nn.Module):
 
         flow_zero = torch.zeros(batch, 2, h//16, w//16)
 
-        loss_0, flow_0 = self.loss(flow_zero, im1_0, im2_0, 0)
-        loss_1, flow_1 = self.loss(flow_0, im1_1, im2_1, 1)
-        loss_2, flow_2 = self.loss(flow_1, im1_2, im2_2, 2)
-        loss_3, flow_3 = self.loss(flow_2, im1_3, im2_3, 3)
-        loss_4, flow_4 = self.loss(flow_3, im1_4, im2_4, 4)
+        loss_0, flow_0 = self.loss(flow_zero, im1_0, im2_0, upsample=False)
+        loss_1, flow_1 = self.loss(flow_0, im1_1, im2_1, upsample=True)
+        loss_2, flow_2 = self.loss(flow_1, im1_2, im2_2, upsample=True)
+        loss_3, flow_3 = self.loss(flow_2, im1_3, im2_3, upsample=True)
+        loss_4, flow_4 = self.loss(flow_3, im1_4, im2_4, upsample=True)
 
-    return flow_4, loss_0, loss_1, loss_2, loss_3, loss_4
+        return flow_4, loss_0, loss_1, loss_2, loss_3, loss_4
 
 class LossNet(nn.Module):
     def __init__(self):
@@ -82,8 +48,9 @@ class LossNet(nn.Module):
         self.convnet = FlowCNN()
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-    def forward(self, flow_course, im1, im2):
-        flow = self.upsample(flow_course)
+    def forward(self, flow, im1, im2, upsample=True):
+        if upsample:
+            flow = self.upsample(flow)
         batch_size, _, H, W = flow.shape
         loc = get_grid_locations(batch_size, H, W)
         im1_warped = F.grid_sample(im1, loc + flow.permute(0,2,3,1))
@@ -110,13 +77,12 @@ class FlowCNN(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        x = F.relu(self.conv5(x))
+        x = self.conv5(x)
         return x
 
 class MV_CODEC_NET(nn.Module):
-    def __init__(self, channels=128):
+    def __init__(self, device, channels=128):
         super(MV_CODEC_NET, self).__init__()
-        device = torch.device('cuda')
         self.enc_conv1 = nn.Conv2d(2, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -127,7 +93,8 @@ class MV_CODEC_NET(nn.Module):
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, 2, kernel_size=4, stride=2, padding=1)
         self.igdn = GDN(channels, device, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck(3)
+        self.entropy_bottleneck = EntropyBottleneck(128)
+        self.entropy_bottleneck.update()
 
     def forward(self, x):
         x = self.gdn(self.enc_conv1(x))
@@ -144,7 +111,7 @@ class MV_CODEC_NET(nn.Module):
         x = self.igdn(self.dec_conv2(x))
         x = self.igdn(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
-        return hat, likelihoods, len(string.view(-1))
+        return hat, likelihoods, len(b''.join(string))
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -194,20 +161,20 @@ class ResBlock(nn.Module):
         return x + skip
 
 class RES_CODEC_NET(nn.Module):
-    def __init__(self):
+    def __init__(self, device, channels=128):
         super(RES_CODEC_NET, self).__init__()
-        device = torch.device('cuda')
         self.enc_conv1 = nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
         self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2, bias=False)
         self.gdn = GDN(channels, device)
-        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, 2, kernel_size=5, stride=2, padding=2)
+        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, 3, kernel_size=6, stride=2, padding=2)
         self.igdn = GDN(channels, device, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck(3)
+        self.entropy_bottleneck = EntropyBottleneck(128)
+        self.entropy_bottleneck.update()
 
     def forward(self, x):
         # compress
@@ -225,7 +192,7 @@ class RES_CODEC_NET(nn.Module):
         x = self.igdn(self.dec_conv2(x))
         x = self.igdn(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
-        return hat, likelihoods, len(string.view(-1))
+        return hat, likelihoods, len(b''.join(string))
 
 class LowerBound(Function):
     @staticmethod
@@ -323,9 +290,73 @@ class GDN(nn.Module):
 
 def get_grid_locations(b, h, w):
     y_range = torch.linspace(-1, 1, h)
-    x_range = np.linspace(-1, 1, w)
-    y_grid, x_grid = np.meshgrid(y_range, x_range)
+    x_range = torch.linspace(-1, 1, w)
+    y_grid, x_grid = torch.meshgrid(y_range, x_range)
     loc = torch.cat((y_grid.unsqueeze(-1), x_grid.unsqueeze(-1)), -1)
     loc = loc.unsqueeze(0)
     loc = loc.repeat(b,1,1,1)
     return loc
+
+
+# Goal: convert images/videos that are compressed by DVC
+# Output: compressed images, predicted bits, actual bits
+class DVC(nn.Module):
+    def __init__(self):
+        super(DVC, self).__init__()
+        device = torch.device('cpu')
+        self.optical_flow = OpticalFlowNet()
+        self.mv_codec = MV_CODEC_NET(device)
+        self.MC_network = MCNet()
+        self.res_codec = RES_CODEC_NET(device)
+
+    def forward(self, Y0_com, Y1_raw, use_psnr=True):
+        # Y0_com: compressed previous frame
+        # Y1_raw: uncompressed current frame
+        batch_size, _, Height, Width = Y0_com.shape
+        # estimate optical flow
+        flow_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        # compress optical flow
+        flow_hat,flow_likelihood,flow_bytes = self.mv_codec(flow_tensor)
+        # motion compensation
+        loc = get_grid_locations(batch_size, Height, Width)
+        Y1_warp = F.grid_sample(Y0_com, loc + flow_hat.permute(0,2,3,1))
+        MC_input = torch.cat((flow_hat, Y0_com, Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input)
+        # compress residual
+        Res = Y1_raw - Y1_MC
+        Res_hat,Res_likelihood,Res_bytes = self.res_codec(Res)
+        # reconstruction
+        Y1_com = torch.clip(Res_hat + Y1_MC, min=0, max=1)
+        # calculate bpp (estimated)
+        log2 = torch.log(torch.FloatTensor([2]))
+        bpp_MV = torch.sum(torch.log(flow_likelihood)) / (-log2 * Height * Width * batch_size)
+        bpp_Res = torch.sum(torch.log(Res_likelihood)) / (-log2 * Height * Width * batch_size)
+        bpp = bpp_MV+bpp_Res
+        # calculate actual bits
+        actual_bits = (flow_bytes+Res_bytes)*8
+        # calculate metrics/loss
+        if use_psnr:
+            metrics = PSNR(Y1_raw, Y1_com)
+            loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp
+        else:
+            metrics = MSSSIM(Y1_raw, Y1_com)
+            loss = 32*(1-metrics) + bpp
+        
+        return Y1_com,bpp,actual_bits,metrics,loss
+
+def PSNR(Y1_raw, Y1_com):
+    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
+    quality = 10.0*torch.log(1.0/train_mse)/torch.log([10.0])
+    return quality
+
+def MSSSIM(Y1_raw, Y1_com):
+    # pip install pytorch-msssim
+    import pytorch_msssim
+    return pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
+
+if __name__ == '__main__':
+    Y0_com = torch.randn(4,3,416,240)
+    Y1_raw = torch.randn(4,3,416,240)
+    model = DVC()
+    Y1_com,bpp,bits = model(Y0_com, Y1_raw)
+    print(Y1_com.shape,bpp,bits)
