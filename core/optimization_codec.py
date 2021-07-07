@@ -43,9 +43,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     model.eval()
     model_codec.train()
     for batch_idx, (data, target) in enumerate(train_loader):
-        data = data.cuda()
+        data = data.cuda() # torch.Size([10, 3, 16, 224, 224])
         # process data with codec model
-        print(data.shape)
+        # todo:
+        # data needs to indicate the previous compressed frame
+        # current frame and I/P frame
+        # also need to indicate the size of current frame
+        # can we process a GOP as a batch?
+        # one approach: process it from 1 to 16 but need
+        # the I frame information
         output = model(data)
         loss = loss_module(output, target, epoch, batch_idx, l_loader)
 
