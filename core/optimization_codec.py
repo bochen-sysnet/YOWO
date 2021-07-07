@@ -57,16 +57,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # in the worst case, the 1st frame in {16} will be
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
         print(data.shape)
-        print(frame_idx)
+        print('fi',frame_idx)
         data = data[:,:,9:25,:,:]
         # for i in range(data.size(0)):
         #     # for every data point
         #     # locates all valid I frames
         #     end_idx = frame_idx[i]
         #     indices = [max(1,j-24+end_idx) for j in range(25)]
+        #     for j in range(data.size(2)):
 
-        #     start_idx = max(end_idx - 24,1) 
-        #     pass
         # end encoding
         output = model(data)
         loss = loss_module(output, target, epoch, batch_idx, l_loader)
