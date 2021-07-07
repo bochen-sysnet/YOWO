@@ -195,7 +195,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, sha
             label = tmp[0:50*5]
         elif tsz > 0:
             label[0:tsz] = tmp
-    print(im_split[0] + '_' +im_split[1] + '_' + im_split[2])
+    print(im_split[0] + '+' +im_split[1] + '+' + im_split[2],d)
     if train:
         return clip, label
     else:
