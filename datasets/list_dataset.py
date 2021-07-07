@@ -29,7 +29,7 @@ class UCF_JHMDB_Dataset(Dataset):
         self.target_transform = target_transform
         self.train = train
         self.shape = shape
-        self.clip_duration = clip_duration
+        self.clip_duration = clip_duration + 9 # for GOP=10
         self.sampling_rate = sampling_rate
 
     def __len__(self):
@@ -45,7 +45,7 @@ class UCF_JHMDB_Dataset(Dataset):
             saturation = 1.5 
             exposure = 1.5
 
-            clip, label = load_data_detection(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
+            frame_idx, clip, label = load_data_detection(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
 
         else: # For Testing
             frame_idx, clip, label = load_data_detection(self.base_path, imgpath, False, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
@@ -61,6 +61,6 @@ class UCF_JHMDB_Dataset(Dataset):
             label = self.target_transform(label)
 
         if self.train:
-            return (clip, label)
+            return (frame_idx, clip, label)
         else:
             return (frame_idx, clip, label)
