@@ -168,7 +168,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, sha
             i_temp = 1
         elif i_temp > max_num:
             i_temp = max_num
-
+        print(i_temp)
         if dataset_use == 'ucf24':
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.jpg'.format(i_temp))
         elif dataset_use == 'jhmdb21':
@@ -197,7 +197,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, sha
             label[0:tsz] = tmp
     
     if train:
-        return im_split[2], clip, label
+        return im_ind, clip, label
     else:
         return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label
 
