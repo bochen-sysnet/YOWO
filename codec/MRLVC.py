@@ -73,7 +73,7 @@ class MRLVC(nn.Module):
                 #     metrics = MSSSIM(Y1_raw, Y1_com)
                 #     loss = 32*(1-metrics) + bpp_est
                 #, loss, bpp_est, bpp_act, metrics
-                return Y1_com,likelihoods
+                return Y1_com
             else:
                 # no compression
                 return Y1_raw#, 0, 0, 0, 0
@@ -125,7 +125,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, likelihoods
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
@@ -500,26 +500,20 @@ def get_grid_locations(b, h, w):
 
 if __name__ == '__main__':
     # Adam, lr=1e-4,1e-6
-    Y0_com = torch.randn(1,3,416,240)
-    Y1_raw = torch.randn(1,3,416,240)
-    Y2_raw = torch.randn(1,3,416,240)
-    f_p = b_p = 6
-    assert(f_p>=2 and b_p>=2)
-    GOP_size = f_p + b_p + 1
-    total_frame = 100
-    GOP_num = int(np.floor((total_frame - 1)/GOP_size))
+    Y0_com = torch.randn(1,3,224,224).cuda(0)
+    Y1_raw = torch.randn(1,3,224,224).cuda(0)
+    Y2_raw = torch.randn(1,3,224,224).cuda(0)
     # init hidden states
-    mv_hidden = torch.split(torch.zeros(4,128,104,60),1)
-    res_hidden = torch.split(torch.zeros(4,128,104,60),1) 
-    hidden_rpm_mv = torch.split(torch.zeros(2,128,26,15),1) 
-    hidden_rpm_res = torch.split(torch.zeros(2,128,26,15),1)
-    hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
-    model = MRLVC()
+    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
+    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
+    model = MRLVC(image_coder='deepcod')
     latent = None
-    Y1_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
-        model(Y0_com, Y1_raw, latent, hidden, False)
-    Y2_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
-        model(Y1_com, Y2_raw, latent, hidden, True)
+    Y1_com, rae_hidden, rpm_hidden, latent = \
+        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+    while True:
+        Y2_com, rae_hidden, rpm_hidden, latent = \
+            model_codec(Y1_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
+        print(Y2_com.shape)
     # encode I frames with image compression
     # encode I+1(P) frames and I-1(P) frames with the bottleneck
     # we can test with Y0_com set to Y0_raw,
