@@ -86,11 +86,11 @@ class MRLVC(nn.Module):
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
-        # # motion compensation
-        # loc = get_grid_locations(batch_size, Height, Width).cuda(0)
-        # Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
-        # MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        # Y1_MC = self.MC_network(MC_input.cuda(1))
+        # motion compensation
+        loc = get_grid_locations(batch_size, Height, Width).cuda(0)
+        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
+        MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
         # # compress residual
         # res = Y1_raw.cuda(1) - Y1_MC
         # res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
