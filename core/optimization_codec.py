@@ -43,7 +43,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     model.eval()
     model_codec.train()
     for batch_idx, (frame_idx, data, target) in enumerate(train_loader):
-        data = data.cuda() # torch.Size([10, 3, 16+9, 224, 224])
+        data = data.cuda() 
         # process data with codec model
         # todo:
         # data needs to indicate the previous compressed frame
@@ -56,7 +56,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # I frames are 1, 11, 21,...
         # in the worst case, the 1st frame in {16} will be
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
-        print(data.shape)
+        _,_,_,h,w = data.shape # torch.Size([10, 3, 16+9, 224, 224])
         print('fi',frame_idx)
         com_data = []
         for i in range(data.size(0)):
@@ -65,19 +65,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
             end_idx = frame_idx[i]
             indices = [max(1,j-24+end_idx) for j in range(25)]
             com_clip = [] # compressed frames from the first I frame in {25}
+            # previous compressed frame
+            Y0_com = None
             for j in range(data.size(2)):
                 Y1_raw = data[i,:,j,:,:].unsqueeze(0)
                 if indices[j]%10 == 1:
                     # init hidden states
-                    mv_hidden = torch.split(torch.zeros(4,128,56,56),1).cuda()
-                    res_hidden = torch.split(torch.zeros(4,128,56,56),1).cuda()
-                    hidden_rpm_mv = torch.split(torch.zeros(2,128,56,14),1).cuda()
-                    hidden_rpm_res = torch.split(torch.zeros(2,128,56,14),1).cuda()
-                    hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
-                    # previous compressed motion vector and residual
+                    hidden = init_hidden(h,w)
+                    # previous compressed P frame: motion vector and residual
                     latent = None
-                    # previous compressed frame
-                    Y0_com = None
                     Y1_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
                         model_codec(Y0_com, Y1_raw, latent, hidden, False, True)
                 elif Y0_com is not None and indices[j]%10 == 2:
@@ -270,3 +266,11 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     print("Locolization recall: %.3f" % locolization_recall)
 
     return fscore
+
+def init_hidden(h,w):
+    mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4),1).cuda()
+    res_hidden = torch.split(torch.zeros(4,128,h//4,w//4),1).cuda()
+    hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16),1).cuda()
+    hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16),1).cuda()
+    hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
+    return hidden
