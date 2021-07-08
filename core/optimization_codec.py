@@ -91,14 +91,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     continue
                 # extract the compressed frame
                 com_clip.append(Y0_com)
-                print(len(com_clip))
+                if len(com_clip)>16:
+                    del com_clip[0]
             # extract the compressed clip
             com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
-            com_data.append(com_clip)
             print(com_clip.shape)
+            com_data.append(com_clip)
             # extract the compression metrics 
         num_valid = len(com_data)
-        com_data = torch.cat(com_data[num_valid-16:num_valid],dim=0)
+        com_data = torch.cat(com_data,dim=0)
         print(com_data.shape,num_valid)
         # end encoding
         output = model(data)
