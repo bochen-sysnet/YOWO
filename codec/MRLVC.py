@@ -27,7 +27,7 @@ from codec.deepcod import DeepCOD
 # GOP_size = args.f_P + args.b_P + 1
 # Output: compressed images, predicted bits, actual bits
 class MRLVC(nn.Module):
-    def __init__(self, image_coder=None):
+    def __init__(self, image_coder='deepcod'):
         super(MRLVC, self).__init__()
         device = torch.device('cpu')
         self.optical_flow = OpticalFlowNet()
@@ -36,7 +36,7 @@ class MRLVC(nn.Module):
         self.res_codec = RES_CODEC_NET(device)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self._image_coder = DeepCOD() if image_coder is not None else None
+        self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
     def forward(self, Y0_com, Y1_raw, prior_latent, hidden, RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
@@ -49,10 +49,18 @@ class MRLVC(nn.Module):
         # If is I frame, return image compression result of Y1_raw
         if I_flag:
             if self._image_coder:
-                Y1_com,r,_ = self._image_coder(Y1_raw)
-                return Y1_com, None, None, None, None, r, None
+                Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
+                # calculate metrics/loss
+                if use_psnr:
+                    metrics = PSNR(Y1_raw, Y1_com)
+                    loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+                else:
+                    metrics = MSSSIM(Y1_raw, Y1_com)
+                    loss = 32*(1-metrics) + bpp_est
+                return Y1_com, loss, bits_est, bits_act, metrics
             else:
-                return Y1_raw, None, None, None, None, None, None
+                # no compression
+                return Y1_raw, 0, 0, 0, 0
         # otherwise, it's P frame
         batch_size, _, Height, Width = Y0_com.shape
         # hidden states
@@ -303,7 +311,7 @@ class MV_CODEC_NET(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
-        _,C,H,W = latent.shape
+        # _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
