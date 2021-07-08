@@ -88,6 +88,7 @@ class MRLVC(nn.Module):
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
             # latent presentations
+            print(prior_latent.shape)
             prior_mv_latent, prior_res_latent = torch.split(prior_latent,[2,3],dim=1)
             # RPM 
             prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent, hidden_rpm_mv)
