@@ -39,9 +39,9 @@ if not os.path.exists(cfg.BACKUP_DIR):
 seed = int(time.time())
 torch.manual_seed(seed)
 use_cuda = True
-# if use_cuda:
-#     os.environ['CUDA_VISIBLE_DEVICES'] = '0,1' # TODO: add to config e.g. 0,1,2,3
-#     torch.cuda.manual_seed(seed)
+if use_cuda:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1' # TODO: add to config e.g. 0,1,2,3
+    torch.cuda.manual_seed(seed)
 # ---------------------------------------------------------------
 model = YOWO(cfg)
 model = model.cuda()
