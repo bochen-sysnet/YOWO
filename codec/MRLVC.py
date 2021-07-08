@@ -95,8 +95,8 @@ class MRLVC(nn.Module):
             bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             # actual bits
-            bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().numpy(), sigma_mv.detach().numpy(), mu_mv.detach().numpy())
-            bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().numpy(), sigma_res.detach().numpy(), mu_res.detach().numpy())
+            bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+            bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
             bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
         else:
             bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
