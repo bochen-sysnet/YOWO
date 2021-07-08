@@ -512,7 +512,7 @@ if __name__ == '__main__':
     latent = None
     Y1_com, rae_hidden, rpm_hidden, latent = \
         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
-    while True:
+    for i in range(10):
         Y2_com, rae_hidden, rpm_hidden, latent = \
             model_codec(Y1_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
         print(Y2_com.shape)
