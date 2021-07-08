@@ -50,9 +50,7 @@ class MRLVC(nn.Module):
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
-                print('11111')
                 Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
-                print('22222')
                 # calculate bpp
                 batch_size, _, Height, Width = Y1_com.shape
                 bpp_est = bits_est/(Height * Width * batch_size)
@@ -64,7 +62,6 @@ class MRLVC(nn.Module):
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics) + bpp_est
-                print('333333')
                 return Y1_com, loss, bpp_est, bpp_act, metrics
             else:
                 # no compression

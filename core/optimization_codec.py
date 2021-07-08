@@ -90,6 +90,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 else:
                     continue
                 # extract the compressed frame
+                print(Y0_com.shape)
                 com_clip.append(Y0_com)
             # extract the compressed clip
             com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
