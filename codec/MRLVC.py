@@ -70,7 +70,6 @@ class MRLVC(nn.Module):
                 return Y1_raw#, 0, 0, 0, 0
         # otherwise, it's P frame
         # hidden states
-        print(rae_hidden.shape)
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
@@ -313,6 +312,7 @@ class CODEC_NET(nn.Module):
 
     def forward(self, x, hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden,128*2,dim=1)
+        print(x.shape)
         x = self.gdn(self.enc_conv1(x))
         x = self.gdn(self.enc_conv2(x))
         x, state_enc = self.enc_lstm(x, state_enc)
