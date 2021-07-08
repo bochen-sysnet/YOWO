@@ -45,7 +45,7 @@ if use_cuda:
 # ---------------------------------------------------------------
 model = YOWO(cfg)
 model = model.cuda()
-model = nn.DataParallel(model, device_ids=None) # in multi-gpu case
+model = nn.DataParallel(model) # in multi-gpu case
 # print(model)
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
