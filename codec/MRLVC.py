@@ -157,18 +157,18 @@ def bits_estimation(x_target, sigma_mu, num_filters=128, tiny=1e-10):
 
     sigma, mu = torch.split(sigma_mu, num_filters, dim=1)
 
-    half = torch.FloatTensor([0.5])
+    half = torch.FloatTensor([0.5]).cuda()
 
     upper = x_target + half
     lower = x_target - half
 
-    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]))
+    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
     upper_l = torch.sigmoid((upper - mu) * (torch.exp(-sig) + tiny))
     lower_l = torch.sigmoid((lower - mu) * (torch.exp(-sig) + tiny))
     p_element = upper_l - lower_l
     p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
 
-    ent = -torch.log(p_element) / torch.log(torch.FloatTensor([2]))
+    ent = -torch.log(p_element) / torch.log(torch.FloatTensor([2])).cuda()
     bits = torch.sum(ent)
 
     return bits, sigma, mu
