@@ -36,6 +36,12 @@ if not os.path.exists(cfg.BACKUP_DIR):
 
 
 ####### Create model
+seed = int(time.time())
+torch.manual_seed(seed)
+use_cuda = True
+if use_cuda:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1' # TODO: add to config e.g. 0,1,2,3
+    torch.cuda.manual_seed(seed)
 # ---------------------------------------------------------------
 model = YOWO(cfg)
 model = model.cuda()
@@ -51,12 +57,6 @@ model_codec = model_codec.cuda()
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
-seed = int(time.time())
-torch.manual_seed(seed)
-use_cuda = True
-if use_cuda:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1' # TODO: add to config e.g. 0,1,2,3
-    torch.cuda.manual_seed(seed)
 
 
 ####### Create optimizer
