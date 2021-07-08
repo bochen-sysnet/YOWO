@@ -38,7 +38,7 @@ class MRLVC(nn.Module):
         self.RPM_res = RecProbModel()
         self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
-    def forward(self, Y0_com, Y1_raw, prior_latent, rae_hidden, rpm_hidden, RPM_flag, I_flag, use_psnr=True): 
+    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
