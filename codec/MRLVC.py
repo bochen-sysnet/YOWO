@@ -47,6 +47,7 @@ class MRLVC(nn.Module):
         # exp3: encode I frames with I_flag, first P frames with RPM_flag off, 
         # other P frames with RPM_flag on
         # If is I frame, return image compression result of Y1_raw
+        batch_size, _, Height, Width = Y1_raw.shape
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
@@ -63,20 +64,18 @@ class MRLVC(nn.Module):
                 #     metrics = MSSSIM(Y1_raw, Y1_com)
                 #     loss = 32*(1-metrics) + bpp_est
                 #, loss, bpp_est, bpp_act, metrics
-                print(Y1_com.shape,len(string),likelihoods.shape)
-                return Y1_com,string,likelihoods
+                return Y1_com,likelihoods
             else:
                 # no compression
                 return Y1_raw#, 0, 0, 0, 0
         # otherwise, it's P frame
-        batch_size, _, Height, Width = Y0_com.shape
         # hidden states
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,string,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).cuda()
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -84,7 +83,7 @@ class MRLVC(nn.Module):
         Y1_MC = self.MC_network(MC_input)
         # compress residual
         res = Y1_raw - Y1_MC
-        res_hat,res_latent_hat,res_hidden,string,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
+        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
@@ -117,7 +116,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        return Y1_com, rae_hidden, rpm_hidden, prior_latent, string, likelihoods
+        return Y1_com, rae_hidden, rpm_hidden, prior_latent, likelihoods
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
@@ -321,7 +320,7 @@ class CODEC_NET(nn.Module):
 
         # quantization + entropy coding
         # _,C,H,W = latent.shape
-        string = self.entropy_bottleneck.compress(latent)
+        # string = self.entropy_bottleneck.compress(latent)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
@@ -338,7 +337,7 @@ class CODEC_NET(nn.Module):
         # bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 
         hidden = torch.cat((state_enc, state_dec),dim=1)
-        return hat, latent_hat, hidden, string, likelihoods #len(b''.join(string))*8, bits_est
+        return hat, latent_hat, hidden, likelihoods #len(b''.join(string))*8, bits_est
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels=64, out_channels=64):
