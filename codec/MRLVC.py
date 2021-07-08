@@ -43,7 +43,7 @@ class MRLVC(nn.Module):
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
-        self.res_codec.cuda(0)
+        self.res_codec.cuda(1)
         self.RPM_mv.cuda(1)
         self.RPM_res.cuda(1)
 
@@ -89,10 +89,10 @@ class MRLVC(nn.Module):
         loc = get_grid_locations(batch_size, Height, Width).cuda(0)
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1)).cuda(0)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
-        res = Y1_raw - Y1_MC
-        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
+        res = Y1_raw.cuda(1) - Y1_MC
+        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
@@ -113,10 +113,10 @@ class MRLVC(nn.Module):
         #     bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
         #     bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
-        rae_hidden = torch.cat((mv_hidden, res_hidden),dim=1)
+        rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # latent
-        prior_latent = torch.cat((mv_latent_hat, res_latent_hat),dim=1)
+        prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
         # # calculate metrics/loss
         # if use_psnr:
         #     metrics = PSNR(Y1_raw, Y1_com)
@@ -125,7 +125,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        return Y1_com, rae_hidden, rpm_hidden, prior_latent, likelihoods
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, likelihoods
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
