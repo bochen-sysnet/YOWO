@@ -514,12 +514,10 @@ if __name__ == '__main__':
     # Y1_com, rae_hidden, rpm_hidden, latent = \
     #     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
     while True:
-        Y1_com, rae_hidden, rpm_hidden, latent = \
+        Y1_com, _, _, latent = \
             model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, None, False, False)
         # mem accumulates?
         print(Y0_com.shape)
-        rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
-        rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
     # encode I frames with image compression
     # encode I+1(P) frames and I-1(P) frames with the bottleneck
     # we can test with Y0_com set to Y0_raw,
