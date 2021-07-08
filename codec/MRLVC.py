@@ -38,6 +38,15 @@ class MRLVC(nn.Module):
         self.RPM_res = RecProbModel()
         self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
+    def split(self):
+        self._image_coder.cuda(0)
+        self.optical_flow.cuda(0)
+        self.mv_codec.cuda(1)
+        self.MC_network.cuda(1)
+        self.res_codec.cuda(1)
+        self.RPM_mv.cuda(1)
+        self.RPM_res.cuda(1)
+
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
