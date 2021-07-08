@@ -514,8 +514,8 @@ if __name__ == '__main__':
     # Y1_com, rae_hidden, rpm_hidden, latent = \
     #     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
     while True:
-        # Y1_com, rae_hidden, rpm_hidden, latent = \
-        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+        Y1_com, rae_hidden, rpm_hidden, latent = \
+            model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, None, False, False)
         # mem accumulates?
         print(Y0_com.shape)
     # encode I frames with image compression
