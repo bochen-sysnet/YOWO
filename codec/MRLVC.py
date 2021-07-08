@@ -70,6 +70,7 @@ class MRLVC(nn.Module):
                 return Y1_raw#, 0, 0, 0, 0
         # otherwise, it's P frame
         # hidden states
+        print(rae_hidden.shape)
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
