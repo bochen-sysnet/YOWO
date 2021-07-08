@@ -31,9 +31,9 @@ class MRLVC(nn.Module):
         super(MRLVC, self).__init__()
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = CODEC_NET(device, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = CODEC_NET(device, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.MC_network = MCNet()
-        self.res_codec = CODEC_NET(device, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.res_codec = CODEC_NET(device, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
         self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
@@ -293,9 +293,9 @@ class ConvLSTM(nn.Module):
 
 
 class CODEC_NET(nn.Module):
-    def __init__(self, device, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+    def __init__(self, device, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
         super(CODEC_NET, self).__init__()
-        self.enc_conv1 = nn.Conv2d(2, channels, kernel_size=3, stride=2, padding=1)
+        self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
@@ -312,7 +312,6 @@ class CODEC_NET(nn.Module):
 
     def forward(self, x, hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden,128*2,dim=1)
-        print(x.shape)
         x = self.gdn(self.enc_conv1(x))
         x = self.gdn(self.enc_conv2(x))
         x, state_enc = self.enc_lstm(x, state_enc)
