@@ -36,7 +36,7 @@ class MRLVC(nn.Module):
         self.res_codec = RES_CODEC_NET(device)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self._image_coder = DeepCOD().cuda() if image_coder == 'deepcod' else None
+        self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
     def forward(self, Y0_com, Y1_raw, prior_latent, hidden, RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
