@@ -69,7 +69,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
             Y0_com = None
             for j in range(data.size(2)):
                 Y1_raw = data[i,:,j,:,:].unsqueeze(0)
-                print(i,j,Y1_raw.shape)
                 if indices[j]%10 == 1:
                     # no need for Y0_com, latent, hidden when compressing
                     # the I frame 
@@ -92,6 +91,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     continue
                 # extract the compressed frame
                 com_clip.append(Y0_com)
+                latent, hidden = latent[0],hidden[0]
                 if len(com_clip)>16:
                     del com_clip[0]
             # extract the compressed clip

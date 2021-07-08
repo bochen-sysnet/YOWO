@@ -62,7 +62,7 @@ class MRLVC(nn.Module):
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics) + bpp_est
-                return Y1_com, loss, bpp_est, bpp_act, metrics
+                return Y1_com, [loss], [bpp_est], [bpp_act], [metrics]
             else:
                 # no compression
                 return Y1_raw, 0, 0, 0, 0
@@ -112,7 +112,7 @@ class MRLVC(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com)
             loss = 32*(1-metrics) + bpp_est
-        return Y1_com, loss, hidden, prior_latent, bpp_est, bpp_act, metrics
+        return Y1_com, [loss], [hidden], [prior_latent], [bpp_est], [bpp_act], [metrics]
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
