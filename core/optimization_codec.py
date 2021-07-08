@@ -73,7 +73,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     # no need for Y0_com, latent, hidden when compressing
                     # the I frame 
                     # Y0_com, loss, bpp_est, bpp_act, metrics =\
-                    Y1_com, string, likelihoods = \
+                    Y1_com, likelihoods = \
                         model_codec(None, Y1_raw, None, None, None, False, True)
                 elif Y0_com is not None and indices[j]%10 == 2:
                     #### initialization for the first P frame
@@ -82,11 +82,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     # previous compressed motion vector and residual
                     latent = None
                     # compress for first P frame
-                    Y1_com, rae_hidden, rpm_hidden, latent, string, likelihoods = \
+                    Y1_com, rae_hidden, rpm_hidden, latent, likelihoods = \
                         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                 elif Y0_com is not None and indices[j]%10 > 2:
                     # compress for later P frames
-                    Y1_com, rae_hidden, rpm_hidden, latent, string, likelihoods = \
+                    Y1_com, rae_hidden, rpm_hidden, latent, likelihoods = \
                         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
                 else:
                     continue
