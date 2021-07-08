@@ -129,6 +129,7 @@ class LightweightEncoder(nn.Module):
 		self.pool1 = nn.Conv2d(3, 3, kernel_size=2, stride=2, padding=0)
 		self.unpool = nn.Upsample(scale_factor=2, mode='nearest')
 		self.entropy_bottleneck = EntropyBottleneck(channels)
+		self.entropy_bottleneck.update()
 
 	def forward(self, x):
 		x = self.sample(x)
