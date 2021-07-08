@@ -108,6 +108,7 @@ class MRLVC(nn.Module):
         rae_hidden = torch.cat((mv_hidden, res_hidden),dim=1)
         rpm_hidden = torch.cat((hidden_rpm_mv, hidden_rpm_res),dim=1)
         # latent
+        print(mv_latent_hat.shape, res_latent_hat.shape)
         prior_latent = torch.cat((mv_latent_hat, res_latent_hat),dim=1)
         # # calculate metrics/loss
         # if use_psnr:
