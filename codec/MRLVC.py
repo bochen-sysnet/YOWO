@@ -126,7 +126,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        return Y1_com.cuda(0), prior_latent#, rae_hidden, rpm_hidden
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
@@ -514,10 +514,8 @@ if __name__ == '__main__':
     # Y1_com, rae_hidden, rpm_hidden, latent = \
     #     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
     while True:
-        Y1_com,latent = \
+        Y1_com, rae_hidden, rpm_hidden, latent = \
             model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, None, False, False)
-        rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
-        rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
         # mem accumulates?
         print(Y0_com.shape)
     # encode I frames with image compression
