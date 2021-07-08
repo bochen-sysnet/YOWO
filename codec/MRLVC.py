@@ -219,7 +219,7 @@ class OpticalFlowNet(nn.Module):
         im2_1 = self.pool(im2_2)
         im2_0 = self.pool(im2_1)
 
-        flow_zero = torch.zeros(batch, 2, h//16, w//16)
+        flow_zero = torch.zeros(batch, 2, h//16, w//16).cuda()
 
         loss_0, flow_0 = self.loss(flow_zero, im1_0, im2_0, upsample=False)
         loss_1, flow_1 = self.loss(flow_0, im1_1, im2_1, upsample=True)
@@ -240,7 +240,6 @@ class LossNet(nn.Module):
             flow = self.upsample(flow)
         batch_size, _, H, W = flow.shape
         loc = get_grid_locations(batch_size, H, W).cuda()
-        print(im1.get_device(),loc.get_device(),flow.get_device())
         im1_warped = F.grid_sample(im1, loc + flow.permute(0,2,3,1))
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
