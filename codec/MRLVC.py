@@ -304,7 +304,7 @@ class CODEC_NET(nn.Module):
         self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, 2, kernel_size=4, stride=2, padding=1)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
         self.igdn = GDN(channels, device, inverse=True)
         self.dec_lstm = ConvLSTM(channels)
         self.entropy_bottleneck = EntropyBottleneck(128)
