@@ -58,14 +58,46 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
         print(data.shape)
         print('fi',frame_idx)
-        data = data[:,:,9:25,:,:]
-        # for i in range(data.size(0)):
-        #     # for every data point
-        #     # locates all valid I frames
-        #     end_idx = frame_idx[i]
-        #     indices = [max(1,j-24+end_idx) for j in range(25)]
-        #     for j in range(data.size(2)):
-
+        com_data = []
+        for i in range(data.size(0)):
+            # for every data point
+            # locates all valid I frames
+            end_idx = frame_idx[i]
+            indices = [max(1,j-24+end_idx) for j in range(25)]
+            com_clip = [] # compressed frames from the first I frame in {25}
+            for j in range(data.size(2)):
+                Y1_raw = data[i,:,j,:,:].unsqueeze(0)
+                if indices[j]%10 == 1:
+                    # init hidden states
+                    mv_hidden = torch.split(torch.zeros(4,128,56,56),1).cuda()
+                    res_hidden = torch.split(torch.zeros(4,128,56,56),1).cuda()
+                    hidden_rpm_mv = torch.split(torch.zeros(2,128,56,14),1).cuda()
+                    hidden_rpm_res = torch.split(torch.zeros(2,128,56,14),1).cuda()
+                    hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
+                    # previous compressed motion vector and residual
+                    latent = None
+                    # previous compressed frame
+                    Y0_com = None
+                    Y1_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
+                        model_codec(Y0_com, Y1_raw, latent, hidden, False, True)
+                elif Y0_com is not None and indices[j]%10 == 2:
+                    Y1_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
+                        model_codec(Y0_com, Y1_raw, latent, hidden, False, False)
+                elif Y0_com is not None and indices[j]%10 == 3:
+                    Y1_com, hidden, latent, bpp_est, bpp_act, metrics, loss = \
+                        model_codec(Y0_com, Y1_raw, latent, hidden, True, False)
+                else:
+                    continue
+                # extract the compressed frame
+                com_clip.append(Y1_com)
+                Y0_com = Y1_com
+            # extract the compressed clip
+            com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
+            com_data.append(com_clip)
+            # extract the compression metrics 
+        num_valid = len(com_data)
+        com_data = torch.cat(com_data[num_valid-16:num_valid],dim=0)
+        print(com_data.shape,num_valid)
         # end encoding
         output = model(data)
         loss = loss_module(output, target, epoch, batch_idx, l_loader)
