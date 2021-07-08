@@ -268,9 +268,9 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     return fscore
 
 def init_hidden(h,w):
-    mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4),1).cuda()
-    res_hidden = torch.split(torch.zeros(4,128,h//4,w//4),1).cuda()
-    hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16),1).cuda()
-    hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16),1).cuda()
+    mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
+    hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
     hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
     return hidden
