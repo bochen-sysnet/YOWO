@@ -63,6 +63,7 @@ class MRLVC(nn.Module):
                 #     metrics = MSSSIM(Y1_raw, Y1_com)
                 #     loss = 32*(1-metrics) + bpp_est
                 #, loss, bpp_est, bpp_act, metrics
+                print(Y1_com.shape,len(string),likelihoods.shape)
                 return Y1_com,string,likelihoods
             else:
                 # no compression
