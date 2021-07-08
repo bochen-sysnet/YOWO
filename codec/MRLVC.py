@@ -96,36 +96,36 @@ class MRLVC(nn.Module):
         res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
-        # if RPM_flag:
-        #     # latent presentations
-        #     prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),128,dim=1)
-        #     # RPM 
-        #     prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
-        #     prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
-        #     # # estimate bpp
-        #     # bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv)
-        #     # bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
-        #     # bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
-        #     # # actual bits
-        #     # bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-        #     # bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-        #     # bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-        # # else:
-        # #     bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
-        # #     bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
-        # # hidden states
-        # rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
-        # rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
-        # # latent
-        # prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
-        # # # calculate metrics/loss
-        # # if use_psnr:
-        # #     metrics = PSNR(Y1_raw, Y1_com)
-        # #     loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
-        # # else:
-        # #     metrics = MSSSIM(Y1_raw, Y1_com)
-        # #     loss = 32*(1-metrics) + bpp_est
-        # #, bpp_est, bpp_act, metrics, loss
+        if RPM_flag:
+            # latent presentations
+            prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),128,dim=1)
+            # RPM 
+            prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
+            prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
+            # # estimate bpp
+            # bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv)
+            # bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
+            # bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
+            # # actual bits
+            # bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+            # bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+            # bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
+        # else:
+        #     bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
+        #     bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
+        # hidden states
+        rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
+        rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
+        # latent
+        prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
+        # # calculate metrics/loss
+        # if use_psnr:
+        #     metrics = PSNR(Y1_raw, Y1_com)
+        #     loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+        # else:
+        #     metrics = MSSSIM(Y1_raw, Y1_com)
+        #     loss = 32*(1-metrics) + bpp_est
+        #, bpp_est, bpp_act, metrics, loss
         # return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
 
 def PSNR(Y1_raw, Y1_com):
