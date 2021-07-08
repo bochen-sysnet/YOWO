@@ -48,8 +48,13 @@ class MRLVC(nn.Module):
         # other P frames with RPM_flag on
         # If is I frame, return image compression result of Y1_raw
         if I_flag:
+            # we can compress with bpg,deepcod ...
             if self._image_coder:
                 Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
+                # calculate bpp
+                batch_size, _, Height, Width = Y1_com.shape
+                bpp_est = bits_est/(Height * Width * batch_size)
+                bpp_act = bits_act/(Height * Width * batch_size)
                 # calculate metrics/loss
                 if use_psnr:
                     metrics = PSNR(Y1_raw, Y1_com)
@@ -57,7 +62,7 @@ class MRLVC(nn.Module):
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics) + bpp_est
-                return Y1_com, loss, bits_est, bits_act, metrics
+                return Y1_com, loss, bpp_est, bpp_act, metrics
             else:
                 # no compression
                 return Y1_raw, 0, 0, 0, 0
@@ -68,7 +73,7 @@ class MRLVC(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,mv_bytes,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width)
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -76,7 +81,7 @@ class MRLVC(nn.Module):
         Y1_MC = self.MC_network(MC_input)
         # compress residual
         res = Y1_raw - Y1_MC
-        res_hat,res_latent_hat,res_hidden,res_bytes,res_bpp = self.res_codec(res, res_hidden, RPM_flag)
+        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
@@ -95,7 +100,7 @@ class MRLVC(nn.Module):
             bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
         else:
             bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
-            bpp_act = (mv_bytes + res_bytes)/(Height * Width * batch_size)
+            bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
         hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
         # latent
