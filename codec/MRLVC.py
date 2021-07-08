@@ -126,7 +126,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        # return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
