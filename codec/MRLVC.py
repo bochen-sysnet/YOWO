@@ -52,7 +52,7 @@ class MRLVC(nn.Module):
                 Y1_com,r,_ = self._image_coder(Y1_raw)
                 return Y1_com, None, None, None, None, r, None
             else:
-                return Y1_raw, None, None, None, None, r, None
+                return Y1_raw, None, None, None, None, None, None
         # otherwise, it's P frame
         batch_size, _, Height, Width = Y0_com.shape
         # hidden states
