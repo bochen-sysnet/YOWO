@@ -88,8 +88,7 @@ class MRLVC(nn.Module):
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
             # latent presentations
-            print(prior_latent.shape)
-            prior_mv_latent, prior_res_latent = torch.split(prior_latent,[2,3],dim=1)
+            prior_mv_latent, prior_res_latent = torch.split(prior_latent,128,dim=1)
             # RPM 
             prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent, hidden_rpm_mv)
             prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent, hidden_rpm_res)
@@ -108,7 +107,6 @@ class MRLVC(nn.Module):
         rae_hidden = torch.cat((mv_hidden, res_hidden),dim=1)
         rpm_hidden = torch.cat((hidden_rpm_mv, hidden_rpm_res),dim=1)
         # latent
-        print(mv_latent_hat.shape, res_latent_hat.shape)
         prior_latent = torch.cat((mv_latent_hat, res_latent_hat),dim=1)
         # # calculate metrics/loss
         # if use_psnr:
