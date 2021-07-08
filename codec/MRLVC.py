@@ -31,14 +31,14 @@ class MRLVC(nn.Module):
         super(MRLVC, self).__init__()
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = MV_CODEC_NET(device)
+        self.mv_codec = CODEC_NET(device, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.MC_network = MCNet()
-        self.res_codec = RES_CODEC_NET(device)
+        self.res_codec = CODEC_NET(device, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
         self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
-    def forward(self, Y0_com, Y1_raw, prior_latent, hidden, RPM_flag, I_flag, use_psnr=True): 
+    def forward(self, Y0_com, Y1_raw, prior_latent, rae_hidden, rpm_hidden, RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
@@ -50,30 +50,32 @@ class MRLVC(nn.Module):
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
-                Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
-                # calculate bpp
-                batch_size, _, Height, Width = Y1_com.shape
-                bpp_est = bits_est/(Height * Width * batch_size)
-                bpp_act = bits_act/(Height * Width * batch_size)
-                # calculate metrics/loss
-                if use_psnr:
-                    metrics = PSNR(Y1_raw, Y1_com)
-                    loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
-                else:
-                    metrics = MSSSIM(Y1_raw, Y1_com)
-                    loss = 32*(1-metrics) + bpp_est
-                return Y1_com, [loss], [bpp_est], [bpp_act], [metrics]
+                Y1_com,string,likelihoods = self._image_coder(Y1_raw)
+                # # calculate bpp
+                # batch_size, _, Height, Width = Y1_com.shape
+                # bpp_est = bits_est/(Height * Width * batch_size)
+                # bpp_act = bits_act/(Height * Width * batch_size)
+                # # calculate metrics/loss
+                # if use_psnr:
+                #     metrics = PSNR(Y1_raw, Y1_com)
+                #     loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+                # else:
+                #     metrics = MSSSIM(Y1_raw, Y1_com)
+                #     loss = 32*(1-metrics) + bpp_est
+                #, loss, bpp_est, bpp_act, metrics
+                return Y1_com,string,likelihoods
             else:
                 # no compression
-                return Y1_raw, 0, 0, 0, 0
+                return Y1_raw#, 0, 0, 0, 0
         # otherwise, it's P frame
         batch_size, _, Height, Width = Y0_com.shape
         # hidden states
-        mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res = hidden
+        mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
+        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,string,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).cuda()
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -81,7 +83,7 @@ class MRLVC(nn.Module):
         Y1_MC = self.MC_network(MC_input)
         # compress residual
         res = Y1_raw - Y1_MC
-        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp = self.res_codec(res, res_hidden, RPM_flag)
+        res_hat,res_latent_hat,res_hidden,string,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
@@ -90,29 +92,31 @@ class MRLVC(nn.Module):
             # RPM 
             prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent, hidden_rpm_mv)
             prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent, hidden_rpm_res)
-            # estimate bpp
-            bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv)
-            bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
-            bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
-            # actual bits
-            bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-            bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-            bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-        else:
-            bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
-            bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
+            # # estimate bpp
+            # bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv)
+            # bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
+            # bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
+            # # actual bits
+            # bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+            # bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+            # bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
+        # else:
+        #     bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
+        #     bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
-        hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
+        rae_hidden = torch.cat((mv_hidden, res_hidden),dim=1)
+        rpm_hidden = torch.cat((hidden_rpm_mv, hidden_rpm_res),dim=1)
         # latent
-        prior_latent = (mv_latent_hat, res_latent_hat)
-        # calculate metrics/loss
-        if use_psnr:
-            metrics = PSNR(Y1_raw, Y1_com)
-            loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
-        else:
-            metrics = MSSSIM(Y1_raw, Y1_com)
-            loss = 32*(1-metrics) + bpp_est
-        return Y1_com, [loss], [hidden], [prior_latent], [bpp_est], [bpp_act], [metrics]
+        prior_latent = torch.cat((mv_latent_hat, res_latent_hat),dim=1)
+        # # calculate metrics/loss
+        # if use_psnr:
+        #     metrics = PSNR(Y1_raw, Y1_com)
+        #     loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+        # else:
+        #     metrics = MSSSIM(Y1_raw, Y1_com)
+        #     loss = 32*(1-metrics) + bpp_est
+        #, bpp_est, bpp_act, metrics, loss
+        return Y1_com, rae_hidden, rpm_hidden, prior_latent, string, likelihoods
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
@@ -141,17 +145,16 @@ class RecProbModel(nn.Module):
         self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x, hidden):
-        c_state, h_state = hidden
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        x, (c_state, h_state) = self.lstm(x, (c_state, h_state))
+        x, hidden = self.lstm(x, hidden)
         x = F.relu(self.conv5(x))
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
         x = F.relu(self.conv8(x))
-        return x, (c_state, h_state)
+        return x, hidden
 
 def bits_estimation(x_target, sigma_mu, num_filters=128, tiny=1e-10):
 
@@ -276,8 +279,8 @@ class ConvLSTM(nn.Module):
         self._channels = channels
 
     def forward(self, x, state):
-        c, h = state
-        x = torch.cat((x, h), axis=1)
+        c, h = torch.split(state,self._channels,dim=1)
+        x = torch.cat((x, h), dim=1)
         y = self.conv(x)
         j, i, f, o = torch.split(y, self._channels, dim=1)
         f = torch.sigmoid(f + self._forget_bias)
@@ -286,12 +289,12 @@ class ConvLSTM(nn.Module):
         o = torch.sigmoid(o)
         h = o * self._activation(c)
 
-        return h, (c, h)
+        return h, torch.cat((c, h),dim=1)
 
 
-class MV_CODEC_NET(nn.Module):
-    def __init__(self, device, channels=128):
-        super(MV_CODEC_NET, self).__init__()
+class CODEC_NET(nn.Module):
+    def __init__(self, device, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+        super(CODEC_NET, self).__init__()
         self.enc_conv1 = nn.Conv2d(2, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -308,10 +311,10 @@ class MV_CODEC_NET(nn.Module):
         self.entropy_bottleneck.update()
 
     def forward(self, x, hidden, RPM_flag):
-        c_state_enc, h_state_enc, c_state_dec, h_state_dec = hidden
+        state_enc, state_dec = torch.split(hidden,128*2,dim=1)
         x = self.gdn(self.enc_conv1(x))
         x = self.gdn(self.enc_conv2(x))
-        x, (c_state_enc, h_state_enc) = self.enc_lstm(x, (c_state_enc, h_state_enc))
+        x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
 
@@ -325,60 +328,16 @@ class MV_CODEC_NET(nn.Module):
         # decompress
         x = self.igdn(self.dec_conv1(latent_hat))
         x = self.igdn(self.dec_conv2(x))
-        x, (c_state_dec, h_state_dec) = self.enc_lstm(x, (c_state_dec, h_state_dec))
+        x, state_dec = self.enc_lstm(x, state_dec)
         x = self.igdn(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
 
-        # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).cuda()
-        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        # # calculate bpp (estimated)
+        # log2 = torch.log(torch.FloatTensor([2])).cuda()
+        # bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 
-        hidden = (c_state_enc, h_state_enc, c_state_dec, h_state_dec)
-        return hat, latent_hat, hidden, len(b''.join(string))*8, bits_est
-
-class RES_CODEC_NET(nn.Module):
-    def __init__(self, device, channels=128):
-        super(RES_CODEC_NET, self).__init__()
-        self.enc_conv1 = nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2)
-        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
-        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2)
-        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2, bias=False)
-        self.gdn = GDN(channels, device)
-        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=6, stride=2, padding=2)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, 3, kernel_size=6, stride=2, padding=2)
-        self.igdn = GDN(channels, device, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck(128)
-        self.entropy_bottleneck.update()
-
-    def forward(self, x, hidden, RPM_flag):
-        c_state_enc, h_state_enc, c_state_dec, h_state_dec = hidden
-        # compress
-        x = self.gdn(self.enc_conv1(x))
-        x = self.gdn(self.enc_conv2(x))
-        x = self.gdn(self.enc_conv3(x))
-        latent = self.enc_conv4(x) # latent optical flow
-
-        # quantization + entropy coding
-        _,C,H,W = latent.shape
-        string = self.entropy_bottleneck.compress(latent)
-        latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-        # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
-        latent_hat = torch.round(latent) if RPM_flag else latent_decom
-
-        # decompress
-        x = self.igdn(self.dec_conv1(latent_hat))
-        x = self.igdn(self.dec_conv2(x))
-        x = self.igdn(self.dec_conv3(x))
-        hat = self.dec_conv4(x) # compressed optical flow (less accurate)
-
-        # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).cuda()
-        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
-
-        hidden = (c_state_enc, h_state_enc, c_state_dec, h_state_dec)
-        return hat, latent_hat, hidden, len(b''.join(string))*8, bits_est
+        hidden = torch.cat((state_enc, state_dec),dim=1)
+        return hat, latent_hat, hidden, string, likelihoods #len(b''.join(string))*8, bits_est
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels=64, out_channels=64):

@@ -72,26 +72,27 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 if indices[j]%10 == 1:
                     # no need for Y0_com, latent, hidden when compressing
                     # the I frame 
-                    Y0_com, loss, bpp_est, bpp_act, metrics =\
-                        model_codec(None, Y1_raw, None, None, False, True)
+                    # Y0_com, loss, bpp_est, bpp_act, metrics =\
+                    Y1_com, string, likelihoods = \
+                        model_codec(None, Y1_raw, None, None, None, False, True)
                 elif Y0_com is not None and indices[j]%10 == 2:
                     #### initialization for the first P frame
                     # init hidden states
-                    hidden = init_hidden(h,w)
+                    rae_hidden, rpm_hidden = init_hidden(h,w)
                     # previous compressed motion vector and residual
                     latent = None
                     # compress for first P frame
-                    Y0_com, loss, hidden, latent, bpp_est, bpp_act, metrics = \
-                        model_codec(Y0_com, Y1_raw, latent, hidden, False, False)
+                    Y1_com, rae_hidden, rpm_hidden, latent, string, likelihoods = \
+                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                 elif Y0_com is not None and indices[j]%10 > 2:
                     # compress for later P frames
-                    Y0_com, loss, hidden, latent, bpp_est, bpp_act, metrics = \
-                        model_codec(Y0_com, Y1_raw, latent, hidden, True, False)
+                    Y1_com, rae_hidden, rpm_hidden, latent, string, likelihoods = \
+                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
                 else:
                     continue
                 # extract the compressed frame
-                com_clip.append(Y0_com)
-                latent, hidden = latent[0],hidden[0]
+                com_clip.append(Y1_com)
+                Y0_com = Y1_com
                 if len(com_clip)>16:
                     del com_clip[0]
             # extract the compressed clip
@@ -275,9 +276,11 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     return fscore
 
 def init_hidden(h,w):
-    mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
-    return hidden
+    # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    # res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    # hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
+    # hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
+    # hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
+    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
+    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda()
+    return rae_hidden, rpm_hidden

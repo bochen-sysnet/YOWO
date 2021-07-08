@@ -41,7 +41,7 @@ class DeepCOD(nn.Module):
 		self.output_conv = Output_conv(no_of_hidden_units)
 		
 	def forward(self, x):
-		x,bits_act,bits_est = self.encoder(x)
+		x,string,likelihoods = self.encoder(x)
 
 		# reconstruct
 		x = self.conv1(x)
@@ -50,7 +50,7 @@ class DeepCOD(nn.Module):
 		x = self.resblock_up2(x)
 		x = self.output_conv(x)
 		
-		return x,bits_act,bits_est
+		return x,string,likelihoods
 
 def orthorgonal_regularizer(w,scale,cuda=False):
 	N, C, H, W = w.size()
@@ -135,13 +135,13 @@ class LightweightEncoder(nn.Module):
 		x = self.sample(x)
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
-		# calculate bpp (estimated)
-		log2 = torch.log(torch.FloatTensor([2])).cuda()
-		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
-		# calculate bpp (actual)
-		bits_act = len(b''.join(string))*8
+		# # calculate bpp (estimated)
+		# log2 = torch.log(torch.FloatTensor([2])).cuda()
+		# bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+		# # calculate bpp (actual)
+		# bits_act = len(b''.join(string))*8
 
-		return x, bits_act, bits_est
+		return x, string, likelihoods
 		# B,C,H,W = x.size()
 
 		# # quantization
