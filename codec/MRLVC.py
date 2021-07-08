@@ -89,9 +89,9 @@ class MRLVC(nn.Module):
         loc = get_grid_locations(batch_size, Height, Width).cuda(0)
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
+        Y1_MC = self.MC_network(MC_input.cuda(1)).cuda(0)
         # compress residual
-        res = Y1_raw - Y1_MC.cuda(0)
+        res = Y1_raw - Y1_MC
         res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
