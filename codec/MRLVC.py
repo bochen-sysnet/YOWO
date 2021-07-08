@@ -507,12 +507,12 @@ if __name__ == '__main__':
     h = w = 224
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
     rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
-    model_codec = MRLVC(image_coder='deepcod')
+    model_codec = MRLVC(image_coder='deepcod2')
     model_codec.split()
     latent = None
     Y1_com, rae_hidden, rpm_hidden, latent = \
         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
-    for i in range(10):
+    while True:
         Y2_com, rae_hidden, rpm_hidden, latent = \
             model_codec(Y1_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
         print(Y2_com.shape)
