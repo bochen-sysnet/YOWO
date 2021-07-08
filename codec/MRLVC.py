@@ -517,7 +517,7 @@ if __name__ == '__main__':
         Y1_com, rae_hidden, rpm_hidden, latent = \
             model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
         # mem accumulates?
-        print(Y2_com.shape)
+        print(Y1_com.shape)
     # encode I frames with image compression
     # encode I+1(P) frames and I-1(P) frames with the bottleneck
     # we can test with Y0_com set to Y0_raw,
