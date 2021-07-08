@@ -42,7 +42,7 @@ class MRLVC(nn.Module):
         self._image_coder.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
-        self.MC_network.cuda(0)
+        self.MC_network.cuda(1)
         self.res_codec.cuda(0)
         self.RPM_mv.cuda(1)
         self.RPM_res.cuda(1)
@@ -86,12 +86,12 @@ class MRLVC(nn.Module):
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).cuda(0)
+        loc = get_grid_locations(batch_size, Height, Width)
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
-        res = Y1_raw - Y1_MC
+        res = Y1_raw - Y1_MC.cuda(0)
         res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
