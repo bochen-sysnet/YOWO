@@ -53,7 +53,7 @@ logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 # codec model
 model_codec = MRLVC(image_coder='deepcod')
 model_codec = model_codec.cuda()
-# model_codec = nn.DataParallel(model_codec, device_ids=None) # in multi-gpu case
+model_codec = nn.DataParallel(model_codec) # in multi-gpu case
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 

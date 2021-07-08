@@ -137,6 +137,7 @@ class LightweightEncoder(nn.Module):
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
 		log2 = torch.log(torch.FloatTensor([2])).cuda()
+		print(likelihoods.shape)
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		bits_act = len(b''.join(string))*8
