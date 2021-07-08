@@ -72,7 +72,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 if indices[j]%10 == 1:
                     # no need for Y0_com, latent, hidden when compressing
                     # the I frame 
-                    Y0_com=\
+                    Y0_com, loss, bpp_est, bpp_act, metrics =\
                         model_codec(None, Y1_raw, None, None, False, True)
                 elif Y0_com is not None and indices[j]%10 == 2:
                     #### initialization for the first P frame
