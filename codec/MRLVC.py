@@ -504,6 +504,7 @@ if __name__ == '__main__':
     Y1_raw = torch.randn(1,3,224,224).cuda(0)
     Y2_raw = torch.randn(1,3,224,224).cuda(0)
     # init hidden states
+    h = w = 224
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
     rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
     model = MRLVC(image_coder='deepcod')
