@@ -39,7 +39,8 @@ class MRLVC(nn.Module):
         self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
 
     def split(self):
-        self._image_coder.cuda(0)
+        if self._image_coder is not None:
+            self._image_coder.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
