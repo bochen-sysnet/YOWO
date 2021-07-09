@@ -127,7 +127,7 @@ class MRLVC(nn.Module):
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, bpp_act, metrics, loss
 
 def PSNR(Y1_raw, Y1_com):
-    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
+    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))
     log10 = torch.log(torch.FloatTensor([10])).cuda()
     quality = 10.0*torch.log(1.0/train_mse)/log10
     return quality
