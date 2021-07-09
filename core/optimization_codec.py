@@ -109,7 +109,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
                 com_data.append(com_clip)
             data = torch.cat(com_data,dim=0)
-            print(data.shape,img_loss_sum,bpp_est_sum)
+            # print(data.shape,img_loss_sum,bpp_est_sum)
             # data = data[:,:,9:25,:,:]
             # end encoding
             output = model(data)
@@ -131,9 +131,9 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
             loss_module.reset_meters()
-            img_loss_module.reset_meters()
-            bpp_est_module.reset_meters()
-            all_loss_module.reset_meters()
+            img_loss_module.reset()
+            bpp_est_module.reset()
+            all_loss_module.reset()
 
         # show result
         train_iter.set_description(
