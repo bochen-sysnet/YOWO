@@ -119,15 +119,15 @@ class MRLVC(nn.Module):
         prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
         # calculate metrics/loss
         if use_psnr:
-            metrics = PSNR(Y1_raw, Y1_com)
-            loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+            metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
+            loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
         else:
-            metrics = MSSSIM(Y1_raw, Y1_com)
+            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics) + bpp_est
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, bpp_act, metrics, loss
 
 def PSNR(Y1_raw, Y1_com):
-    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))
+    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
     log10 = torch.log(torch.FloatTensor([10])).cuda()
     quality = 10.0*torch.log(1.0/train_mse)/log10
     return quality
