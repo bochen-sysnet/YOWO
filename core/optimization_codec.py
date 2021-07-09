@@ -103,6 +103,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                         del com_clip[0]
                     # get the loss/bpp of the current/last frame
                     if j == data.size(2)-1:
+                        print(indices[j],img_loss)
                         img_loss_list.append(img_loss)
                         bpp_est_list.append(bpp_est)
                 # extract the compressed clip
