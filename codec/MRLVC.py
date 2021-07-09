@@ -111,7 +111,7 @@ class MRLVC(nn.Module):
             bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
         else:
             bpp_est = (mv_bpp + res_bpp.cuda(0))/(Height * Width * batch_size)
-            bpp_act = (mv_bits + res_bits.cuda(0))/(Height * Width * batch_size)
+            bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
         rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
