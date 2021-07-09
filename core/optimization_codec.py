@@ -103,8 +103,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                         del com_clip[0]
                     # get the loss/bpp of the current/last frame
                     if j == data.size(2)-1:
-                        img_loss_sum.append(img_loss)
-                        bpp_est_sum.append(bpp_est)
+                        img_loss_sum += img_loss
+                        bpp_est_sum += bpp_est
                 # extract the compressed clip
                 com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
                 com_data.append(com_clip)
