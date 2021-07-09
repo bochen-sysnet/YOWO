@@ -4,7 +4,7 @@ import time
 from core.utils import *
 from datasets.meters import AVAMeter
 from torch.cuda.amp import autocast as autocast
-
+from tqdm import tqdm
 
 def train_ava_codec(cfg, epoch, model, model_codec, train_loader, loss_module, optimizer):
     t0 = time.time()
