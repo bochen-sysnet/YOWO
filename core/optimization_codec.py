@@ -39,7 +39,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     t0 = time.time()
     loss_module.reset_meters()
     l_loader = len(train_loader)
-    scaler = torch.cuda.amp.GradScaler(enabled=half)
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
 
     model.eval()
     model_codec.train()
