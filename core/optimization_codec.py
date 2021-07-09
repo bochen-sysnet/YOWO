@@ -82,16 +82,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 elif Y0_com is not None and indices[j]%10 == 2:
                     # compress for first P frame
                     Y1_com, rae_hidden, rpm_hidden, latent = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                        model_codec(Y0_com, Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
                 elif Y0_com is not None and indices[j]%10 > 2:
                     # compress for later P frames
                     Y1_com, rae_hidden, rpm_hidden, latent = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
+                        model_codec(Y0_com, Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
                 else:
                     continue
                 # extract the compressed frame
                 com_clip.append(Y1_com)
-                print(len(com_clip))
                 Y0_com = Y1_com
                 if len(com_clip)>16:
                     del com_clip[0]
