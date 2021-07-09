@@ -91,6 +91,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     continue
                 # extract the compressed frame
                 com_clip.append(Y1_com)
+                print(len(com_clip))
                 Y0_com = Y1_com
                 if len(com_clip)>16:
                     del com_clip[0]
