@@ -342,7 +342,7 @@ class CODEC_NET(nn.Module):
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
 
         # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).cuda(0)
+        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 
         hidden = torch.cat((state_enc, state_dec),dim=1)
