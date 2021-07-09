@@ -87,7 +87,7 @@ class MRLVC(nn.Module):
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).cuda(0)
+        loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
@@ -252,7 +252,7 @@ class LossNet(nn.Module):
         if upsample:
             flow = self.upsample(flow)
         batch_size, _, H, W = flow.shape
-        loc = get_grid_locations(batch_size, H, W).cuda()
+        loc = get_grid_locations(batch_size, H, W).type(im1.type())
         im1_warped = F.grid_sample(im1, loc + flow.permute(0,2,3,1))
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
