@@ -81,7 +81,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                         # the I frame 
                         Y1_com, bpp_est, img_loss =\
                             model_codec(None, Y1_raw, None, None, None, False, True)
-                        print('?',bpp_est,img_loss)
                         #### initialization for the first P frame
                         # init hidden states
                         rae_hidden, rpm_hidden = init_hidden(h,w)
@@ -103,8 +102,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     if len(com_clip)>16:
                         del com_clip[0]
                     # get the loss/bpp of the current/last frame
+                    print(indices[j],bpp_est,img_loss)
                     if j == data.size(2)-1:
-                        print(indices[j],img_loss)
                         img_loss_list.append(img_loss)
                         bpp_est_list.append(bpp_est)
                 # extract the compressed clip
