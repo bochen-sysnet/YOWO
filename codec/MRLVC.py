@@ -110,7 +110,7 @@ class MRLVC(nn.Module):
             bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv.cuda(0))
             bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat.cuda(0), prob_latent_res.cuda(0))
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
-            bpp_est.unsqueeze(0)
+            bpp_est = bpp_est.unsqueeze(0)
             # actual bits
             if not self.training:
                 bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
