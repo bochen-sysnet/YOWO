@@ -44,8 +44,8 @@ if use_cuda:
     torch.cuda.manual_seed(seed)
 # ---------------------------------------------------------------
 model = YOWO(cfg)
-# model = model.cuda(0)
-# model = nn.DataParallel(model) # in multi-gpu case
+model = model.cuda()
+model = nn.DataParallel(model) # in multi-gpu case
 # print(model)
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
@@ -75,7 +75,6 @@ if cfg.TRAIN.RESUME_PATH:
     cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
     best_score = checkpoint['score']
     model.load_state_dict(checkpoint['state_dict'])
-    model.cuda(0)
     # optimizer.load_state_dict(checkpoint['optimizer'])
     print("Loaded model score: ", checkpoint['score'])
     print("===================================================================")
