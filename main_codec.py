@@ -44,7 +44,7 @@ if use_cuda:
     torch.cuda.manual_seed(seed)
 # ---------------------------------------------------------------
 model = YOWO(cfg)
-model = model.cuda(0)
+model = model.cuda()
 # model = nn.DataParallel(model) # in multi-gpu case
 # print(model)
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
