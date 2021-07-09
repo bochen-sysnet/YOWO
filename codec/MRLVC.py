@@ -84,7 +84,7 @@ class MRLVC(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,likelihoods = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -92,7 +92,7 @@ class MRLVC(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
+        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
@@ -329,7 +329,7 @@ class CODEC_NET(nn.Module):
 
         # quantization + entropy coding
         # _,C,H,W = latent.shape
-        # string = self.entropy_bottleneck.compress(latent)
+        string = self.entropy_bottleneck.compress(latent)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
@@ -341,12 +341,12 @@ class CODEC_NET(nn.Module):
         x = self.igdn(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
 
-        # # calculate bpp (estimated)
-        # log2 = torch.log(torch.FloatTensor([2])).cuda()
-        # bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        # calculate bpp (estimated)
+        log2 = torch.log(torch.FloatTensor([2])).cuda()
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 
         hidden = torch.cat((state_enc, state_dec),dim=1)
-        return hat, latent_hat, hidden, likelihoods #len(b''.join(string))*8, bits_est
+        return hat, latent_hat, hidden, len(b''.join(string))*8, bits_est
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels=64, out_channels=64):
