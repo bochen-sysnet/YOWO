@@ -1,7 +1,7 @@
 TRAIN:
   RESUME_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_best.pth"
   DATASET: ucf24  # `ava`, `ucf24` or `jhmdb21`
-  BATCH_SIZE: 4
+  BATCH_SIZE: 3
   TOTAL_BATCH_SIZE: 128
   LEARNING_RATE: 1e-4
   EVALUATE: False
