@@ -57,7 +57,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # in the worst case, the 1st frame in {16} will be
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
         _,_,_,h,w = data.shape # torch.Size([10, 3, 16+9, 224, 224])
-        print(frame_idx)
         com_data = []
         for i in range(data.size(0)):
             # for every data point
@@ -95,7 +94,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                 Y0_com = Y1_com
                 if len(com_clip)>16:
                     del com_clip[0]
-                print(len(com_clip))
             # extract the compressed clip
             com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
             com_data.append(com_clip)
@@ -104,18 +102,18 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         com_data = data[:,:,9:25,:,:]
         print(com_data.shape)
         # end encoding
-        output = model(com_data)
-        loss = loss_module(output, target, epoch, batch_idx, l_loader)
+        # output = model(com_data)
+        # loss = loss_module(output, target, epoch, batch_idx, l_loader)
 
-        loss.backward()
-        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-        if batch_idx % steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+        # loss.backward()
+        # steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
+        # if batch_idx % steps == 0:
+        #     optimizer.step()
+        #     optimizer.zero_grad()
 
-        # save result every 1000 batches
-        if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
-            loss_module.reset_meters()
+        # # save result every 1000 batches
+        # if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
+        #     loss_module.reset_meters()
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_loader.dataset)/(t1-t0)))
