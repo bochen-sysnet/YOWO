@@ -38,12 +38,16 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_loader, loss_module, o
 def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss_module, optimizer):
     t0 = time.time()
     loss_module.reset_meters()
+    img_loss_module = AverageMeter()
+    bpp_est_module = AverageMeter()
+    all_loss_module = AverageMeter()
     l_loader = len(train_loader)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
 
     model.eval()
     model_codec.train()
-    for batch_idx, (frame_idx, data, target) in enumerate(train_loader):
+    train_iter = tqdm(train_loader)
+    for batch_idx, (frame_idx, data, target) in enumerate(train_iter):
         data = data.cuda() 
         # process data with codec model
         # todo:
@@ -59,8 +63,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
         _,_,_,h,w = data.shape # torch.Size([10, 3, 16+9, 224, 224])
         com_data = []
-        img_loss_list = []
-        bpp_est_list = []
+        img_loss_sum = 0
+        bpp_est_sum = 0
         with autocast():
             for i in range(data.size(0)):
                 # for every data point
@@ -99,16 +103,21 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                         del com_clip[0]
                     # get the loss/bpp of the current/last frame
                     if j == data.size(2)-1:
-                        img_loss_list.append(img_loss)
-                        bpp_est_list.append(bpp_est)
+                        img_loss_sum.append(img_loss)
+                        bpp_est_sum.append(bpp_est)
                 # extract the compressed clip
                 com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
                 com_data.append(com_clip)
             data = torch.cat(com_data,dim=0)
-            print(data.shape,img_loss_list,bpp_est_list)
+            print(data.shape,img_loss_sum,bpp_est_sum)
+            # data = data[:,:,9:25,:,:]
             # end encoding
             output = model(data)
-            loss = loss_module(output, target, epoch, batch_idx, l_loader)
+            reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
+            img_loss_module.update(img_loss_sum.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            bpp_est_module.update(bpp_est_sum.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            loss = reg_loss + (img_loss_sum + bpp_est_sum)/cfg.TRAIN.BATCH_SIZE
+            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
         # loss.backward()
         scaler.scale(loss).backward()
@@ -122,6 +131,17 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
             loss_module.reset_meters()
+            img_loss_module.reset_meters()
+            bpp_est_module.reset_meters()
+            all_loss_module.reset_meters()
+
+        # show result
+        train_iter.set_description(
+            f"Batch: {batch_idx:8}. "
+            f"Reg_loss: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
+            f"Img_loss: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
+            f"Bpp_loss: {bpp_est_module.val:.2f} ({bpp_est_module.avg:.2f}). "
+            f"All_loss: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). ")
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_loader.dataset)/(t1-t0)))

@@ -70,7 +70,8 @@ class MRLVC(nn.Module):
                 # calculate metrics/loss
                 if use_psnr:
                     metrics = PSNR(Y1_raw, Y1_com)
-                    loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+                    loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+                    # loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics) + bpp_est
@@ -127,7 +128,8 @@ class MRLVC(nn.Module):
         # calculate metrics/loss
         if use_psnr:
             metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
+            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
+            # loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics) + bpp_est

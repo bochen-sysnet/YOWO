@@ -265,14 +265,14 @@ class RegionLoss(nn.Module):
         self.l_total.update(loss.data.item(), self.batch)
 
 
-        if batch_idx % 20 == 0: 
-            print('Epoch: [%d][%d/%d]:\t nGT %d, recall %d, proposals %d, loss: x %.2f(%.2f), '
-                  'y %.2f(%.2f), w %.2f(%.2f), h %.2f(%.2f), conf %.2f(%.2f), '
-                  'cls %.2f(%.2f), total %.2f(%.2f)'
-                   % (epoch, batch_idx, l_loader, nGT, nCorrect, nProposals, self.l_x.val, self.l_x.avg,
-                    self.l_y.val, self.l_y.avg, self.l_w.val, self.l_w.avg,
-                    self.l_h.val, self.l_h.avg, self.l_conf.val, self.l_conf.avg,
-                    self.l_cls.val, self.l_cls.avg, self.l_total.val, self.l_total.avg))
+        # if batch_idx % 20 == 0: 
+        #     print('Epoch: [%d][%d/%d]:\t nGT %d, recall %d, proposals %d, loss: x %.2f(%.2f), '
+        #           'y %.2f(%.2f), w %.2f(%.2f), h %.2f(%.2f), conf %.2f(%.2f), '
+        #           'cls %.2f(%.2f), total %.2f(%.2f)'
+        #            % (epoch, batch_idx, l_loader, nGT, nCorrect, nProposals, self.l_x.val, self.l_x.avg,
+        #             self.l_y.val, self.l_y.avg, self.l_w.val, self.l_w.avg,
+        #             self.l_h.val, self.l_h.avg, self.l_conf.val, self.l_conf.avg,
+        #             self.l_cls.val, self.l_cls.avg, self.l_total.val, self.l_total.avg))
         return loss
 
 
@@ -595,13 +595,13 @@ class RegionLoss_Ava(nn.Module):
         self.l_total.update(loss.data.item(), self.batch)
 
 
-        if batch_idx % 20 == 0: 
-            print('Epoch: [%d][%d/%d]:\t nGT %d, recall %d, proposals %d, loss: x %.2f(%.2f), '
-                  'y %.2f(%.2f), w %.2f(%.2f), h %.2f(%.2f), conf %.2f(%.2f), '
-                  'cls %.2f(%.2f), total %.2f(%.2f)'
-                   % (epoch, batch_idx, l_loader, nGT, nCorrect, nProposals, self.l_x.val, self.l_x.avg,
-                    self.l_y.val, self.l_y.avg, self.l_w.val, self.l_w.avg,
-                    self.l_h.val, self.l_h.avg, self.l_conf.val, self.l_conf.avg,
-                    self.l_cls.val, self.l_cls.avg, self.l_total.val, self.l_total.avg))
+        # if batch_idx % 20 == 0: 
+        #     print('Epoch: [%d][%d/%d]:\t nGT %d, recall %d, proposals %d, loss: x %.2f(%.2f), '
+        #           'y %.2f(%.2f), w %.2f(%.2f), h %.2f(%.2f), conf %.2f(%.2f), '
+        #           'cls %.2f(%.2f), total %.2f(%.2f)'
+        #            % (epoch, batch_idx, l_loader, nGT, nCorrect, nProposals, self.l_x.val, self.l_x.avg,
+        #             self.l_y.val, self.l_y.avg, self.l_w.val, self.l_w.avg,
+        #             self.l_h.val, self.l_h.avg, self.l_conf.val, self.l_conf.avg,
+        #             self.l_cls.val, self.l_cls.avg, self.l_total.val, self.l_total.avg))
 
         return loss
