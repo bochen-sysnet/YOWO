@@ -99,6 +99,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
             com_data.append(com_clip)
             # extract the compression metrics
         com_data = torch.cat(com_data,dim=0)
+        com_data = data[:,:,9:25,:,:]
         print(com_data.shape)
         # end encoding
         output = model(com_data)
