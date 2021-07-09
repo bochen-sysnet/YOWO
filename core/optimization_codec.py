@@ -59,6 +59,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
         _,_,_,h,w = data.shape # torch.Size([10, 3, 16+9, 224, 224])
         com_data = []
+        img_loss_list = []
+        bpp_est_list = []
         with autocast():
             for i in range(data.size(0)):
                 # for every data point
@@ -73,7 +75,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     if indices[j]%10 == 1:
                         # no need for Y0_com, latent, hidden when compressing
                         # the I frame 
-                        Y1_com, loss, bpp_est, bpp_act, metrics =\
+                        Y1_com, bpp_act, img_loss =\
                             model_codec(None, Y1_raw, None, None, None, False, True)
                         #### initialization for the first P frame
                         # init hidden states
@@ -82,11 +84,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                         latent = None
                     elif Y0_com is not None and indices[j]%10 == 2:
                         # compress for first P frame
-                        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,bpp_act,metrics,loss = \
+                        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                             model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
                     elif Y0_com is not None and (indices[j]%10 > 2 or indices[j]%10 == 0):
                         # compress for later P frames
-                        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,bpp_act,metrics,loss = \
+                        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                             model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
                     else:
                         continue
@@ -95,12 +97,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     Y0_com = Y1_com
                     if len(com_clip)>16:
                         del com_clip[0]
+                    # get the loss/bpp of the current/last frame
+                    if j == data.size(2)-1:
+                        img_loss_list.append(img_loss)
+                        bpp_est_list.append(bpp_est)
                 # extract the compressed clip
                 com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
                 com_data.append(com_clip)
-                # extract the compression metrics
             data = torch.cat(com_data,dim=0)
-            print(data.shape)
+            print(data.shape,img_loss_list,bpp_est_list)
             # end encoding
             output = model(data)
             loss = loss_module(output, target, epoch, batch_idx, l_loader)

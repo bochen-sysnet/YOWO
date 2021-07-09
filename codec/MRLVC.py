@@ -48,7 +48,8 @@ class MRLVC(nn.Module):
         self.RPM_mv.cuda(1)
         self.RPM_res.cuda(1)
 
-    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, RPM_flag, I_flag, use_psnr=True): 
+    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
+                RPM_flag, I_flag, use_psnr=True): 
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
@@ -73,7 +74,10 @@ class MRLVC(nn.Module):
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics) + bpp_est
-                return Y1_com, loss, bpp_est, bpp_act, metrics
+                if not self.training:
+                    return Y1_com, loss, bpp_est, bpp_act, metrics
+                else:
+                    return Y1_com, bpp_est, loss
             else:
                 # no compression
                 return Y1_raw#, 0, 0, 0, 0
@@ -106,12 +110,15 @@ class MRLVC(nn.Module):
             bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat.cuda(0), prob_latent_res.cuda(0))
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             # actual bits
-            bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-            bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-            bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
+            if not self.training:
+                bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+                bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+                bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
         else:
             bpp_est = (mv_bpp + res_bpp.cuda(0))/(Height * Width * batch_size)
-            bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
+            # actual bits
+            if not self.training:
+                bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
         rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
@@ -124,7 +131,10 @@ class MRLVC(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics) + bpp_est
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, bpp_act, metrics, loss
+        if not self.training:
+            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, bpp_act, metrics, loss
+        else:
+            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
