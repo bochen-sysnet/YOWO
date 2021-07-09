@@ -81,12 +81,12 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     latent = None
                 elif Y0_com is not None and indices[j]%10 == 2:
                     # compress for first P frame
-                    Y1_com, _, _, latent = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
+                    Y1_com, rae_hidden, rpm_hidden, latent = \
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
                 elif Y0_com is not None and (indices[j]%10 > 2 or indices[j]%10 == 0):
                     # compress for later P frames
-                    Y1_com, _, _, latent = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
+                    Y1_com, rae_hidden, rpm_hidden, latent = \
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
                 else:
                     continue
                 # extract the compressed frame
@@ -102,18 +102,18 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         com_data = data[:,:,9:25,:,:]
         print(com_data.shape)
         # end encoding
-        # output = model(com_data)
-        # loss = loss_module(output, target, epoch, batch_idx, l_loader)
+        output = model(com_data)
+        loss = loss_module(output, target, epoch, batch_idx, l_loader)
 
-        # loss.backward()
-        # steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-        # if batch_idx % steps == 0:
-        #     optimizer.step()
-        #     optimizer.zero_grad()
+        loss.backward()
+        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
+        if batch_idx % steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
 
-        # # save result every 1000 batches
-        # if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
-        #     loss_module.reset_meters()
+        # save result every 1000 batches
+        if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
+            loss_module.reset_meters()
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_loader.dataset)/(t1-t0)))
