@@ -90,18 +90,18 @@ class MRLVC(nn.Module):
         loc = get_grid_locations(batch_size, Height, Width).cuda(0)
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
+        Y1_MC = self.MC_network(MC_input)
         # compress residual
-        res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
+        res = Y1_raw - Y1_MC
+        res_hat,res_latent_hat,res_hidden,likelihoods = self.res_codec(res, res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if RPM_flag:
             # latent presentations
-            prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),128,dim=1)
+            prior_mv_latent, prior_res_latent = torch.split(prior_latent,128,dim=1)
             # RPM 
-            prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
-            prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
+            prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent, hidden_rpm_mv)
+            prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent, hidden_rpm_res)
             # # estimate bpp
             # bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv)
             # bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res)
@@ -114,10 +114,10 @@ class MRLVC(nn.Module):
         #     bpp_est = (mv_bpp + res_bpp)/(Height * Width * batch_size)
         #     bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
         # hidden states
-        rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
-        rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
+        rae_hidden = torch.cat((mv_hidden, res_hidden),dim=1)
+        rpm_hidden = torch.cat((hidden_rpm_mv, hidden_rpm_res),dim=1)
         # latent
-        prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
+        prior_latent = torch.cat((mv_latent_hat, res_latent_hat),dim=1)
         # # calculate metrics/loss
         # if use_psnr:
         #     metrics = PSNR(Y1_raw, Y1_com)
@@ -126,7 +126,7 @@ class MRLVC(nn.Module):
         #     metrics = MSSSIM(Y1_raw, Y1_com)
         #     loss = 32*(1-metrics) + bpp_est
         #, bpp_est, bpp_act, metrics, loss
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent
+        return Y1_com, rae_hidden, rpm_hidden, prior_latent
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
