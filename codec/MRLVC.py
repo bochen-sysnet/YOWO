@@ -103,7 +103,7 @@ class MRLVC(nn.Module):
             prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
             # estimate bpp
             bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv.cuda(0))
-            bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat, prob_latent_res.cuda(0))
+            bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat.cuda(0), prob_latent_res.cuda(0))
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             # actual bits
             bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
