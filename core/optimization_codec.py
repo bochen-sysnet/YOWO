@@ -113,7 +113,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
             # print(data.shape,img_loss_list,bpp_est_list)
             # data = data[:,:,9:25,:,:]
             # end encoding
-            print(img_loss_list)
+            # print(img_loss_list)
             output = model(data)
             reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
             img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
