@@ -50,7 +50,7 @@ model = nn.DataParallel(model) # in multi-gpu case
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
-# codec model
+# codec model .
 model_codec = MRLVC(image_coder='deepcod')
 model_codec.split()
 # model_codec = model_codec
