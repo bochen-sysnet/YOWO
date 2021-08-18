@@ -102,7 +102,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
                     if len(com_clip)>16:
                         del com_clip[0]
                     # get the loss/bpp of the current/last frame
-                    print(indices[j],bpp_est,img_loss)
+                    # print(indices[j],bpp_est,img_loss)
                     if j == data.size(2)-1:
                         img_loss_list.append(img_loss)
                         bpp_est_list.append(bpp_est)
