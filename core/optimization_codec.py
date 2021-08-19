@@ -50,13 +50,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     for batch_idx, (frame_idx, data, target) in enumerate(train_iter):
         data = data.cuda() 
         # process data with codec model
-        # todo:
-        # data needs to indicate the previous compressed frame
-        # current frame and I/P frame
-        # also need to indicate the size of current frame
-        # can we process a GOP as a batch?
-        # one approach: process it from 1 to 16 but need
-        # the I frame information
         # lets first focus on "--f_P 9 --b_P 0", i.e., GOP=10
         # I frames are 1, 11, 21,...
         # in the worst case, the 1st frame in {16} will be
@@ -66,6 +59,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         img_loss_list = []
         bpp_est_list = []
         with autocast():
+            # how to reduce computation?
             for i in range(data.size(0)):
                 # for every data point
                 # locates all valid I frames
@@ -141,7 +135,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
 
         # show result
         train_iter.set_description(
-            f"Batch: {batch_idx:8}. "
+            f"Batch: {batch_idx:6}. "
             f"Reg_loss: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
             f"Img_loss: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"Bpp_loss: {bpp_loss_module.val:.2f} ({bpp_loss_module.avg:.2f}). "
