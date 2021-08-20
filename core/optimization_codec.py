@@ -60,6 +60,12 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
         bpp_est_list = []
         with autocast():
             # how to reduce computation?
+            # because of augmentation, each clip is different from each other
+            # even if some frames overlap
+            # the order is random, so it is not likely to cache
+            # the best way might be running the compressing process for each frame
+            # or we can search for approaches that do not require interframe information
+            # this might be suboptimal though
             for i in range(data.size(0)):
                 # for every data point
                 # locates all valid I frames

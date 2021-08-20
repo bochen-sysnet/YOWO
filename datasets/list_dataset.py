@@ -25,6 +25,7 @@ class UCF_JHMDB_Dataset(Dataset):
         self.base_path = base
         self.dataset = dataset
         self.nSamples  = len(self.lines)
+        print('samples:',self.nSamples)
         self.transform = transform
         self.target_transform = target_transform
         self.train = train
