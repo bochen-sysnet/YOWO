@@ -171,6 +171,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['rae_hidden'] = rae_hidden
             self.cache['rpm_hidden'] = rpm_hidden
             self.cache['latent'] = latent
+            print(len(self.cache['loss']),len(self.cache['clip']))
         else:
             assert im_ind >= 2, 'index error of the non-first frame'
             Y0_com = self.cache[clip][im_ind-2]
