@@ -121,7 +121,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # if this is a whole new video, load whole clip and compress the batch
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
-        print(im_ind)
         if cur_video != self.prev_video:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
@@ -141,7 +140,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['metrics'] = []
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
-            print(self.sampling_rate,self.clip_duration,Iframe_idx)
             for i in range(im_ind):
                 if i<Iframe_idx:
                     # fill ignored frame data with 0
@@ -173,7 +171,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['rae_hidden'] = rae_hidden
             self.cache['rpm_hidden'] = rpm_hidden
             self.cache['latent'] = latent
-            print(len(self.cache['loss']),len(self.cache['clip']))
         else:
             assert im_ind >= 2, 'index error of the non-first frame'
             Y0_com = self.cache[clip][im_ind-2]
