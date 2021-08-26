@@ -160,14 +160,14 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
-                    self.cache['latent'] = latent
+                    self.cache['latent'] = latent.detach()
                 else:
                     # compress for later P frames
                     Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                         model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
-                    self.cache['latent'] = latent
+                    self.cache['latent'] = latent.detach()
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
                 self.cache['loss'].append(img_loss)
                 self.cache['bpp_est'].append(bpp_est)
@@ -193,14 +193,14 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                 self.cache['rae_hidden'] = rae_hidden.detach()
                 self.cache['rpm_hidden'] = rpm_hidden.detach()
-                self.cache['latent'] = latent
+                self.cache['latent'] = latent.detach()
             else:
                 # compress for later P frames
                 Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                     model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
                 self.cache['rae_hidden'] = rae_hidden.detach()
                 self.cache['rpm_hidden'] = rpm_hidden.detach()
-                self.cache['latent'] = latent
+                self.cache['latent'] = latent.detach()
             self.cache['clip'][im_ind-1] = Y1_com.detach().squeeze(0)
             self.cache['loss'].append(img_loss)
             self.cache['bpp_est'].append(bpp_est)
