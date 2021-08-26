@@ -35,7 +35,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_loader, loss_module, o
 
 
 
-def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss_module, optimizer):
+def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer):
     t0 = time.time()
     loss_module.reset_meters()
     img_loss_module = AverageMeter()
@@ -43,77 +43,31 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_loader, loss
     all_loss_module = AverageMeter()
     l_loader = len(train_loader)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
+    batch_size = cfg.TRAIN.BATCH_SIZE
 
     model.eval()
     model_codec.train()
-    train_iter = tqdm(train_loader)
-    for batch_idx, (frame_idx, data, target) in enumerate(train_iter):
+    train_iter = tqdm(range(0,l_loader,batch_size))
+    for batch_idx in enumerate(train_iter):
+        # start compression
+        frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
+        for j in range(batch_size):
+            data_idx = batch_idx*batch_size+j
+            # compress one batch of the data
+            train_dataset.preprocess(data_idx, model_codec)
+            # read one clip
+            f,d,t,b,l = train_dataset[data_idx]
+            frame_idx.append(f)
+            data.append(d)
+            target.append(t)
+            bpp_est_list.append(b)
+            img_loss_list.append(l)
+        frame_idx = torch.stack(frame_idx, dim=0)
+        data = torch.stack(data, dim=0)
+        target = torch.stack(target, dim=0)
+        # end of compression
         data = data.cuda() 
-        # process data with codec model
-        # lets first focus on "--f_P 9 --b_P 0", i.e., GOP=10
-        # I frames are 1, 11, 21,...
-        # in the worst case, the 1st frame in {16} will be
-        # the 9th frame in a GOP, so we need a clip of at least 25 to compress that 
-        _,_,_,h,w = data.shape # torch.Size([10, 3, 16+9, 224, 224])
-        com_data = []
-        img_loss_list = []
-        bpp_est_list = []
         with autocast():
-            # how to reduce computation?
-            # because of augmentation, each clip is different from each other
-            # even if some frames overlap
-            # the order is random, so it is not likely to cache
-            # the best way might be running the compressing process for each frame
-            # or we can search for approaches that do not require interframe information
-            # this might be suboptimal though
-            for i in range(data.size(0)):
-                # for every data point
-                # locates all valid I frames
-                end_idx = frame_idx[i]
-                indices = [max(1,j-24+end_idx) for j in range(25)]
-                com_clip = [] # compressed frames from the first I frame in {25}
-                # previous compressed frame
-                Y0_com = None
-                for j in range(data.size(2)):
-                    Y1_raw = data[i,:,j,:,:].unsqueeze(0)
-                    if indices[j]%10 == 1:
-                        # no need for Y0_com, latent, hidden when compressing
-                        # the I frame 
-                        Y1_com, bpp_est, img_loss =\
-                            model_codec(None, Y1_raw, None, None, None, False, True)
-                        #### initialization for the first P frame
-                        # init hidden states
-                        rae_hidden, rpm_hidden = init_hidden(h,w)
-                        # previous compressed motion vector and residual
-                        latent = None
-                    elif Y0_com is not None and indices[j]%10 == 2:
-                        # compress for first P frame
-                        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                            model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
-                    elif Y0_com is not None and (indices[j]%10 > 2 or indices[j]%10 == 0):
-                        # compress for later P frames
-                        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                            model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
-                    else:
-                        continue
-                    # extract the compressed frame
-                    com_clip.append(Y1_com)
-                    Y0_com = Y1_com
-                    if len(com_clip)>16:
-                        del com_clip[0]
-                    # get the loss/bpp of the current/last frame
-                    # print(indices[j],bpp_est,img_loss)
-                    if j == data.size(2)-1:
-                        img_loss_list.append(img_loss)
-                        bpp_est_list.append(bpp_est)
-                # extract the compressed clip
-                com_clip = torch.cat(com_clip,dim=0).permute(1, 0, 2, 3).unsqueeze(0)
-                com_data.append(com_clip)
-            data = torch.cat(com_data,dim=0)
-            # print(data.shape,img_loss_list,bpp_est_list)
-            # data = data[:,:,9:25,:,:]
-            # end encoding
-            # print(img_loss_list)
             output = model(data)
             reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
             img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
@@ -201,7 +155,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_loader):
 
 
 @torch.no_grad()
-def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
+def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
 
     def truths_length(truths):
         for i in range(50):
@@ -224,12 +178,37 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     correct_classification = 0.0
     total_detected = 0.0
 
-    nbatch = len(test_loader)
+    nbatch = len(test_dataset)
 
     model.eval()
     model_codec.eval()
+    
+    # loss meters
+    loss_module.reset_meters()
+    img_loss_module = AverageMeter()
+    bpp_loss_module = AverageMeter()
+    all_loss_module = AverageMeter()
 
-    for batch_idx, (frame_idx, data, target) in enumerate(test_loader):
+    batch_size = cfg.TRAIN.BATCH_SIZE
+    test_iter = tqdm(range(0,nbatch,batch_size))
+    for batch_idx in enumerate(test_iter):
+        # process/compress each frame in a batch
+        frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
+        for j in range(batch_size):
+            data_idx = batch_idx*batch_size+j
+            # compress one batch of the data
+            test_dataset.preprocess(data_idx, model_codec)
+            # read one clip
+            f,d,t,b,l = test_dataset[data_idx]
+            frame_idx.append(f)
+            data.append(d)
+            target.append(t)
+            bpp_est_list.append(b)
+            img_loss_list.append(l)
+        frame_idx = torch.stack(frame_idx, dim=0)
+        data = torch.stack(data, dim=0)
+        target = torch.stack(target, dim=0)
+        # end of compression
         data = data.cuda()
         with torch.no_grad():
             output = model(data).data
@@ -296,7 +275,25 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
             precision = 1.0*correct/(proposals+eps)
             recall = 1.0*correct/(total+eps)
             fscore = 2.0*precision*recall/(precision+recall+eps)
-            logging("[%d/%d] precision: %f, recall: %f, fscore: %f" % (batch_idx, nbatch, precision, recall, fscore))
+            # logging("[%d/%d] precision: %f, recall: %f, fscore: %f" % (batch_idx, nbatch, precision, recall, fscore))
+            
+            reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
+            img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
+            bpp_loss = torch.stack(bpp_est_list,dim=0).sum(dim=0)
+            loss = reg_loss + img_loss + bpp_loss
+            img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            bpp_loss_module.update(bpp_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+        # show result
+        test_iter.set_description(
+            f"Batch: {batch_idx:6}. "
+            f"Reg_loss: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
+            f"Img_loss: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
+            f"Bpp_loss: {bpp_loss_module.val:.2f} ({bpp_loss_module.avg:.2f}). "
+            f"All_loss: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
+            f"Prec: {precision:.2f} ({precision:.2f}). "
+            f"Rec: {recall:.2f} ({recall:.2f}). "
+            f"Fscore: {fscore:.2f} ({fscore:.2f}). ")
 
     classification_accuracy = 1.0 * correct_classification / (total_detected + eps)
     locolization_recall = 1.0 * total_detected / (total + eps)
@@ -305,13 +302,3 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_loader):
     print("Locolization recall: %.3f" % locolization_recall)
 
     return fscore
-
-def init_hidden(h,w):
-    # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    # res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    # hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    # hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    # hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
-    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
-    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda()
-    return rae_hidden, rpm_hidden

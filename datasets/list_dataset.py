@@ -81,7 +81,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         self.target_transform = target_transform
         self.train = train
         self.shape = shape
-        self.clip_duration = clip_duration + 9 # for GOP=10
+        self.clip_duration = clip_duration
         self.sampling_rate = sampling_rate
         self.cache = None # cache for current video clip
         self.prev_video = '' # previous video name to determine whether its a whole new video
@@ -100,11 +100,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             exposure = 1.5
 
             # frame_idx, clip, label = load_data_detection(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
-            frame_idx, clip, label = load_data_detection_from_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.cache)
+            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
 
         else: # For Testing
             # frame_idx, clip, label = load_data_detection(self.base_path, imgpath, False, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
-            frame_idx, clip, label = load_data_detection_from_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.cache)
+            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
             clip = [img.resize(self.shape) for img in clip]
 
         if self.transform is not None:
@@ -117,20 +117,100 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             label = self.target_transform(label)
 
         if self.train:
-            return (frame_idx, clip, label)
+            return (frame_idx, clip, label, bpp, loss)
         else:
-            return (frame_idx, clip, label)
+            return (frame_idx, clip, label, bpp, loss)
             
-    def preprocess(self, index):
+    def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
         im_split = imgpath.split('/')
+        num_parts = len(im_split)
+        im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
-        # if this is a whole new video, refresh the cache
+        # if this is a whole new video, load whole clip and compress the batch
+        # also additional frames need to be compressed for the first clip
+        # else just compress the batch
         if cur_video != self.pre_video:
-            self.cache = load_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
-            
-            # process the clip with compression model if this is the whole new video
-            # treat the first frame of the first clip as the I frame
+            # read raw video clip
+            self.cache = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
+            # compress from the first frame of the first clip to the current frame
+            Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
+            # frame shape
+            _,h,w = self.cache['clip'][0].shape
+            for i in range(im_ind):
+                if i<Iframe_idx:
+                    # fill ignored frame data with 0
+                    self.cache['loss'].append(0)
+                    self.cache['bpp_est'].append(0)
+                    continue
+                Y1_raw = self.cache['clip'][i].unsqueeze(0)
+                if (i-Iframe_idx)%10 == 0:
+                    # no need for Y0_com, latent, hidden when compressing the I frame 
+                    Y1_com, bpp_est, img_loss =\
+                        model_codec(None, Y1_raw, None, None, None, False, True)
+                elif (i-Iframe)%10 == 1:
+                    #### initialization for the first P frame
+                    # init hidden states
+                    rae_hidden, rpm_hidden = init_hidden(h,w)
+                    # previous compressed motion vector and residual
+                    latent = None
+                    # compress for first P frame
+                    Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
+                else:
+                    # compress for later P frames
+                    Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
+                self.cache['clip'][i] = Y1_com.squeeze(0)
+                self.cache['loss'].append(img_loss)
+                self.cache['bpp_est'].append(bpp_est)
+                Y0_com = self.cache['clip'][i]
+            self.cache['rae_hidden'] = rae_hidden
+            self.cache['rpm_hidden'] = rpm_hidden
+            self.cache['latent'] = latent
+        else:
+            assert im_ind >= 2, 'index error of the non-first frame'
+            Y0_com = self.cache[clip][im_ind-2]
+            Y1_raw = self.cache['clip'][i].unsqueeze(0)
+            # frame shape
+            _,h,w = self.cache['clip'][0].shape
+            # intermediate states
+            rae_hidden = self.cache['rae_hidden']
+            rpm_hidden = self.cache['rpm_hidden']
+            latent = self.cache['latent']
+            if (im_ind-1)%10 == 0:
+                # no need for Y0_com, latent, hidden when compressing the I frame 
+                Y1_com, bpp_est, img_loss =\
+                    model_codec(None, Y1_raw, None, None, None, False, True)
+            elif (im_ind-1)%10 == 1:
+                #### initialization for the first P frame
+                # init hidden states
+                rae_hidden, rpm_hidden = init_hidden(h,w)
+                # previous compressed motion vector and residual
+                latent = None
+                # compress for first P frame
+                Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
+                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
+            else:
+                # compress for later P frames
+                Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
+                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
+            self.cache['clip'][i] = Y1_com.squeeze(0)
+            self.cache['loss'].append(img_loss)
+            self.cache['bpp_est'].append(bpp_est)
+            self.cache['rae_hidden'] = rae_hidden
+            self.cache['rpm_hidden'] = rpm_hidden
+            self.cache['latent'] = latent
         return
+
+def init_hidden(h,w):
+    # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    # res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
+    # hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
+    # hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
+    # hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
+    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
+    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda()
+    return rae_hidden, rpm_hidden

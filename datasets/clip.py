@@ -138,7 +138,7 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy):
     label = np.reshape(label, (-1))
     return label
     
-def load_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
+def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
     # load whole video as a clip for further processing
     # all frames in a video should be processed with the same augmentation or no augmentation
     # the data will be loaded from the current clip
@@ -163,20 +163,30 @@ def load_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
         clip.append(Image.open(path_tmp).convert('RGB'))
     
     cache = {}
-    if train: # Apply augmentation
+    if train: # Apply augmentation to clip
         clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
         cache['misc'] = [flip,dx,dy,sx,sy]
     cache['clip'] = clip
+    cache['bpp_est'] = []
+    cache['loss'] = []
+    cache['bpp_act'] = []
+    cache['metrics'] = []
     
     return cache
     
-def load_data_detection_from_video_clip(base_path, imgpath, train, train_dur, cache):
+def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache):
     # load 8/16 frames from video clips
     
     im_split = imgpath.split('/')
     num_parts = len(im_split)
     im_ind = int(im_split[num_parts-1][0:5])
     labpath = os.path.join(base_path, 'labels', im_split[0], im_split[1] ,'{:05d}.txt'.format(im_ind))
+    
+    img_folder = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1])
+    if dataset_use == 'ucf24':
+        max_num = len(os.listdir(img_folder))
+    elif dataset_use == 'jhmdb21':
+        max_num = len(os.listdir(img_folder)) - 1
     
     clip_tmp = cache['clip']
     
@@ -197,7 +207,7 @@ def load_data_detection_from_video_clip(base_path, imgpath, train, train_dur, ca
             i_temp = max_num-1
         clip.append(clip_tmp[i_temp])
         
-    if train: # Apply augmentation
+    if train: # Apply augmentation to label
         # retrieve data
         flip,dx,dy,sx,sy = cache['misc']
         label = fill_truth_detection(labpath, clip[0].width, clip[0].height, flip, dx, dy, 1./sx, 1./sy)
@@ -218,9 +228,9 @@ def load_data_detection_from_video_clip(base_path, imgpath, train, train_dur, ca
             label[0:tsz] = tmp
     
     if train:
-        return im_ind, clip, label
+        return im_ind, clip, label, cache['bpp_est'][im_ind], cache['loss'][im_ind]
     else:
-        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label
+        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, cache['bpp_est'][im_ind], cache['loss'][im_ind]
 
 def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
     # clip loading and  data augmentation

@@ -121,11 +121,11 @@ elif dataset in ['ucf24', 'jhmdb21']:
                        transform=transforms.Compose([transforms.ToTensor()]), 
                        train=False, clip_duration=cfg.DATA.NUM_FRAMES, sampling_rate=cfg.DATA.SAMPLING_RATE)
 
-    # change shuffle to False so that we can use the cache, the trainlist.txt can be randomized though
-    train_loader  = torch.utils.data.DataLoader(train_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
-                                               num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=True, pin_memory=True)
-    test_loader   = torch.utils.data.DataLoader(test_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
-                                               num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=False, pin_memory=True)
+    # cannot use dataloader because the data loading should be interactive
+    # train_loader  = torch.utils.data.DataLoader(train_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
+    #                                           num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=True, pin_memory=True)
+    # test_loader   = torch.utils.data.DataLoader(test_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
+    #                                           num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=False, pin_memory=True)
 
     loss_module   = RegionLoss(cfg).cuda()
 
@@ -137,7 +137,7 @@ elif dataset in ['ucf24', 'jhmdb21']:
 # ---------------------------------------------------------------
 if cfg.TRAIN.EVALUATE:
     logging('evaluating ...')
-    test(cfg, 0, model, test_loader)
+    test(cfg, 0, model, model_codec, test_dataset, loss_module)
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
@@ -145,9 +145,9 @@ else:
         
         # Train and test model
         logging('training at epoch %d, lr %f' % (epoch, lr_new))
-        train(cfg, epoch, model, model_codec, train_loader, loss_module, optimizer)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         logging('testing at epoch %d' % (epoch))
-        score = test(cfg, epoch, model, model_codec, test_loader)
+        score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
 
         # Save the model to backup directory
         is_best = score > best_score
