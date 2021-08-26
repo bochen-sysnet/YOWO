@@ -159,11 +159,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     latent = None
                     # compress for first P frame
                     Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent.detach(), False, False)
                 else:
                     # compress for later P frames
                     Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent.detach(), True, False)
                 self.cache['clip'][i] = Y1_com.squeeze(0)
                 self.cache['loss'].append(img_loss)
                 self.cache['bpp_est'].append(bpp_est)
@@ -193,11 +193,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 latent = None
                 # compress for first P frame
                 Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
+                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent.detach(), False, False)
             else:
                 # compress for later P frames
                 Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, True, False)
+                    model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent.detach(), True, False)
             self.cache['clip'][im_ind-1] = Y1_com.squeeze(0)
             self.cache['loss'].append(img_loss)
             self.cache['bpp_est'].append(bpp_est)

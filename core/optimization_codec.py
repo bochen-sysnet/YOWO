@@ -76,15 +76,14 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             bpp_loss_module.update(bpp_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-            # loss.backward()
-            scaler.scale(loss).backward()
-            
-            steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-            if batch_idx % steps == 0:
-                # optimizer.step()
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
+        # loss.backward()
+        scaler.scale(loss).backward()
+        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
+        if batch_idx % steps == 0:
+            # optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
