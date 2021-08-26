@@ -189,7 +189,7 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
     ### We change downsampling rate throughout training as a       ###
     ### temporal augmentation, which brings around 1-2 frame       ###
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
-    d = sampling_rate
+    d = sample_rate
     if train:
         d = random.randint(1, 2)
         
