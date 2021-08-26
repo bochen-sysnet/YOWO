@@ -162,17 +162,13 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
 
         clip.append(Image.open(path_tmp).convert('RGB'))
     
-    cache = {}
     if train: # Apply augmentation to clip
         clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
-        cache['misc'] = [flip,dx,dy,sx,sy]
-    cache['clip'] = clip
-    cache['bpp_est'] = []
-    cache['loss'] = []
-    cache['bpp_act'] = []
-    cache['metrics'] = []
+        misc = [flip,dx,dy,sx,sy]
+    else:
+        misc = None
     
-    return cache
+    return clip,misc
     
 def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache):
     # load 8/16 frames from video clips
