@@ -62,7 +62,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             target.append(t)
             bpp_est_list.append(b)
             img_loss_list.append(l)
-        frame_idx = torch.stack(frame_idx, dim=0)
         data = torch.stack(data, dim=0)
         target = torch.stack(target, dim=0)
         # end of compression
@@ -205,7 +204,6 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             target.append(t)
             bpp_est_list.append(b)
             img_loss_list.append(l)
-        frame_idx = torch.stack(frame_idx, dim=0)
         data = torch.stack(data, dim=0)
         target = torch.stack(target, dim=0)
         # end of compression
