@@ -156,7 +156,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     # no need for Y0_com, latent, hidden when compressing the I frame 
                     Y1_com, bpp_est, img_loss =\
                         model_codec(None, Y1_raw, None, None, None, False, True)
-                elif (i-Iframe)%10 == 1:
+                elif (i-Iframe_idx)%10 == 1:
                     #### initialization for the first P frame
                     # init hidden states
                     rae_hidden, rpm_hidden = init_hidden(h,w)
