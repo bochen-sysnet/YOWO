@@ -136,7 +136,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
             if self.transform is not None:
-                clip = [self.transform(img) for img in clip]
+                clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
             self.cache['misc'] = misc
             self.cache['bpp_est'] = []
