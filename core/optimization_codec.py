@@ -52,6 +52,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
         for j in range(batch_size):
+            print(batch_idx,batch_size,j)
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
