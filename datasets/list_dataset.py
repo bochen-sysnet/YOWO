@@ -148,9 +148,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     continue
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
                 if (i-Iframe_idx)%10 == 0:
-                    # init hidden states
-                    rae_hidden, rpm_hidden = init_hidden(h,w)
-                    latent = None
                     # compressing the I frame 
                     Y1_com, bpp_est, img_loss =\
                         model_codec(None, Y1_raw, None, None, None, False, True)
@@ -161,27 +158,26 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     # compress for first P frame
                     Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                         model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                    self.cache['rae_hidden'] = rae_hidden.detach()
+                    self.cache['rpm_hidden'] = rpm_hidden.detach()
+                    self.cache['latent'] = latent
                 else:
                     # compress for later P frames
                     Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
+                        model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                    self.cache['rae_hidden'] = rae_hidden.detach()
+                    self.cache['rpm_hidden'] = rpm_hidden.detach()
+                    self.cache['latent'] = latent
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
                 self.cache['loss'].append(img_loss)
                 self.cache['bpp_est'].append(bpp_est)
                 Y0_com = Y1_com
-            self.cache['rae_hidden'] = rae_hidden.detach()
-            self.cache['rpm_hidden'] = rpm_hidden.detach()
-            self.cache['latent'] = latent.detach()
         else:
             assert im_ind >= 2, 'index error of the non-first frame'
             Y0_com = self.cache['clip'][im_ind-2].unsqueeze(0)
             Y1_raw = self.cache['clip'][im_ind-1].unsqueeze(0)
             # frame shape
             _,h,w = self.cache['clip'][0].shape
-            # intermediate states
-            rae_hidden = self.cache['rae_hidden']
-            rpm_hidden = self.cache['rpm_hidden']
-            latent = self.cache['latent']
             if (im_ind-1)%10 == 0:
                 # no need for Y0_com, latent, hidden when compressing the I frame 
                 Y1_com, bpp_est, img_loss =\
@@ -195,16 +191,19 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 # compress for first P frame
                 Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
                     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                self.cache['rae_hidden'] = rae_hidden.detach()
+                self.cache['rpm_hidden'] = rpm_hidden.detach()
+                self.cache['latent'] = latent
             else:
                 # compress for later P frames
                 Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                    model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, True, False)
+                    model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                self.cache['rae_hidden'] = rae_hidden.detach()
+                self.cache['rpm_hidden'] = rpm_hidden.detach()
+                self.cache['latent'] = latent
             self.cache['clip'][im_ind-1] = Y1_com.detach().squeeze(0)
             self.cache['loss'].append(img_loss)
             self.cache['bpp_est'].append(bpp_est)
-            self.cache['rae_hidden'] = rae_hidden.detach()
-            self.cache['rpm_hidden'] = rpm_hidden.detach()
-            self.cache['latent'] = latent.detach()
         self.prev_video = cur_video
 
 def init_hidden(h,w):
