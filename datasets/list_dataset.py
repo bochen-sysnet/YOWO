@@ -141,6 +141,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['metrics'] = []
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
+            print(self.sampling_rate,self.clip_duration,Iframe_idx)
             for i in range(im_ind):
                 if i<Iframe_idx:
                     # fill ignored frame data with 0
