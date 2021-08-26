@@ -98,7 +98,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
 
         else: # For Testing
             frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
-
+        print(frame_idx)
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
 
