@@ -129,6 +129,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             exposure = 1.5
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
+            # frame shape
+            h,w = clip[0].width,clip[0].height
+            print(h,w)
+            # create cache
             cache = {}
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
@@ -142,8 +146,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             cache['metrics'] = []
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
-            # frame shape
-            h,w = self.cache['clip'][0].width,self.cache['clip'][0].height
             for i in range(im_ind):
                 if i<Iframe_idx:
                     # fill ignored frame data with 0
