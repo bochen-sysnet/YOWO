@@ -174,7 +174,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         else:
             assert im_ind >= 2, 'index error of the non-first frame'
             Y0_com = self.cache['clip'][im_ind-2]
-            Y1_raw = self.cache['clip'][i].unsqueeze(0)
+            Y1_raw = self.cache['clip'][im_ind-1].unsqueeze(0)
             # frame shape
             _,h,w = self.cache['clip'][0].shape
             # intermediate states
