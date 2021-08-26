@@ -131,19 +131,18 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
             # frame shape
             h,w = clip[0].width,clip[0].height
-            print(h,w)
             # create cache
-            cache = {}
+            self.cache = {}
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
             if self.transform is not None:
                 clip = [self.transform(img) for img in clip]
-            cache['clip'] = clip
-            cache['misc'] = misc
-            cache['bpp_est'] = []
-            cache['loss'] = []
-            cache['bpp_act'] = []
-            cache['metrics'] = []
+            self.cache['clip'] = clip
+            self.cache['misc'] = misc
+            self.cache['bpp_est'] = []
+            self.cache['loss'] = []
+            self.cache['bpp_act'] = []
+            self.cache['metrics'] = []
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
             for i in range(im_ind):
