@@ -48,7 +48,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model.eval()
     model_codec.train()
     train_iter = tqdm(range(0,l_loader,batch_size))
-    for batch_idx in enumerate(train_iter):
+    for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
         for j in range(batch_size):
@@ -192,7 +192,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
 
     batch_size = cfg.TRAIN.BATCH_SIZE
     test_iter = tqdm(range(0,nbatch,batch_size))
-    for batch_idx in enumerate(test_iter):
+    for batch_idx,_ in enumerate(test_iter):
         # process/compress each frame in a batch
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
         for j in range(batch_size):
