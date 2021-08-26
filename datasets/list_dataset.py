@@ -152,12 +152,12 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     self.cache['bpp_est'].append(0)
                     continue
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
-                print(i,Y1_raw.shape,Y0_com.shape)
                 if (i-Iframe_idx)%10 == 0:
                     # no need for Y0_com, latent, hidden when compressing the I frame 
                     Y1_com, bpp_est, img_loss =\
                         model_codec(None, Y1_raw, None, None, None, False, True)
                 elif (i-Iframe_idx)%10 == 1:
+                    print(i,Y1_raw.shape,Y0_com.shape)
                     #### initialization for the first P frame
                     # init hidden states
                     rae_hidden, rpm_hidden = init_hidden(h,w)
