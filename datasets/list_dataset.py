@@ -121,6 +121,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # if this is a whole new video, load whole clip and compress the batch
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
+        print(im_ind)
         if cur_video != self.prev_video:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
