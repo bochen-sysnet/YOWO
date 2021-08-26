@@ -173,9 +173,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['latent'] = latent
         else:
             assert im_ind >= 2, 'index error of the non-first frame'
-            Y0_com = self.cache['clip'][im_ind-2]
+            Y0_com = self.cache['clip'][im_ind-2].unsqueeze(0)
             Y1_raw = self.cache['clip'][im_ind-1].unsqueeze(0)
-            print(Y0_com.shape,Y1_raw.shape)
             # frame shape
             _,h,w = self.cache['clip'][0].shape
             # intermediate states
