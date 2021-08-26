@@ -203,15 +203,16 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
             i_temp = max_num-1
         clip.append(clip_tmp[i_temp])
         
+    _,h,w = clip[0].shape
     if train: # Apply augmentation to label
         # retrieve data
         flip,dx,dy,sx,sy = cache['misc']
-        label = fill_truth_detection(labpath, clip[0].width, clip[0].height, flip, dx, dy, 1./sx, 1./sy)
+        label = fill_truth_detection(labpath, w, h, flip, dx, dy, 1./sx, 1./sy)
         label = torch.from_numpy(label)
     else: # No augmentation
         label = torch.zeros(50*5)
         try:
-            tmp = torch.from_numpy(read_truths_args(labpath, 8.0/clip[0].width).astype('float32'))
+            tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
         except Exception:
             tmp = torch.zeros(1,5)
 
