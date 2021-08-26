@@ -157,7 +157,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     Y1_com, bpp_est, img_loss =\
                         model_codec(None, Y1_raw, None, None, None, False, True)
                 elif (i-Iframe_idx)%10 == 1:
-                    print(i,Y1_raw.shape,Y0_com.shape)
                     #### initialization for the first P frame
                     # init hidden states
                     rae_hidden, rpm_hidden = init_hidden(h,w)
@@ -173,7 +172,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'][i] = Y1_com.squeeze(0)
                 self.cache['loss'].append(img_loss)
                 self.cache['bpp_est'].append(bpp_est)
-                Y0_com = self.cache['clip'][i]
+                Y0_com = Y1_com
             self.cache['rae_hidden'] = rae_hidden
             self.cache['rpm_hidden'] = rpm_hidden
             self.cache['latent'] = latent
