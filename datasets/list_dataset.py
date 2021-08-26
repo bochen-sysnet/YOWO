@@ -205,6 +205,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['loss'].append(img_loss)
             self.cache['bpp_est'].append(bpp_est)
         self.prev_video = cur_video
+        assert im_ind-1<=len(self.cache['loss']), str(len(self.cache['loss']))+' '+str(im_ind)
 
 def init_hidden(h,w):
     # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
