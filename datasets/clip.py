@@ -170,7 +170,7 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
     
     return clip,misc
     
-def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache):
+def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache, dataset_use='ucf24'):
     # load 8/16 frames from video clips
     
     im_split = imgpath.split('/')

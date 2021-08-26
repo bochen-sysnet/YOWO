@@ -94,10 +94,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         imgpath = self.lines[index].rstrip()
         
         if self.train: # For Training
-            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
+            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
 
         else: # For Testing
-            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
+            frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
 
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
@@ -122,13 +122,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
         if cur_video != self.prev_video:
-            # augmentation params
-            jitter = 0.2
-            hue = 0.1
-            saturation = 1.5 
-            exposure = 1.5
             # read raw video clip
-            clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
+            clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
             h,w = clip[0].width,clip[0].height
             # create cache
