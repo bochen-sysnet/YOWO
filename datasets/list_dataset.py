@@ -159,7 +159,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     latent = None
                     # compress for first P frame
                     Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent.detach(), False, False)
+                        model_codec(Y0_com.detach(), Y1_raw, rae_hidden.detach(), rpm_hidden.detach(), latent, False, False)
                 else:
                     # compress for later P frames
                     Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
