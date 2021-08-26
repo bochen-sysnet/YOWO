@@ -209,7 +209,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['rae_hidden'] = rae_hidden
             self.cache['rpm_hidden'] = rpm_hidden
             self.cache['latent'] = latent
-        self.prev_video = self.cur_video
+        self.prev_video = cur_video
 
 def init_hidden(h,w):
     # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
