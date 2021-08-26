@@ -132,7 +132,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # if this is a whole new video, load whole clip and compress the batch
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
-        if cur_video != self.pre_video:
+        if cur_video != self.prev_video:
             # read raw video clip
             self.cache = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
             # compress from the first frame of the first clip to the current frame
@@ -203,7 +203,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['rae_hidden'] = rae_hidden
             self.cache['rpm_hidden'] = rpm_hidden
             self.cache['latent'] = latent
-        return
+        self.prev_video = self.cur_video
 
 def init_hidden(h,w):
     # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
