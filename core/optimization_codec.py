@@ -41,7 +41,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     img_loss_module = AverageMeter()
     bpp_loss_module = AverageMeter()
     all_loss_module = AverageMeter()
-    l_loader = len(train_loader)
+    l_loader = len(train_dataset)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
 
@@ -102,7 +102,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"All_loss: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). ")
 
     t1 = time.time()
-    logging('trained with %f samples/s' % (len(train_loader.dataset)/(t1-t0)))
+    logging('trained with %f samples/s' % (len(train_dataset)/(t1-t0)))
     print('')
 
 
