@@ -94,16 +94,9 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         imgpath = self.lines[index].rstrip()
         
         if self.train: # For Training
-            jitter = 0.2
-            hue = 0.1
-            saturation = 1.5 
-            exposure = 1.5
-
-            # frame_idx, clip, label = load_data_detection(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
             frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
 
         else: # For Testing
-            # frame_idx, clip, label = load_data_detection(self.base_path, imgpath, False, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             frame_idx, clip, label, bpp, loss = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache)
             clip = [img.resize(self.shape) for img in clip]
 
@@ -133,6 +126,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
         if cur_video != self.prev_video:
+            # augmentation params
+            jitter = 0.2
+            hue = 0.1
+            saturation = 1.5 
+            exposure = 1.5
             # read raw video clip
             self.cache = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset, jitter, hue, saturation, exposure)
             # compress from the first frame of the first clip to the current frame
