@@ -121,7 +121,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # if this is a whole new video, load whole clip and compress the batch
         # also additional frames need to be compressed for the first clip
         # else just compress the batch
-        if cur_video != self.prev_video:
+        # or if the index is not continuous
+        if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
@@ -134,18 +135,14 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
             self.cache['misc'] = misc
-            self.cache['bpp_est'] = []
-            self.cache['loss'] = []
-            self.cache['bpp_act'] = []
-            self.cache['metrics'] = []
+            self.cache['bpp_est'] = {}
+            self.cache['loss'] = {}
+            self.cache['bpp_act'] = {}
+            self.cache['metrics'] = {}
+            self.cache['max_idx'] = im_ind-1
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
-            for i in range(im_ind):
-                if i<Iframe_idx:
-                    # fill ignored frame data with 0
-                    self.cache['loss'].append(0)
-                    self.cache['bpp_est'].append(0)
-                    continue
+            for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
                 if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
@@ -169,11 +166,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
                     self.cache['latent'] = latent.detach()
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
-                self.cache['loss'].append(img_loss)
-                self.cache['bpp_est'].append(bpp_est)
+                self.cache['loss'][i] = img_loss
+                self.cache['bpp_est'][i] = bpp_est
                 Y0_com = Y1_com
         else:
-            assert im_ind >= 2, 'index error of the non-first frame'
+            assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
             Y0_com = self.cache['clip'][im_ind-2].unsqueeze(0)
             Y1_raw = self.cache['clip'][im_ind-1].unsqueeze(0)
             # frame shape
@@ -202,10 +199,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['rpm_hidden'] = rpm_hidden.detach()
                 self.cache['latent'] = latent.detach()
             self.cache['clip'][im_ind-1] = Y1_com.detach().squeeze(0)
-            self.cache['loss'].append(img_loss)
-            self.cache['bpp_est'].append(bpp_est)
+            self.cache['loss'][im_ind-1] = img_loss
+            self.cache['bpp_est'][im_ind-1] = bpp_est
+            self.cache['max_idx'] = im_ind-1
         self.prev_video = cur_video
-        print(index,imgpath,im_ind,len(self.cache['loss']),len(self.cache['clip']))
 
 def init_hidden(h,w):
     # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
