@@ -50,6 +50,8 @@ class MRLVC(nn.Module):
 
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
                 RPM_flag, I_flag, use_psnr=True): 
+        # this just for testing without compression
+        
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
@@ -70,13 +72,13 @@ class MRLVC(nn.Module):
                 # calculate metrics/loss
                 if use_psnr:
                     metrics = PSNR(Y1_raw, Y1_com)
-                    loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
+                    loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
                     # loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com, 2)) + bpp_est
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
-                    loss = 32*(1-metrics) + bpp_est
+                    loss = 32*(1-metrics)
                 if not self.training:
-                    return Y1_com, loss, bpp_est, bpp_act, metrics
+                    return Y1_com, bpp_est, loss, bpp_act, metrics
                 else:
                     return Y1_com, bpp_est, loss
             else:
@@ -129,13 +131,13 @@ class MRLVC(nn.Module):
         # calculate metrics/loss
         if use_psnr:
             metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
+            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))
             # loss = 1024*torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2)) + bpp_est
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = 32*(1-metrics) + bpp_est
+            loss = 32*(1-metrics)
         if not self.training:
-            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, bpp_act, metrics, loss
+            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         else:
             return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
 
