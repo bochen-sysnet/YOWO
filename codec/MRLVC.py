@@ -52,9 +52,9 @@ class MRLVC(nn.Module):
                 RPM_flag, I_flag, use_psnr=True): 
         # this just for testing without compression
         if I_flag:
-            return Y0_com,0,0,0,0
+            return Y1_raw,0,0,0,0
         else:
-            return Y0_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, 0,0,0,0
+            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, 0,0,0,0
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
