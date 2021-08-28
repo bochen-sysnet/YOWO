@@ -47,7 +47,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
 
     model.eval()
     model_codec.train()
-    train_iter = tqdm(range(0,l_loader,batch_size))
+    train_iter = tqdm(range(0,l_loader//batch_size*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
@@ -185,25 +185,29 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     # loss meters
     loss_module.reset_meters()
     img_loss_module = AverageMeter()
-    bpp_loss_module = AverageMeter()
+    be_loss_module = AverageMeter()
+    ba_loss_module = AverageMeter()
+    metrics_module = AverageMeter()
     all_loss_module = AverageMeter()
 
     batch_size = cfg.TRAIN.BATCH_SIZE
-    test_iter = tqdm(range(0,nbatch,batch_size))
+    test_iter = tqdm(range(0,nbatch//batch_size*batch_size,batch_size))
     for batch_idx,_ in enumerate(test_iter):
         # process/compress each frame in a batch
-        frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
+        frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             test_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            f,d,t,b,l = test_dataset[data_idx]
+            f,d,t,be,l,ba,m = test_dataset[data_idx]
             frame_idx.append(f)
             data.append(d)
             target.append(t)
-            bpp_est_list.append(b)
+            bpp_est_list.append(be)
             img_loss_list.append(l)
+            bpp_act_list.append(ba)
+            metrics_list.append(m)
         data = torch.stack(data, dim=0)
         target = torch.stack(target, dim=0)
         # end of compression
@@ -277,18 +281,24 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             
             reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
             img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
-            bpp_loss = torch.stack(bpp_est_list,dim=0).sum(dim=0)
-            loss = reg_loss + img_loss + bpp_loss
+            be_loss = torch.stack(bpp_est_list,dim=0).sum(dim=0)
+            loss = reg_loss + img_loss + be_loss
+            ba_loss = torch.stack(bpp_act_list,dim=0).sum(dim=0)
+            metrics = torch.stack(metrics_list,dim=0).sum(dim=0)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            bpp_loss_module.update(bpp_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
         # show result
         test_iter.set_description(
             f"Batch: {batch_idx:6}. "
-            f"Reg_loss: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
-            f"Img_loss: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
-            f"Bpp_loss: {bpp_loss_module.val:.2f} ({bpp_loss_module.avg:.2f}). "
-            f"All_loss: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
+            f"RL: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
+            f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
+            f"be: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
+            f"All: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
+            f"ba: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
+            f"metrics: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). "
             f"Prec: {precision:.2f} ({precision:.2f}). "
             f"Rec: {recall:.2f} ({recall:.2f}). "
             f"Fscore: {fscore:.2f} ({fscore:.2f}). ")
