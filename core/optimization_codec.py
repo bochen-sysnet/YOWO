@@ -41,13 +41,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     img_loss_module = AverageMeter()
     bpp_loss_module = AverageMeter()
     all_loss_module = AverageMeter()
-    l_loader = len(train_dataset)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
+    l_loader = len(train_dataset)//batch_size
 
     model.eval()
     model_codec.train()
-    train_iter = tqdm(range(0,l_loader//batch_size*batch_size,batch_size))
+    train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []
@@ -177,7 +177,8 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     correct_classification = 0.0
     total_detected = 0.0
 
-    nbatch = len(test_dataset)
+    batch_size = cfg.TRAIN.BATCH_SIZE
+    nbatch = len(test_dataset)//batch_size
 
     model.eval()
     model_codec.eval()
@@ -190,8 +191,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     metrics_module = AverageMeter()
     all_loss_module = AverageMeter()
 
-    batch_size = cfg.TRAIN.BATCH_SIZE
-    test_iter = tqdm(range(0,nbatch//batch_size*batch_size,batch_size))
+    test_iter = tqdm(range(0,nbatch*batch_size,batch_size))
     for batch_idx,_ in enumerate(test_iter):
         # process/compress each frame in a batch
         frame_idx = []; data = []; target = []; img_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
@@ -279,7 +279,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             fscore = 2.0*precision*recall/(precision+recall+eps)
             # logging("[%d/%d] precision: %f, recall: %f, fscore: %f" % (batch_idx, nbatch, precision, recall, fscore))
             
-            reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
+            reg_loss = loss_module(output, target, epoch, batch_idx, nbatch)
             img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).sum(dim=0)
             loss = reg_loss + img_loss + be_loss
