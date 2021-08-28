@@ -203,7 +203,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 # init hidden states
                 rae_hidden, rpm_hidden = init_hidden(h,w)
                 # previous compressed motion vector and residual
-                latent = None
+                latent = torch.zeros(1,8,4,4).cuda()
                 # compress for first P frame
                 if self.train:
                     Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
