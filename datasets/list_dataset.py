@@ -113,7 +113,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
     def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
-        print(len(self.lines),len(self))
+        print(index,len(self))
         imgpath = self.lines[index].rstrip()
         im_split = imgpath.split('/')
         num_parts = len(im_split)
