@@ -229,8 +229,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['loss'][im_ind-1] = img_loss
             self.cache['bpp_est'][im_ind-1] = bpp_est
             if not self.train:
-                self.cache['metrics'][i] = metrics
-                self.cache['bpp_act'][i] = bpp_act
+                self.cache['metrics'][im_ind-1] = metrics
+                self.cache['bpp_act'][im_ind-1] = bpp_act
             self.cache['max_idx'] = im_ind-1
         self.prev_video = cur_video
 
