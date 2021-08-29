@@ -126,7 +126,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
-            h,w = clip[0].width,clip[0].height
+            h,w = 224,224
             # create cache
             self.cache = {}
             if not self.train:
