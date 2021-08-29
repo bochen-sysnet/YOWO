@@ -160,6 +160,7 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.png'.format(i+1))
 
         clip.append(Image.open(path_tmp).convert('RGB'))
+    print(clip[0].width,clip[0].height)
     
     if train: # Apply augmentation to clip
         clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
