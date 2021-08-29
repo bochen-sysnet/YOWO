@@ -175,8 +175,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
                     self.cache['latent'] = latent.detach()
-                print(torch.mean(Y1_raw),Y1_raw)
-                print(torch.mean(Y1_com),Y1_com)
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
                 self.cache['loss'][i] = img_loss
                 self.cache['bpp_est'][i] = bpp_est

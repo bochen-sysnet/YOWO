@@ -183,8 +183,6 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
     ### temporal augmentation, which brings around 1-2 frame       ###
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sample_rate
-    if train:
-        d = torch.randint(1, 3, (1,))
         
     clip = []
     for i in reversed(range(train_dur)):
