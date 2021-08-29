@@ -75,7 +75,7 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dexp = rand_scale(exposure)
 
     # Augment
-    cropped = [img.crop((pleft, ptop, pleft + swidth - 1, ptop + sheight - 1)) for img in clip]
+    cropped = [img.crop((torch.round(pleft), torch.round(ptop), torch.round(pleft + swidth - 1), torch.round(ptop + sheight - 1))) for img in clip]
 
     sized = [img.resize(shape) for img in cropped]
 
