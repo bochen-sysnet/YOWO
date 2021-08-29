@@ -66,7 +66,6 @@ class MRLVC(nn.Module):
         # If is I frame, return image compression result of Y1_raw
         batch_size, _, Height, Width = Y1_raw.shape
         print(Y1_raw)
-        exit(0)
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
