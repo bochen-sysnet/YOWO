@@ -69,6 +69,9 @@ class MRLVC(nn.Module):
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
                 Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
+                print(Y1_com)
+                print(Y1_raw)
+                exit(0)
                 # calculate bpp
                 batch_size, _, Height, Width = Y1_com.shape
                 bpp_est = bits_est/(Height * Width * batch_size)
