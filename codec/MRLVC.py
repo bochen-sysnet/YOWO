@@ -84,7 +84,7 @@ class MRLVC(nn.Module):
                 if not self.training:
                     return Y1_com, bpp_est, loss, bpp_act, metrics
                 else:
-                    return Y1_com, bpp_est, loss
+                    return Y1_raw, bpp_est, loss
             else:
                 print('Not implemented')
                 exit(0)
@@ -143,7 +143,7 @@ class MRLVC(nn.Module):
         if not self.training:
             return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         else:
-            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
+            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
