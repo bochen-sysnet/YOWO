@@ -51,10 +51,11 @@ class MRLVC(nn.Module):
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
                 RPM_flag, I_flag, use_psnr=True): 
         # this just for testing without compression
-        #if I_flag:
-        #    return Y1_raw,torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
-        #else:
-        #    return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
+        print(Y1_raw)
+        if I_flag:
+            return Y1_raw,torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
+        else:
+            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
         
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
@@ -65,7 +66,6 @@ class MRLVC(nn.Module):
         # other P frames with RPM_flag on
         # If is I frame, return image compression result of Y1_raw
         batch_size, _, Height, Width = Y1_raw.shape
-        print(Y1_raw)
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
