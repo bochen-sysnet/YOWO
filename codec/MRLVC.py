@@ -96,6 +96,7 @@ class MRLVC(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
+        print(mv_tensor.shape,mv_hidden.shape)
         mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
