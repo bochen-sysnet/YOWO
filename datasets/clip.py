@@ -137,7 +137,7 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy):
     label = np.reshape(label, (-1))
     return label
     
-def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
+def read_video_clip(base_path, imgpath, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
     # load whole video as a clip for further processing
     # all frames in a video should be processed with the same augmentation or no augmentation
     # the data will be loaded from the current clip
@@ -161,13 +161,7 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
 
         clip.append(Image.open(path_tmp).convert('RGB'))
     
-    if train: # Apply augmentation to clip
-        clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
-        misc = [flip,dx,dy,sx,sy]
-    else:
-        misc = None
-    
-    return clip,misc
+    return clip
     
 def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache, dataset_use='ucf24'):
     # load 8/16 frames from video clips
@@ -189,8 +183,6 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
     ### temporal augmentation, which brings around 1-2 frame       ###
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sample_rate
-    if train:
-        d = torch.randint(1, 3, (1,))
         
     clip = []
     for i in reversed(range(train_dur)):
@@ -203,25 +195,19 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
         clip.append(clip_tmp[i_temp])
         
     _,h,w = clip[0].shape
-    if train: # Apply augmentation to label
-        # retrieve data
-        flip,dx,dy,sx,sy = cache['misc']
-        label = fill_truth_detection(labpath, w, h, flip, dx, dy, 1./sx, 1./sy)
-        label = torch.from_numpy(label)
-    else: # No augmentation
-        label = torch.zeros(50*5)
-        try:
-            tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
-        except Exception:
-            tmp = torch.zeros(1,5)
+    label = torch.zeros(50*5)
+    try:
+        tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
+    except Exception:
+        tmp = torch.zeros(1,5)
 
-        tmp = tmp.view(-1)
-        tsz = tmp.numel()
+    tmp = tmp.view(-1)
+    tsz = tmp.numel()
 
-        if tsz > 50*5:
-            label = tmp[0:50*5]
-        elif tsz > 0:
-            label[0:tsz] = tmp
+    if tsz > 50*5:
+        label = tmp[0:50*5]
+    elif tsz > 0:
+        label[0:tsz] = tmp
     
     if train:
         return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['loss'][im_ind-1]
