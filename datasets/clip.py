@@ -75,6 +75,7 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dexp = rand_scale(exposure)
 
     # Augment
+    print((float(pleft), float(ptop), float(pleft + swidth - 1), float(ptop + sheight - 1)))
     cropped = [img.crop((float(pleft), float(ptop), float(pleft + swidth - 1), float(ptop + sheight - 1))) for img in clip]
 
     sized = [img.resize(shape) for img in cropped]
@@ -162,7 +163,7 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
         clip.append(Image.open(path_tmp).convert('RGB'))
     
     if train: # Apply augmentation to clip
-        _,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
+        clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
         misc = [flip,dx,dy,sx,sy]
     else:
         misc = None
