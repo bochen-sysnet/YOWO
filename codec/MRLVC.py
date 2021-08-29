@@ -86,8 +86,8 @@ class MRLVC(nn.Module):
                 else:
                     return Y1_com, bpp_est, loss
             else:
-                # no compression
-                return Y1_raw#, 0, 0, 0, 0
+                print('Not implemented')
+                exit(0)
         # otherwise, it's P frame
         # hidden states
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
