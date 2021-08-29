@@ -97,7 +97,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             frame_idx, clip, label, bpp_est, loss = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
 
         else: # For Testing
-            frame_idx, clip, label, bpp_est, loss, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
+            frame_idx, clip, label, bpp_est, loss, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
         
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
@@ -124,7 +124,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # or if the index is not continuous
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
-            clip,misc = read_video_clip(self.base_path, imgpath, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
+            clip = read_video_clip(self.base_path, imgpath, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
             h,w = clip[0].width,clip[0].height
             # create cache
@@ -134,7 +134,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
-            self.cache['misc'] = misc
             self.cache['bpp_est'] = {}
             self.cache['loss'] = {}
             self.cache['bpp_act'] = {}
