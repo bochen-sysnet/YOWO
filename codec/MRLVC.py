@@ -53,9 +53,9 @@ class MRLVC(nn.Module):
         # this just for testing without compression
         print(Y1_raw)
         if I_flag:
-            return Y1_raw,torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
+            return Y1_raw,torch.zeros(1).cuda(0),torch.zeros(1).cuda(0)#,torch.zeros(1),torch.zeros(1)
         else:
-            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
+            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, torch.zeros(1).cuda(0),torch.zeros(1).cuda(0)#,torch.zeros(1),torch.zeros(1)
         
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
