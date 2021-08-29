@@ -54,10 +54,10 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dw =int(ow*jitter)
     dh =int(oh*jitter)
 
-    pleft  = torch.randint(-dw, dw, 1)
-    pright = torch.randint(-dw, dw, 1)
-    ptop   = torch.randint(-dh, dh, 1)
-    pbot   = torch.randint(-dh, dh, 1)
+    pleft  = torch.randint(-dw, dw, (1,))
+    pright = torch.randint(-dw, dw, (1,))
+    ptop   = torch.randint(-dh, dh, (1,))
+    pbot   = torch.randint(-dh, dh, (1,))
 
     swidth =  ow - pleft - pright
     sheight = oh - ptop - pbot
