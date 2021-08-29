@@ -349,11 +349,9 @@ class CODEC_NET(nn.Module):
         # quantization + entropy coding
         _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
-        print(latent,torch.mean(latent),len(b''.join(string)))
+        print(latent.shape,torch.mean(latent),len(b''.join(string)))
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-        latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
-        print(latent_decom)
-        print(latent_decom2)
+        #latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
         # decompress
