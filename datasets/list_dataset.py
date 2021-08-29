@@ -144,7 +144,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
-                print(torch.sum(Y1_raw),Y1_raw)
                 if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
                     if self.train:
@@ -178,6 +177,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
                     self.cache['latent'] = latent.detach()
+                print(torch.mean(Y1_raw),Y1_raw)
+                print(torch.mean(Y1_com),Y1_com)
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
                 self.cache['loss'][i] = img_loss
                 self.cache['bpp_est'][i] = bpp_est
