@@ -352,7 +352,7 @@ class CODEC_NET(nn.Module):
         print(latent,torch.mean(latent),len(b''.join(string)))
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
-        print(latent_decom
+        print(latent_decom)
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
         # decompress
