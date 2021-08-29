@@ -131,6 +131,9 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache = {}
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
+            for img in clip:
+                print(img)
+                print(self.transform(img))
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
@@ -144,7 +147,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
-                print(Y1_raw)
                 if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
                     if self.train:
