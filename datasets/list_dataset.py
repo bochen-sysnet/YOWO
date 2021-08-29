@@ -132,6 +132,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
             for img in clip:
+                print(img)
                 print('!',self.transform(img))
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
