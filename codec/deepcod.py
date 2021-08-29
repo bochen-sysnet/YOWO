@@ -134,10 +134,7 @@ class LightweightEncoder(nn.Module):
 	def forward(self, x):
 		x = self.sample(x)
 		string = self.entropy_bottleneck.compress(x)
-        print(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
-        print(x)
-        exit(0)
 		# calculate bpp (estimated)
 		log2 = torch.log(torch.FloatTensor([2])).cuda()
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
