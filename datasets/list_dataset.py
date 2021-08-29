@@ -135,8 +135,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 print('!',self.transform(img))
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
-            for i in range(len(clip)):
-                print('?',clip[i])
+            #for i in range(len(clip)):
+            #    print('?',clip[i])
             self.cache['clip'] = clip
             self.cache['misc'] = misc
             self.cache['bpp_est'] = {}
@@ -146,9 +146,9 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['max_idx'] = im_ind-1
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
-            print(Iframe_idx,im_ind)
-            for i in range(Iframe_idx,im_ind):
-                print(self.cache['clip'][i])
+            #print(Iframe_idx,im_ind)
+            #for i in range(Iframe_idx,im_ind):
+            #    print(self.cache['clip'][i])
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
                 if (i-Iframe_idx)%10 == 0:
