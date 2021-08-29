@@ -125,9 +125,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
-            print(len(clip),misc)
-            for img in clip:
-                print(self.transform(img))
             # frame shape
             h,w = clip[0].width,clip[0].height
             # create cache
@@ -147,6 +144,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
+                print(Y1_raw)
                 if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
                     if self.train:
