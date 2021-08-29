@@ -124,7 +124,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # or if the index is not continuous
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
-            clip,misc = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
+            clip = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
             h,w = 224,224
             # create cache
@@ -133,7 +133,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
-            self.cache['misc'] = misc
             self.cache['bpp_est'] = {}
             self.cache['loss'] = {}
             self.cache['bpp_act'] = {}
