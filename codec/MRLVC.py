@@ -96,7 +96,6 @@ class MRLVC(nn.Module):
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
-        print(mv_bits,mv_bpp)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -350,6 +349,8 @@ class CODEC_NET(nn.Module):
         # quantization + entropy coding
         # _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
+        print('lat',latent)
+        print(string)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
