@@ -140,10 +140,11 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.cache['bpp_act'] = {}
             self.cache['metrics'] = {}
             self.cache['max_idx'] = im_ind-1
-            for i in range(Iframe_idx,im_ind):
-                print(self.cache['clip'][i])
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
+            print(Iframe_idx,im_ind)
+            for i in range(Iframe_idx,im_ind):
+                print(self.cache['clip'][i])
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
                 if (i-Iframe_idx)%10 == 0:
