@@ -37,7 +37,7 @@ def distort_image(im, hue, sat, val):
 
 def rand_scale(s):
     scale = torch.rand(1)*(s-1) + 1
-    if (torch.randint(1,10000)%2):
+    if (torch.randint(1,10000, (1,))%2):
         return scale
     return 1./scale
 
@@ -68,7 +68,7 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dx = (float(pleft)/ow)/sx
     dy = (float(ptop) /oh)/sy
 
-    flip = torch.randint(1,10000)%2
+    flip = torch.randint(1,10000, (1,))%2
 
     dhue = torch.rand(1)*2*hue - hue
     dsat = rand_scale(saturation)
@@ -190,7 +190,7 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sample_rate
     if train:
-        d = torch.randint(1, 3)
+        d = torch.randint(1, 3, (1,))
         
     clip = []
     for i in reversed(range(train_dur)):
@@ -249,7 +249,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, sha
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sampling_rate
     if train:
-        d = torch.randint(1, 3)
+        d = torch.randint(1, 3, (1,))
 
     for i in reversed(range(train_dur)):
         # make it as a loop
