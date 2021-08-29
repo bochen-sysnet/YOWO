@@ -125,14 +125,15 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
+            print(len(clip))
+            for img in clip:
+                print(self.transform(img))
             # frame shape
             h,w = clip[0].width,clip[0].height
             # create cache
             self.cache = {}
             if not self.train:
                 clip = [img.resize(self.shape) for img in clip]
-            for img in clip:
-                print(img,self.transform(img))
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
