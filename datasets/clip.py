@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # encoding: utf-8
-import random
 import os
 import torch
 from PIL import Image
@@ -37,8 +36,8 @@ def distort_image(im, hue, sat, val):
     return im
 
 def rand_scale(s):
-    scale = random.uniform(1, s)
-    if(random.randint(1,10000)%2): 
+    scale = torch.rand(1)*(s-1) + 1
+    if (torch.randint(1,10000)%2):
         return scale
     return 1./scale
 
@@ -55,10 +54,10 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dw =int(ow*jitter)
     dh =int(oh*jitter)
 
-    pleft  = random.randint(-dw, dw)
-    pright = random.randint(-dw, dw)
-    ptop   = random.randint(-dh, dh)
-    pbot   = random.randint(-dh, dh)
+    pleft  = torch.randint(-dw, dw)
+    pright = torch.randint(-dw, dw)
+    ptop   = torch.randint(-dh, dh)
+    pbot   = torch.randint(-dh, dh)
 
     swidth =  ow - pleft - pright
     sheight = oh - ptop - pbot
@@ -69,9 +68,9 @@ def data_augmentation(clip, shape, jitter, hue, saturation, exposure):
     dx = (float(pleft)/ow)/sx
     dy = (float(ptop) /oh)/sy
 
-    flip = random.randint(1,10000)%2
+    flip = torch.randint(1,10000)%2
 
-    dhue = random.uniform(-hue, hue)
+    dhue = torch.rand(1)*2*hue - hue
     dsat = rand_scale(saturation)
     dexp = rand_scale(exposure)
 
@@ -191,7 +190,7 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sample_rate
     if train:
-        d = random.randint(1, 2)
+        d = torch.randint(1, 3)
         
     clip = []
     for i in reversed(range(train_dur)):
@@ -250,7 +249,7 @@ def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, sha
     ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
     d = sampling_rate
     if train:
-        d = random.randint(1, 2)
+        d = torch.randint(1, 3)
 
     for i in reversed(range(train_dur)):
         # make it as a loop
