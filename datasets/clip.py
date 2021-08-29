@@ -160,15 +160,8 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
             path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.png'.format(i+1))
 
         clip.append(Image.open(path_tmp).convert('RGB'))
-    print(clip[0].width,clip[0].height)
     
-    if train: # Apply augmentation to clip
-        clip,flip,dx,dy,sx,sy = data_augmentation(clip, shape, jitter, hue, saturation, exposure)
-        misc = [flip,dx,dy,sx,sy]
-    else:
-        misc = None
-    
-    return clip,misc
+    return clip
     
 def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache, dataset_use='ucf24'):
     # load 8/16 frames from video clips
@@ -204,25 +197,19 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
         clip.append(clip_tmp[i_temp])
         
     _,h,w = clip[0].shape
-    if train: # Apply augmentation to label
-        # retrieve data
-        flip,dx,dy,sx,sy = cache['misc']
-        label = fill_truth_detection(labpath, w, h, flip, dx, dy, 1./sx, 1./sy)
-        label = torch.from_numpy(label)
-    else: # No augmentation
-        label = torch.zeros(50*5)
-        try:
-            tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
-        except Exception:
-            tmp = torch.zeros(1,5)
+    label = torch.zeros(50*5)
+    try:
+        tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
+    except Exception:
+        tmp = torch.zeros(1,5)
 
-        tmp = tmp.view(-1)
-        tsz = tmp.numel()
+    tmp = tmp.view(-1)
+    tsz = tmp.numel()
 
-        if tsz > 50*5:
-            label = tmp[0:50*5]
-        elif tsz > 0:
-            label[0:tsz] = tmp
+    if tsz > 50*5:
+        label = tmp[0:50*5]
+    elif tsz > 0:
+        label[0:tsz] = tmp
     
     if train:
         return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['loss'][im_ind-1]

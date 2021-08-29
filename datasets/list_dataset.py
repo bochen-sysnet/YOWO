@@ -129,8 +129,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             h,w = 224,224
             # create cache
             self.cache = {}
-            if not self.train:
-                clip = [img.resize(self.shape) for img in clip]
+            clip = [img.resize(self.shape) for img in clip]
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
             self.cache['clip'] = clip
