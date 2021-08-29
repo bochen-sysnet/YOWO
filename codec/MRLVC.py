@@ -347,12 +347,13 @@ class CODEC_NET(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
-        # _,C,H,W = latent.shape
+        _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
         print(latent,torch.mean(latent),len(b''.join(string)))
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-        # latent_decom = self.entropy_bottleneck.decompress(string, (C, H, W))
+        latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
         print(latent_decom)
+        print(latent_decom2
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
         # decompress
