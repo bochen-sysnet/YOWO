@@ -125,7 +125,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
             clip,misc = read_video_clip(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
-            print(len(clip))
+            print(len(clip),misc)
             for img in clip:
                 print(self.transform(img))
             # frame shape
