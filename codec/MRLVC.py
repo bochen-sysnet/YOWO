@@ -84,7 +84,7 @@ class MRLVC(nn.Module):
                 if not self.training:
                     return Y1_com, bpp_est, loss, bpp_act, metrics
                 else:
-                    return Y1_raw, bpp_est, loss
+                    return Y1_com, bpp_est, loss
             else:
                 print('Not implemented')
                 exit(0)
@@ -96,6 +96,7 @@ class MRLVC(nn.Module):
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        print(mv_bits,mv_bpp)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1))
@@ -143,7 +144,7 @@ class MRLVC(nn.Module):
         if not self.training:
             return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         else:
-            return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
+            return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
