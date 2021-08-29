@@ -65,13 +65,12 @@ class MRLVC(nn.Module):
         # other P frames with RPM_flag on
         # If is I frame, return image compression result of Y1_raw
         batch_size, _, Height, Width = Y1_raw.shape
+        print(Y1_raw)
+        exit(0)
         if I_flag:
             # we can compress with bpg,deepcod ...
             if self._image_coder is not None:
                 Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
-                print(Y1_com)
-                print(Y1_raw)
-                exit(0)
                 # calculate bpp
                 batch_size, _, Height, Width = Y1_com.shape
                 bpp_est = bits_est/(Height * Width * batch_size)
