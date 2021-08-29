@@ -124,7 +124,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # or if the index is not continuous
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
-            clip,misc = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
+            clip,misc = read_video_clip(self.base_path, imgpath, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             # frame shape
             h,w = clip[0].width,clip[0].height
             # create cache
