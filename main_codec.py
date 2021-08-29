@@ -138,7 +138,7 @@ elif dataset in ['ucf24', 'jhmdb21']:
 # ---------------------------------------------------------------
 if cfg.TRAIN.EVALUATE:
     logging('evaluating ...')
-    test(cfg, 0, model, model_codec, test_dataset, loss_module)
+    test(cfg, 0, model, model_codec, train_dataset, loss_module)
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
