@@ -132,14 +132,13 @@ class LightweightEncoder(nn.Module):
 		x = self.sample(x)*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
-        x /= 255.0
 		# calculate bpp (estimated)
 		log2 = torch.log(torch.FloatTensor([2])).cuda()
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		bits_act = len(b''.join(string))*8
 
-		return x, bits_act, bits_est
+		return x/255.0, bits_act, bits_est
 
 def mask_compression(mask):
 	prev = 1
