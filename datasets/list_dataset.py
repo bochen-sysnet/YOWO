@@ -93,11 +93,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
         
-        if self.train: # For Training
-            frame_idx, clip, label, bpp_est, loss = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
-
-        else: # For Testing
-            frame_idx, clip, label, bpp_est, loss, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath,  self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
+        frame_idx, clip, label, bpp_est, loss, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
         
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
@@ -105,10 +101,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if self.target_transform is not None:
             label = self.target_transform(label)
 
-        if self.train:
-            return (frame_idx, clip, label, bpp_est, loss)
-        else:
-            return (frame_idx, clip, label, bpp_est, loss, bpp_act, metrics)
+        return (frame_idx, clip, label, bpp_est, loss, bpp_act, metrics)
             
     def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
@@ -144,43 +137,30 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
                 if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
-                    if self.train:
-                        Y1_com, bpp_est, img_loss =\
-                            model_codec(None, Y1_raw, None, None, None, False, True)
-                    else:
-                        Y1_com, bpp_est, img_loss, bpp_act, metrics =\
-                            model_codec(None, Y1_raw, None, None, None, False, True)
+                    Y1_com, bpp_est, img_loss, bpp_act, metrics =\
+                        model_codec(None, Y1_raw, None, None, None, False, True)
                 elif (i-Iframe_idx)%10 == 1:
                     # init hidden states
                     rae_hidden, rpm_hidden = init_hidden(h,w)
                     latent = torch.zeros(1,8,4,4).cuda()
                     # compress for first P frame
-                    if self.train:
-                        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                            model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
-                    else:
-                        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                            model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                    Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
                     self.cache['latent'] = latent.detach()
                 else:
                     # compress for later P frames
-                    if self.train:
-                        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                            model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
-                    else:
-                        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                            model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                    Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                        model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
                     self.cache['rae_hidden'] = rae_hidden.detach()
                     self.cache['rpm_hidden'] = rpm_hidden.detach()
                     self.cache['latent'] = latent.detach()
                 self.cache['clip'][i] = Y1_com.detach().squeeze(0)
                 self.cache['loss'][i] = img_loss
                 self.cache['bpp_est'][i] = bpp_est
-                if not self.train:
-                    self.cache['metrics'][i] = metrics
-                    self.cache['bpp_act'][i] = bpp_act
+                self.cache['metrics'][i] = metrics
+                self.cache['bpp_act'][i] = bpp_act
                 Y0_com = Y1_com
         else:
             assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
@@ -190,12 +170,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             _,h,w = self.cache['clip'][0].shape
             if (im_ind-1)%10 == 0:
                 # compressing the I frame 
-                if self.train:
-                    Y1_com, bpp_est, img_loss =\
-                        model_codec(None, Y1_raw, None, None, None, False, True)
-                else:
-                    Y1_com, bpp_est, img_loss, bpp_act, metrics =\
-                        model_codec(None, Y1_raw, None, None, None, False, True)
+                Y1_com, bpp_est, img_loss, bpp_act, metrics =\
+                    model_codec(None, Y1_raw, None, None, None, False, True)
             elif (im_ind-1)%10 == 1:
                 #### initialization for the first P frame
                 # init hidden states
@@ -203,32 +179,23 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 # previous compressed motion vector and residual
                 latent = torch.zeros(1,8,4,4).cuda()
                 # compress for first P frame
-                if self.train:
-                    Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
-                else:
-                    Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                        model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                    model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
                 self.cache['rae_hidden'] = rae_hidden.detach()
                 self.cache['rpm_hidden'] = rpm_hidden.detach()
                 self.cache['latent'] = latent.detach()
             else:
                 # compress for later P frames
-                if self.train:
-                    Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss = \
-                        model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
-                else:
-                    Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                        model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                    model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
                 self.cache['rae_hidden'] = rae_hidden.detach()
                 self.cache['rpm_hidden'] = rpm_hidden.detach()
                 self.cache['latent'] = latent.detach()
             self.cache['clip'][im_ind-1] = Y1_com.detach().squeeze(0)
             self.cache['loss'][im_ind-1] = img_loss
             self.cache['bpp_est'][im_ind-1] = bpp_est
-            if not self.train:
-                self.cache['metrics'][im_ind-1] = metrics
-                self.cache['bpp_act'][im_ind-1] = bpp_act
+            self.cache['metrics'][im_ind-1] = metrics
+            self.cache['bpp_act'][im_ind-1] = bpp_act
             self.cache['max_idx'] = im_ind-1
         self.prev_video = cur_video
 
