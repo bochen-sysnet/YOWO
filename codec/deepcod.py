@@ -130,17 +130,16 @@ class LightweightEncoder(nn.Module):
 
 	def forward(self, x):
 		x = self.sample(x)
-		return x, 0, torch.FloatTensor([0]).cuda()
 		#x = (torch.tanh(x)+1)/2*255.0
-		#string = self.entropy_bottleneck.compress(x)
-		#x, likelihoods = self.entropy_bottleneck(x, training=self.training)
+		string = self.entropy_bottleneck.compress(x)
+		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
-		#log2 = torch.log(torch.FloatTensor([2])).cuda()
-		#bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+		log2 = torch.log(torch.FloatTensor([2])).cuda()
+		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
-		#bits_act = len(b''.join(string))*8
+		bits_act = len(b''.join(string))*8
 
-		#return x/255.0, bits_act, bits_est
+		return x, bits_act, bits_est
 
 class Output_conv(nn.Module):
 
