@@ -138,7 +138,7 @@ class LightweightEncoder(nn.Module):
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		bits_act = len(b''.join(string))*8
-        print(x.shape,bits_act/8)
+		print(x.shape,bits_act/8)
 
 		return x, bits_act, bits_est
 
