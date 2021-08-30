@@ -130,7 +130,6 @@ class LightweightEncoder(nn.Module):
 
 	def forward(self, x):
 		x = self.sample(x)
-		#x = (torch.tanh(x)+1)/2*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)

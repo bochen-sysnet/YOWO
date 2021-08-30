@@ -351,7 +351,6 @@ class CODEC_NET(nn.Module):
         _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
         bits_act = len(b''.join(string))*8
-        print(bits_act,latent.shape)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         #latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
