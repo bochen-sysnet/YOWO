@@ -130,7 +130,7 @@ class LightweightEncoder(nn.Module):
 
 	def forward(self, x):
 		x = self.sample(x)
-        return x, 0, torch.FloatTensor([0]).cuda()
+		return x, 0, torch.FloatTensor([0]).cuda()
 		#x = (torch.tanh(x)+1)/2*255.0
 		#string = self.entropy_bottleneck.compress(x)
 		#x, likelihoods = self.entropy_bottleneck(x, training=self.training)
