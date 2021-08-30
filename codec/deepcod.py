@@ -129,7 +129,8 @@ class LightweightEncoder(nn.Module):
 		self.entropy_bottleneck.update()
 
 	def forward(self, x):
-		x = self.sample(x)*255.0
+		x = self.sample(x)
+        x = (torch.tanh(x)+1)/2*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
@@ -139,24 +140,6 @@ class LightweightEncoder(nn.Module):
 		bits_act = len(b''.join(string))*8
 
 		return x/255.0, bits_act, bits_est
-
-def mask_compression(mask):
-	prev = 1
-	rl = 0
-	cnt = 0
-	result = []
-	for e in mask:
-		if e == prev:
-			rl += 1
-		else:
-			result += [rl]
-			rl = 0
-		prev = e
-	if rl>0:
-		result += [rl]
-	huffman = HuffmanCoding()
-	size = len(huffman.compress(result))*4
-	return size
 
 class Output_conv(nn.Module):
 

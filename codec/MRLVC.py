@@ -345,7 +345,8 @@ class CODEC_NET(nn.Module):
         x = self.gdn(self.enc_conv2(x))
         x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn(self.enc_conv3(x))
-        latent = self.enc_conv4(x)*255.0 # latent optical flow
+        latent = self.enc_conv4(x) # latent optical flow
+        latent = (torch.tanh(latent)+1)/2*255.0
 
         # quantization + entropy coding
         _,C,H,W = latent.shape
