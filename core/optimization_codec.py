@@ -107,7 +107,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"Batch: {batch_idx:6}. "
             f"RL: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
-            f"BE: {bpp_loss_module.val:.2f} ({bpp_loss_module.avg:.2f}). "
+            f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"Me: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). ")
