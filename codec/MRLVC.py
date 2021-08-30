@@ -17,6 +17,7 @@ from compressai.entropy_models import EntropyBottleneck
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
+from compressai.layers import GDN
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
 # compress P frames wth RLVC
@@ -94,7 +95,6 @@ class MRLVC(nn.Module):
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
-        print(mv_tensor)
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
@@ -328,13 +328,13 @@ class CODEC_NET(nn.Module):
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
-        self.gdn = GDN(channels, device)
+        self.gdn = GDN(channels)
         self.enc_lstm = ConvLSTM(channels)
         self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
-        self.igdn = GDN(channels, device, inverse=True)
+        self.igdn = GDN(channels, inverse=True)
         self.dec_lstm = ConvLSTM(channels)
         self.entropy_bottleneck = EntropyBottleneck(128)
         self.entropy_bottleneck.update()
@@ -433,7 +433,7 @@ class LowerBound(Function):
         pass_through = pass_through_1 | pass_through_2
         return pass_through.type(grad_output.dtype) * grad_output, None
 
-class GDN(nn.Module):
+class myGDN(nn.Module):
     """Generalized divisive normalization layer.
     y[i] = x[i] / sqrt(beta[i] + sum_j(gamma[j, i] * x[j]^2))
     """
