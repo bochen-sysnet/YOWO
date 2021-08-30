@@ -94,6 +94,7 @@ class MRLVC(nn.Module):
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        print(mv_tensor)
         # compress optical flow
         mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
