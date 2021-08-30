@@ -129,7 +129,7 @@ class LightweightEncoder(nn.Module):
 		self.entropy_bottleneck.update()
 
 	def forward(self, x):
-		x = self.sample(x)*100
+		x = self.sample(x)
 		#x = (torch.tanh(x)+1)/2*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
@@ -138,7 +138,6 @@ class LightweightEncoder(nn.Module):
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		bits_act = len(b''.join(string))*8
-		print(x.shape,bits_act/8)
 
 		return x, bits_act, bits_est
 
