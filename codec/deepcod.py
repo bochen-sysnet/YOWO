@@ -125,9 +125,7 @@ class LightweightEncoder(nn.Module):
 		super(LightweightEncoder, self).__init__()
 		self.sample = nn.Conv2d(3, channels, kernel_size=kernel_size, stride=kernel_size, padding=0, bias=True)
 		self.sample = spectral_norm(self.sample)
-		self.centers = torch.nn.Parameter(torch.rand(num_centers))
-		self.pool1 = nn.Conv2d(3, 3, kernel_size=2, stride=2, padding=0)
-		self.unpool = nn.Upsample(scale_factor=2, mode='nearest')
+		# self.centers = torch.nn.Parameter(torch.rand(num_centers))
 		self.entropy_bottleneck = EntropyBottleneck(channels)
 		self.entropy_bottleneck.update()
 
