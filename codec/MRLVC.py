@@ -17,7 +17,7 @@ from compressai.entropy_models import EntropyBottleneck
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
-from compressai.layers import GDN
+from compressai.layers import GDN,ResidualBlock
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
 # compress P frames wth RLVC
@@ -368,34 +368,20 @@ class CODEC_NET(nn.Module):
         hidden = torch.cat((state_enc, state_dec),dim=1)
         return hat, latent_hat, hidden, len(b''.join(string))*8, bits_est
 
-class ResBlock(nn.Module):
-    def __init__(self, in_channels=64, out_channels=64):
-        super(ResBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.conv_skip = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
-
-    def forward(self, x):
-        skip = self.conv_skip(x)
-        # batch norm?
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        return x + skip
-
 class MCNet(nn.Module):
     def __init__(self):
         super(MCNet, self).__init__()
         self.l1 = nn.Conv2d(8, 64, kernel_size=3, stride=1, padding=1)
-        self.l2 = ResBlock(64,64)
+        self.l2 = ResidualBlock(64,64)
         self.l3 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
-        self.l4 = ResBlock(64,64)
+        self.l4 = ResidualBlock(64,64)
         self.l5 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
-        self.l6 = ResBlock(64,64)
-        self.l7 = ResBlock(64,64)
+        self.l6 = ResidualBlock(64,64)
+        self.l7 = ResidualBlock(64,64)
         self.l8 = nn.Upsample(scale_factor=2, mode='nearest')
-        self.l9 = ResBlock(64,64)
+        self.l9 = ResidualBlock(64,64)
         self.l10 = nn.Upsample(scale_factor=2, mode='nearest')
-        self.l11 = ResBlock(64,64)
+        self.l11 = ResidualBlock(64,64)
         self.l12 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
         self.l13 = nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1)
 
