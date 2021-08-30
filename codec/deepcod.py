@@ -129,7 +129,7 @@ class LightweightEncoder(nn.Module):
 		self.entropy_bottleneck.update()
 
 	def forward(self, x):
-		x = self.sample(x)
+		x = self.sample(x)*100
 		#x = (torch.tanh(x)+1)/2*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
