@@ -125,14 +125,14 @@ class LightweightEncoder(nn.Module):
 		super(LightweightEncoder, self).__init__()
 		self.sample = nn.Conv2d(3, channels, kernel_size=kernel_size, stride=kernel_size, padding=0, bias=True)
 		self.sample = spectral_norm(self.sample)
-		# self.centers = torch.nn.Parameter(torch.rand(num_centers))
 		self.entropy_bottleneck = EntropyBottleneck(channels)
 		self.entropy_bottleneck.update()
 
 	def forward(self, x):
-		x = self.sample(x)
+		x = self.sample(x)*255.0
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
+        x /= 255.0
 		# calculate bpp (estimated)
 		log2 = torch.log(torch.FloatTensor([2])).cuda()
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
@@ -140,20 +140,6 @@ class LightweightEncoder(nn.Module):
 		bits_act = len(b''.join(string))*8
 
 		return x, bits_act, bits_est
-		# B,C,H,W = x.size()
-
-		# # quantization
-		# xsize = list(x.size())
-		# x = x.view(*(xsize + [1]))
-		# quant_dist = torch.pow(x-self.centers, 2)
-		# softout = torch.sum(self.centers * nn.functional.softmax(-quant_dist, dim=-1), dim=-1)
-		# minval,index = torch.min(quant_dist, dim=-1, keepdim=True)
-		# hardout = torch.sum(self.centers * (minval == quant_dist), dim=-1)
-		# x = softout
-		# huffman = HuffmanCoding()
-		# real_size = len(huffman.compress(index.view(-1).cpu().numpy())) * 4
-		# real_cr = 1/16.*real_size/(H*W*C*B*8)
-		# return x,real_cr,dur
 
 def mask_compression(mask):
 	prev = 1

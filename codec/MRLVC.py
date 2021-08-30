@@ -345,7 +345,7 @@ class CODEC_NET(nn.Module):
         x = self.gdn(self.enc_conv2(x))
         x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn(self.enc_conv3(x))
-        latent = self.enc_conv4(x) # latent optical flow
+        latent = self.enc_conv4(x)*255.0 # latent optical flow
 
         # quantization + entropy coding
         _,C,H,W = latent.shape
@@ -353,6 +353,7 @@ class CODEC_NET(nn.Module):
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         #latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
+        latent_hat /= 255.0
 
         # decompress
         x = self.igdn(self.dec_conv1(latent_hat))
@@ -400,24 +401,6 @@ class MCNet(nn.Module):
         m12 = F.relu(self.l12(m11))
         m13 = self.l13(m12)
         return m13
-
-class LowerBound(Function):
-    @staticmethod
-    def forward(ctx, inputs, bound):
-        b = torch.ones(inputs.size())*bound
-        b = b.to(inputs.device)
-        ctx.save_for_backward(inputs, b)
-        return torch.max(inputs, b)
-  
-    @staticmethod
-    def backward(ctx, grad_output):
-        inputs, b = ctx.saved_tensors
-
-        pass_through_1 = inputs >= b
-        pass_through_2 = grad_output < 0
-
-        pass_through = pass_through_1 | pass_through_2
-        return pass_through.type(grad_output.dtype) * grad_output, None
 
 def get_grid_locations(b, h, w):
     y_range = torch.linspace(-1, 1, h)
