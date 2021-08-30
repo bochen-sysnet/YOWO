@@ -346,15 +346,15 @@ class CODEC_NET(nn.Module):
         x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
-        latent = (torch.tanh(latent)+1)/2*255.0
 
         # quantization + entropy coding
         _,C,H,W = latent.shape
         string = self.entropy_bottleneck.compress(latent)
+        bits_act = len(b''.join(string))*8
+        print(bits_act,latent.shape)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         #latent_decom2 = self.entropy_bottleneck.decompress(string, (C, H, W))
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
-        latent_hat /= 255.0
 
         # decompress
         x = self.igdn(self.dec_conv1(latent_hat))
@@ -368,7 +368,7 @@ class CODEC_NET(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 
         hidden = torch.cat((state_enc, state_dec),dim=1)
-        return hat, latent_hat, hidden, len(b''.join(string))*8, bits_est
+        return hat, latent_hat, hidden, bits_act, bits_est
 
 class MCNet(nn.Module):
     def __init__(self):

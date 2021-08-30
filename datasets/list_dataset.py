@@ -142,9 +142,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             Iframe_idx = (im_ind - (self.clip_duration-1) * self.sampling_rate - 1)//10*10
             for i in range(Iframe_idx,im_ind):
                 Y1_raw = self.cache['clip'][i].unsqueeze(0)
-                # test only deepcod compression
-                if True:
-                #if (i-Iframe_idx)%10 == 0:
+                if (i-Iframe_idx)%10 == 0:
                     # compressing the I frame 
                     if self.train:
                         Y1_com, bpp_est, img_loss =\
@@ -190,9 +188,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             Y1_raw = self.cache['clip'][im_ind-1].unsqueeze(0)
             # frame shape
             _,h,w = self.cache['clip'][0].shape
-            # test only deepcod compression
-            if True:
-            #if (im_ind-1)%10 == 0:
+            if (im_ind-1)%10 == 0:
                 # compressing the I frame 
                 if self.train:
                     Y1_com, bpp_est, img_loss =\
