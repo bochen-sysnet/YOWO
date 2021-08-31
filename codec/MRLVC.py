@@ -323,23 +323,27 @@ class CODEC_NET(nn.Module):
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
-        self.gdn = GDN(channels)
+        self.gdn1 = GDN(channels)
+        self.gdn2 = GDN(channels)
+        self.gdn3 = GDN(channels)
         self.enc_lstm = ConvLSTM(channels)
         self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
-        self.igdn = GDN(channels, inverse=True)
+        self.igdn1 = GDN(channels, inverse=True)
+        self.igdn2 = GDN(channels, inverse=True)
+        self.igdn3 = GDN(channels, inverse=True)
         self.dec_lstm = ConvLSTM(channels)
         self.entropy_bottleneck = EntropyBottleneck(128)
         self.entropy_bottleneck.update()
 
     def forward(self, x, hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden,128*2,dim=1)
-        x = self.gdn(self.enc_conv1(x))
-        x = self.gdn(self.enc_conv2(x))
+        x = self.gdn1(self.enc_conv1(x))
+        x = self.gdn2(self.enc_conv2(x))
         x, state_enc = self.enc_lstm(x, state_enc)
-        x = self.gdn(self.enc_conv3(x))
+        x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
@@ -351,10 +355,10 @@ class CODEC_NET(nn.Module):
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
         # decompress
-        x = self.igdn(self.dec_conv1(latent_hat))
-        x = self.igdn(self.dec_conv2(x))
+        x = self.igdn1(self.dec_conv1(latent_hat))
+        x = self.igdn2(self.dec_conv2(x))
         x, state_dec = self.enc_lstm(x, state_dec)
-        x = self.igdn(self.dec_conv3(x))
+        x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
 
         # calculate bpp (estimated)
