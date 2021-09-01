@@ -142,7 +142,7 @@ class MRLVC(nn.Module):
             loss = 32*(1-metrics)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         
-    def update_cache(frame_idx, GOP, clip_duration, sampling_rate, cache, clip):
+    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, clip):
         if clip is not None:
             # create cache
             cache = {}
@@ -154,12 +154,12 @@ class MRLVC(nn.Module):
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//10*10
             for i in range(Iframe_idx,frame_idx):
-                cache = _process_single_frame(i, GOP, cache)
+                cache = self._process_single_frame(i, GOP, cache)
         else:
-            cache = _process_single_frame(frame_idx-1, GOP, cache)
+            cache = self._process_single_frame(frame_idx-1, GOP, cache)
         return cache
             
-    def _process_single_frame(i, GOP, cache):
+    def _process_single_frame(self, i, GOP, cache):
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
