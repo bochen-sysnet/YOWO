@@ -96,7 +96,6 @@ class MRLVC(nn.Module):
                     metrics = PSNR(Y1_raw, Y1_com)
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
-                print(post_bits)
                 return Y1_com, torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([post_bits]), metrics
             else:
                 return Y1_raw, torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([24]), torch.FloatTensor([0])
@@ -210,6 +209,7 @@ class MRLVC(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
+        print(i,bpp_act)
     
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
