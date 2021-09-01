@@ -154,10 +154,9 @@ class MRLVC(nn.Module):
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//10*10
             for i in range(Iframe_idx,frame_idx):
-                cache = self._process_single_frame(i, GOP, cache)
+                self._process_single_frame(i, GOP, cache)
         else:
-            cache = self._process_single_frame(frame_idx-1, GOP, cache)
-        return cache
+            self._process_single_frame(frame_idx-1, GOP, cache)
             
     def _process_single_frame(self, i, GOP, cache):
         # frame shape
@@ -192,7 +191,6 @@ class MRLVC(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
-        return cache
 
 def init_hidden(h,w):
     # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
