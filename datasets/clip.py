@@ -161,6 +161,8 @@ def read_video_clip(base_path, imgpath, train, train_dur, sampling_rate, shape, 
 
         clip.append(Image.open(path_tmp).convert('RGB'))
     
+    clip = [img.resize(shape) for img in clip]
+    
     return clip
     
 def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache, dataset_use='ucf24'):

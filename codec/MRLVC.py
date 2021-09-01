@@ -123,8 +123,8 @@ class MRLVC(nn.Module):
             bpp_est = bpp_est.unsqueeze(0)
             # actual bits
             if not self.training:
-                bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-                bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+                bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+                bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
                 bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
                 bpp_act = torch.FloatTensor([bpp_act])
             
@@ -141,6 +141,59 @@ class MRLVC(nn.Module):
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
+        
+    def update_cache(frame_idx, GOP, clip_duration, sampling_rate, cache, clip=None):
+        if clip is not None:
+            # create cache
+            cache = {}
+            cache['clip'] = clip
+            cache['bpp_est'] = {}
+            cache['loss'] = {}
+            cache['bpp_act'] = {}
+            cache['metrics'] = {}
+            # compress from the first frame of the first clip to the current frame
+            Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//10*10
+            for i in range(Iframe_idx,frame_idx):
+                cache = _process_single_frame(i, GOP, cache)
+        else:
+            cache = _process_single_frame(frame_idx-1, GOP, cache)
+        return cache
+            
+    def _process_single_frame(i, GOP, cache):
+        # frame shape
+        _,h,w = cache['clip'][0].shape
+        # frames to be processed
+        Y0_com = cache['clip'][i-1].unsqueeze(0)
+        Y1_raw = cache['clip'][i].unsqueeze(0)
+        if i%GOP == 0:
+            # compressing the I frame 
+            Y1_com, bpp_est, img_loss, bpp_act, metrics =\
+                    model_codec(None, Y1_raw, None, None, None, False, True)
+        elif i%GOP == 1:
+            # init hidden states
+            rae_hidden, rpm_hidden = init_hidden(h,w)
+            latent = torch.zeros(1,8,4,4).cuda()
+            # compress for first P frame
+            Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+            cache['rae_hidden'] = rae_hidden.detach()
+            cache['rpm_hidden'] = rpm_hidden.detach()
+            cache['latent'] = latent.detach()
+        else:
+            # compress for later P frames
+            Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
+                model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+            cache['rae_hidden'] = rae_hidden.detach()
+            cache['rpm_hidden'] = rpm_hidden.detach()
+            cache['latent'] = latent.detach()
+        cache['clip'][i] = Y1_com.detach().squeeze(0)
+        cache['loss'][i] = img_loss
+        cache['bpp_est'][i] = bpp_est
+        cache['metrics'][i] = metrics
+        cache['bpp_act'][i] = bpp_act
+        cache['max_idx'] = i
+        return cache
+    
 
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
