@@ -111,15 +111,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         num_parts = len(im_split)
         im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
+        startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
         # if use x265/x264
         # if use MRLVC
-        if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
-            # read raw video clip
-            clip = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
-            if self.transform is not None:
-                clip = [self.transform(img).cuda() for img in clip]
-            model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, clip)
-        else:
-            assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
-            model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, None)
+        if True:
+            model_codec.update_cache(self.base_path, imgpath, self.train, self.shape, self.dataset, self.transform, \
+                im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
         self.prev_video = cur_video

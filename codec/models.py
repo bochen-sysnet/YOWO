@@ -18,6 +18,7 @@ sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
+from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
 # compress P frames wth RLVC
@@ -136,8 +137,13 @@ class MRLVC(nn.Module):
             loss = 32*(1-metrics)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         
-    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, clip):
-        if clip is not None:
+    def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
+                    frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+        if startNewClip:
+            # read raw video clip
+            clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
+            if transform is not None:
+                clip = [transform(img).cuda() for img in clip]
             # create cache
             cache['clip'] = clip
             cache['bpp_est'] = {}
@@ -184,6 +190,9 @@ class MRLVC(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
+    
+    def loss(self, app_loss, pix_loss, bpp_loss):
+        return app_loss + pix_loss + bpp_loss
 
 def init_hidden(h,w):
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
