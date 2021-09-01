@@ -126,7 +126,7 @@ class MRLVC(nn.Module):
                 bits_act_mv = entropy_coding('mv', 'tmp', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
                 bits_act_res = entropy_coding('res', 'tmp', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
                 bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-                bpp_act = torch.FloatTensor(bpp_act)
+                bpp_act = torch.FloatTensor([bpp_act])
             
         # hidden states
         rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
