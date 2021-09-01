@@ -73,6 +73,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         with autocast():
             output = model(data)
             reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
+            print(img_loss_list)
             img_loss = torch.stack(img_loss_list,dim=0).sum(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).sum(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss)
