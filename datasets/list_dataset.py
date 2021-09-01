@@ -117,10 +117,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             clip = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
             if self.transform is not None:
                 clip = [self.transform(img).cuda() for img in clip]
-            self.cache = model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, clip=clip)
+            self.cache = model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, clip)
         else:
             assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
-            self.cache = model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, clip=None)
+            self.cache = model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, None)
         self.prev_video = cur_video
 
 def init_hidden(h,w):

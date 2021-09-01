@@ -142,7 +142,7 @@ class MRLVC(nn.Module):
             loss = 32*(1-metrics)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         
-    def update_cache(frame_idx, GOP, clip_duration, sampling_rate, cache, clip=None):
+    def update_cache(frame_idx, GOP, clip_duration, sampling_rate, cache, clip):
         if clip is not None:
             # create cache
             cache = {}
