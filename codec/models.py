@@ -182,7 +182,8 @@ class MRLVC(nn.Module):
         # frames to be processed
         Y0_com = cache['clip'][i-1].unsqueeze(0)
         Y1_raw = cache['clip'][i].unsqueeze(0)
-        if i%GOP == 0:
+        if True:
+        #if i%GOP == 0:
             # compressing the I frame 
             Y1_com, bpp_est, img_loss, bpp_act, metrics =\
                     self(None, Y1_raw, None, None, None, False, True)
