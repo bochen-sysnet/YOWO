@@ -40,7 +40,7 @@ class MRLVC(nn.Module):
         self.res_codec = CODEC_NET(device, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self.image_coder_name = 'else' # or BPG or none
+        self.image_coder_name = 'bpg' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
 
     def split(self):
@@ -87,7 +87,7 @@ class MRLVC(nn.Module):
                 raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
                 raw_img.save(prename + '.jpg')
                 pre_bits = os.path.getsize(prename + '.jpg')*8
-                os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 3')
+                os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
                 os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
                 post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
                 bpg_img = Image.open(postname + '.jpg').convert('RGB')
