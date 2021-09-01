@@ -50,13 +50,7 @@ class MRLVC(nn.Module):
         self.RPM_res.cuda(1)
 
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
-                RPM_flag, I_flag, use_psnr=True): 
-        # this just for testing without compression
-        #if I_flag:
-        #    return Y1_raw,torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
-        #else:
-        #    return Y1_raw.cuda(0), rae_hidden, rpm_hidden, prior_latent, torch.zeros(1).cuda(0),torch.zeros(1).cuda(0),torch.zeros(1),torch.zeros(1)
-        
+                RPM_flag, I_flag, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)

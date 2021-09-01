@@ -20,7 +20,7 @@ from cfg import parser
 from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
-from codec.MRLVC import MRLVC
+from codec.models import MRLVC
 
 
 ####### Load configuration arguments
