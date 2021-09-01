@@ -85,7 +85,7 @@ class MRLVC(nn.Module):
                 binname = "tmp/frames/bpg"
                 postname = "tmp/frames/postbpg"
                 raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
-                raw_img.save(prename, "JPEG")
+                raw_img.save(prename + '.jpg')
                 pre_bits = os.path.getsize(prename + '.jpg')*8
                 os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
                 os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
