@@ -182,7 +182,7 @@ class MRLVC(nn.Module):
         else:
             # compress for later P frames
             Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                self(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                self(Y0_com, Y1_raw, cache['rae_hidden'], cache['rpm_hidden'], cache['latent'], True, False)
             cache['rae_hidden'] = rae_hidden.detach()
             cache['rpm_hidden'] = rpm_hidden.detach()
             cache['latent'] = latent.detach()
