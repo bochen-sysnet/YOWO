@@ -112,9 +112,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
         startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
-        # if use x265/x264
-        # if use MRLVC
-        if True:
-            model_codec.update_cache(self.base_path, imgpath, self.train, self.shape, self.dataset, self.transform, \
-                im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
+        # x265/x264/MRLVC/RLVC/DVC
+        model_codec.update_cache(self.base_path, imgpath, self.train, self.shape, self.dataset, self.transform, \
+            im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
         self.prev_video = cur_video

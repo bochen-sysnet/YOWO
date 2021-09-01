@@ -52,7 +52,7 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-model_codec = MRLVC(image_coder='deepcod')
+model_codec = MRLVC()
 model_codec.split()
 # model_codec = model_codec
 # model_codec = nn.DataParallel(model_codec) # in multi-gpu case

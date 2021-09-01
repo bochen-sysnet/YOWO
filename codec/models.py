@@ -29,8 +29,9 @@ from datasets.clip import *
 # GOP_size = args.f_P + args.b_P + 1
 # Output: compressed images, predicted bits, actual bits
 class MRLVC(nn.Module):
-    def __init__(self, image_coder='deepcod'):
+    def __init__(self):
         super(MRLVC, self).__init__()
+        self.name = 'MRLVC'
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.mv_codec = CODEC_NET(device, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1)
@@ -38,7 +39,8 @@ class MRLVC(nn.Module):
         self.res_codec = CODEC_NET(device, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self._image_coder = DeepCOD() if image_coder == 'deepcod' else None
+        self.image_coder_name = 'deepcod' # or BPG or none
+        self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
 
     def split(self):
         if self._image_coder is not None:
@@ -63,7 +65,7 @@ class MRLVC(nn.Module):
         batch_size, _, Height, Width = Y1_raw.shape
         if I_flag:
             # we can compress with bpg,deepcod ...
-            if self._image_coder is not None:
+            if self.image_coder_name == 'deepcod':
                 Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
                 # calculate bpp
                 batch_size, _, Height, Width = Y1_com.shape
@@ -77,9 +79,10 @@ class MRLVC(nn.Module):
                     metrics = MSSSIM(Y1_raw, Y1_com)
                     loss = 32*(1-metrics)
                 return Y1_com, bpp_est, loss, bpp_act, metrics
-            else:
-                print('Not implemented')
+            elif self.image_coder_name == 'bpg':
                 exit(0)
+            else:
+                return Y1_raw, torch.FloatTensor([0]), torch.FloatTensor([0]), torch.FloatTensor([24]), torch.FloatTensor([0])
         # otherwise, it's P frame
         # hidden states
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
@@ -193,6 +196,17 @@ class MRLVC(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
+        
+class HEVC(nn.Module):
+    def __init__(self):
+        super(HEVC, self).__init__()
+        self.name = 'x264' # x265?
+        
+    def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
+                    frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+        # use commands for compression
+        # load compressed data to cache
+        pass
 
 def init_hidden(h,w):
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
