@@ -209,7 +209,6 @@ class MRLVC(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
-        print(i,img_loss)
     
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
