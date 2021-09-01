@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.autograd import Function
+from torchvision import transforms
 from compressai.entropy_models import EntropyBottleneck
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
@@ -39,7 +40,7 @@ class MRLVC(nn.Module):
         self.res_codec = CODEC_NET(device, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self.image_coder_name = 'deepcod' # or BPG or none
+        self.image_coder_name = 'bpg' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
 
     def split(self):
@@ -80,7 +81,23 @@ class MRLVC(nn.Module):
                     loss = 32*(1-metrics)
                 return Y1_com, bpp_est, loss, bpp_act, metrics
             elif self.image_coder_name == 'bpg':
-                exit(0)
+                prename = "tmp/frames/prebpg"
+                binname = "tmp/frames/bpg"
+                postname = "tmp/frames/postbpg"
+                raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
+                raw_img.save(prename, "JPEG")
+                pre_bits = os.path.getsize(prename + '.jpg')*8
+                os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
+                os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
+                post_bits = os.path.getsize(binname + '.bin')*8
+                bpg_img = Image.open(postname + '.jpg').convert('RGB')
+                Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+                if use_psnr:
+                    metrics = PSNR(Y1_raw, Y1_com)
+                else:
+                    metrics = MSSSIM(Y1_raw, Y1_com)
+                print(post_bits, metrics)
+                return Y1_com, torch.FloatTensor([0]), torch.FloatTensor([0]), torch.FloatTensor([post_bits]), metrics
             else:
                 return Y1_raw, torch.FloatTensor([0]), torch.FloatTensor([0]), torch.FloatTensor([24]), torch.FloatTensor([0])
         # otherwise, it's P frame
