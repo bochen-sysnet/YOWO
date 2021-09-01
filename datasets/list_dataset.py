@@ -124,6 +124,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         else:
             assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
             model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, None)
+        assert self.cache is not None, 'none cache'
         self.prev_video = cur_video
 
 def init_hidden(h,w):
