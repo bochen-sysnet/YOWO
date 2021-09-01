@@ -168,21 +168,21 @@ class MRLVC(nn.Module):
         if i%GOP == 0:
             # compressing the I frame 
             Y1_com, bpp_est, img_loss, bpp_act, metrics =\
-                    model_codec(None, Y1_raw, None, None, None, False, True)
+                    self(None, Y1_raw, None, None, None, False, True)
         elif i%GOP == 1:
             # init hidden states
             rae_hidden, rpm_hidden = init_hidden(h,w)
             latent = torch.zeros(1,8,4,4).cuda()
             # compress for first P frame
             Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
+                self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
             cache['rae_hidden'] = rae_hidden.detach()
             cache['rpm_hidden'] = rpm_hidden.detach()
             cache['latent'] = latent.detach()
         else:
             # compress for later P frames
             Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = \
-                model_codec(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
+                self(Y0_com, Y1_raw, self.cache['rae_hidden'], self.cache['rpm_hidden'], self.cache['latent'], True, False)
             cache['rae_hidden'] = rae_hidden.detach()
             cache['rpm_hidden'] = rpm_hidden.detach()
             cache['latent'] = latent.detach()
