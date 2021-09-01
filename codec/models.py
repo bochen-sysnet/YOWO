@@ -96,10 +96,9 @@ class MRLVC(nn.Module):
                     metrics = PSNR(Y1_raw, Y1_com)
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
-                print(post_bits, metrics)
-                return Y1_com, torch.FloatTensor([0]), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([post_bits]), metrics
+                return Y1_com, torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([post_bits]), metrics
             else:
-                return Y1_raw, torch.FloatTensor([0]), torch.zeros(0), torch.FloatTensor([24]), torch.FloatTensor([0])
+                return Y1_raw, torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([24]), torch.FloatTensor([0])
         # otherwise, it's P frame
         # hidden states
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
