@@ -111,10 +111,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         num_parts = len(im_split)
         im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
-        # if this is a whole new video, load whole clip and compress the batch
-        # also additional frames need to be compressed for the first clip
-        # else just compress the batch
-        # or if the index is not continuous
+        # if use x265/x264
+        # if use MRLVC
         if cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2:
             # read raw video clip
             clip = read_video_clip(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.shape, self.dataset)
@@ -125,13 +123,3 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             assert im_ind-2 == self.cache['max_idx'], 'index error of the non-first frame'
             model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, None)
         self.prev_video = cur_video
-
-def init_hidden(h,w):
-    # mv_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    # res_hidden = torch.split(torch.zeros(4,128,h//4,w//4).cuda(),1)
-    # hidden_rpm_mv = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    # hidden_rpm_res = torch.split(torch.zeros(2,128,h//16,w//16).cuda(),1)
-    # hidden = (mv_hidden, res_hidden, hidden_rpm_mv, hidden_rpm_res)
-    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
-    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda()
-    return rae_hidden, rpm_hidden
