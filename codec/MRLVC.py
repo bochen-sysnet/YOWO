@@ -145,7 +145,6 @@ class MRLVC(nn.Module):
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, clip):
         if clip is not None:
             # create cache
-            cache = {}
             cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['loss'] = {}
