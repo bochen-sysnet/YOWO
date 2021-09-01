@@ -40,7 +40,7 @@ class MRLVC(nn.Module):
         self.res_codec = CODEC_NET(device, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.RPM_mv = RecProbModel()
         self.RPM_res = RecProbModel()
-        self.image_coder_name = 'bpg' # or BPG or none
+        self.image_coder_name = 'deepcod' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
 
     def split(self):
