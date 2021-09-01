@@ -89,7 +89,7 @@ class MRLVC(nn.Module):
                 pre_bits = os.path.getsize(prename + '.jpg')*8
                 os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
                 os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
-                post_bits = os.path.getsize(binname + '.bin')*8
+                post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
                 bpg_img = Image.open(postname + '.jpg').convert('RGB')
                 Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
                 if use_psnr:
@@ -209,7 +209,6 @@ class MRLVC(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
-        print(i,bpp_act)
     
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
