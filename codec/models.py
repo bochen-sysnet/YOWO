@@ -1,10 +1,14 @@
 from __future__ import print_function
 import os
+import io
 import sys
 import time
 import math
 import random
 import numpy as np
+import subprocess as sp
+import shlex
+import cv2
 
 import torch
 import torch.nn as nn
@@ -213,16 +217,68 @@ class MRLVC(nn.Module):
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
         
-class HEVC(nn.Module):
+class VideoCodecs():
     def __init__(self):
-        super(HEVC, self).__init__()
         self.name = 'x264' # x265?
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
-        # use commands for compression
-        # load compressed data to cache
-        pass
+        if startNewClip:
+            # read raw video clip
+            raw_clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
+            imgByteArr = io.BytesIO()
+            for img in raw_clip:
+                img.save(imgByteArr, format=image.format)
+            width,height = shape
+            fps = 25
+            output_filename = 'tmp/videostreams/output.mp4'
+            if self.name == 'x265'：
+                libname = 'libx265'
+            elif self.name == 'x264':
+                libname = 'libx264'
+            else:
+                print('Codec not supported')
+                exit(1)
+            # bgr24, rgb24, rgb?
+            process = sp.Popen(shlex.split(f'ffmpeg -y -s {width}x{height} -pixel_format rgb24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            process.stdin.write(imgByteArr.getvalue())
+            # Close and flush stdin
+            process.stdin.close()
+            # Wait for sub-process to finish
+            process.wait()
+            # Terminate the sub-process
+            process.terminate()
+            # check video size
+            video_size = os.path.getsize(output_filename)*8
+            # Use OpenCV to read video
+            clip = []
+            cap = cv2.VideoCapture(output_filename)
+            # Check if camera opened successfully
+            if (cap.isOpened()== False):
+                print("Error opening video stream or file")
+            # Read until video is completed
+            while(cap.isOpened()):
+                # Capture frame-by-frame
+                ret, img = cap.read()
+                if ret != True:break
+                clip.append(img)
+            # When everything done, release the video capture object
+            cap.release()
+            assert len(clip) == len(raw_clip), 'Clip size mismatch'
+            # create cache
+            cache['clip'] = clip
+            cache['bpp_est'] = {}
+            cache['loss'] = {}
+            cache['bpp_act'] = {}
+            cache['metrics'] = {}
+            bpp = video_size*1.0/len(clip)/(height*width)
+            for i in range(len(clip)):
+                Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),transform(clip[i]).cuda()
+                cache['loss'][i] = 0
+                cache['bpp_est'][i] = 0
+                cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
+                cache['bpp_act'][i] = bpp
+                print(i,cache['metrics'][i],bpp)
 
 def init_hidden(h,w):
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
