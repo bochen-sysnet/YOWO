@@ -74,7 +74,6 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     print('loading checkpoint {}'.format(cfg.TRAIN.RESUME_PATH))
     checkpoint = torch.load(cfg.TRAIN.RESUME_PATH)
-    cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
     best_score = checkpoint['score']
     model.load_state_dict(checkpoint['state_dict'])
     print("Loaded model score: ", checkpoint['score'])
@@ -85,6 +84,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
+        cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -152,7 +152,6 @@ if cfg.TRAIN.EVALUATE:
     test(cfg, 0, model, model_codec, test_dataset, loss_module)
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
-        print(epoch,cfg.TRAIN.BEGIN_EPOCH)
         # Adjust learning rate
         lr_new = adjust_learning_rate(optimizer, epoch, cfg)
         
