@@ -273,7 +273,7 @@ class StandardVideoCodecs(nn.Module):
                 # Capture frame-by-frame
                 ret, img = cap.read()
                 if ret != True:break
-                clip.append(img)
+                clip.append(transform(img).cuda())
             # When everything done, release the video capture object
             cap.release()
             assert len(clip) == len(raw_clip), 'Clip size mismatch'
@@ -285,12 +285,12 @@ class StandardVideoCodecs(nn.Module):
             cache['metrics'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),transform(clip[i]).cuda()
+                Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),clip[i]
                 cache['loss'][i] = 0
                 cache['bpp_est'][i] = 0
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = bpp
-                print(i,cache['metrics'][i],bpp)
+                print(i,cache['metrics'][i],bpp,Y1_com.shape)
 
 def init_hidden(h,w):
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
