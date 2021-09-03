@@ -261,6 +261,7 @@ class StandardVideoCodecs(nn.Module):
             process.wait()
             # Terminate the sub-process
             process.terminate()
+            print('Compression done')
             # check video size
             video_size = os.path.getsize(output_filename)*8
             # Use OpenCV to read video
