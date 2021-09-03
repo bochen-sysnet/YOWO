@@ -290,7 +290,6 @@ class StandardVideoCodecs(nn.Module):
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = torch.FloatTensor([bpp])
-                print(i,cache['metrics'][i],bpp,Y1_com.shape)
         cache['max_idx'] = frame_idx-1
     
     def loss(self, app_loss, pix_loss, bpp_loss):
