@@ -291,6 +291,7 @@ class StandardVideoCodecs(nn.Module):
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = bpp
                 print(i,cache['metrics'][i],bpp,Y1_com.shape)
+        cache['max_idx'] = frame_idx-1
 
 def init_hidden(h,w):
     rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
