@@ -174,6 +174,7 @@ class LearnedVideoCodecs(nn.Module):
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+        print(frame_idx)
         if startNewClip:
             # read raw video clip
             clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
