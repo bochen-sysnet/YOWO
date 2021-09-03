@@ -253,7 +253,7 @@ class StandardVideoCodecs(nn.Module):
                 print('Codec not supported')
                 exit(1)
             # bgr24, rgb24, rgb?
-            process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format rgb24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
             process.stdin.write(imgByteArr.getvalue())
             # Close and flush stdin
             process.stdin.close()
