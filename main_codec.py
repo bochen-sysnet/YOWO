@@ -174,5 +174,5 @@ else:
             'optimizer': optimizer.state_dict(),
             'score': score
             }
-        save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES)
+        save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))

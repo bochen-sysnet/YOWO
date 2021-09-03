@@ -38,11 +38,11 @@ def save_checkpoint(state, is_best, directory, dataset, clip_duration):
                         '%s/%s_best.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f'))
 
 
-def save_codec_checkpoint(state, is_best, directory, dataset, clip_duration):
-    torch.save(state, '%s/%s_codec_ckpt.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f'))
+def save_codec_checkpoint(state, is_best, directory, dataset, clip_duration, codec_name):
+    torch.save(state, '%s/%s_%s_ckpt.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f', codec_name))
     if is_best:
-        shutil.copyfile('%s/%s_codec_ckpt.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f'),
-                        '%s/%s_codec_best.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f'))
+        shutil.copyfile('%s/%s_%s_ckpt.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f', codec_name),
+                        '%s/%s_%s_best.pth' % (directory, 'yowo_' + dataset + '_' + str(clip_duration) + 'f', codec_name))
 
 def adjust_learning_rate(optimizer, epoch, cfg):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
