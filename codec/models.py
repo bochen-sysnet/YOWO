@@ -157,8 +157,8 @@ class LearnedVideoCodecs(nn.Module):
             #    bpp_act = torch.FloatTensor([bpp_act])
             # hidden
             rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
-            # latent
-            prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
+        # latent
+        prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
             
         # hidden states
         if self.name != 'DVC':
