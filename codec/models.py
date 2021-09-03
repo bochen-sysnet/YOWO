@@ -187,9 +187,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['metrics'] = {}
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//GOP*GOP
-            print(Iframe_idx,frame_idx)
-            print(clip.keys())
-            assert Iframe_idx > 0, 'accessing invalid index'
+            Iframe_idx = max(0,Iframe_idx)
             for i in range(Iframe_idx,frame_idx):
                 self._process_single_frame(i, GOP, cache)
         else:
@@ -199,7 +197,7 @@ class LearnedVideoCodecs(nn.Module):
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
-        Y0_com = cache['clip'][i-1].unsqueeze(0)
+        Y0_com = cache['clip'][i-1].unsqueeze(0) if i>0 else None
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
         RPM_flag = False
