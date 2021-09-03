@@ -73,7 +73,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                  train=False, clip_duration=16, sampling_rate=1):
         with open(root, 'r') as file:
             self.lines = file.readlines()
-        # lines can be randomized during training
 
         self.base_path = base
         self.dataset = dataset
