@@ -232,6 +232,7 @@ class StandardVideoCodecs(nn.Module):
     def __init__(self, name):
         super(StandardVideoCodecs, self).__init__()
         self.name = name # x264, x265?
+        self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
