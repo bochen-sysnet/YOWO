@@ -244,7 +244,7 @@ class StandardVideoCodecs(nn.Module):
             width,height = shape
             fps = 25
             output_filename = 'tmp/videostreams/output.mp4'
-            if self.name == 'x265'：
+            if self.name == 'x265':
                 libname = 'libx265'
             elif self.name == 'x264':
                 libname = 'libx264'
