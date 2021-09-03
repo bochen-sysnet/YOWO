@@ -170,6 +170,7 @@ class LearnedVideoCodecs(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics)
+        print(bpp_act)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
