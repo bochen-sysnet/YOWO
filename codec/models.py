@@ -240,7 +240,6 @@ class StandardVideoCodecs(nn.Module):
             # read raw video clip
             raw_clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
             imgByteArr = io.BytesIO()
-            print(raw_clip[0].format)
             for img in raw_clip:
                 img.save(imgByteArr, format="JPEG")
             width,height = shape
@@ -254,7 +253,7 @@ class StandardVideoCodecs(nn.Module):
                 print('Codec not supported')
                 exit(1)
             # bgr24, rgb24, rgb?
-            process = sp.Popen(shlex.split(f'ffmpeg -y -s {width}x{height} -pixel_format rgb24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            process = sp.Popen(shlex.split(f'ffmpeg -y -s {width}x{height} -pixel_format rgb24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p {output_filename}'), stdin=sp.PIPE)
             process.stdin.write(imgByteArr.getvalue())
             # Close and flush stdin
             process.stdin.close()
