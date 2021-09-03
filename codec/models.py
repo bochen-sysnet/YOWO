@@ -240,8 +240,9 @@ class StandardVideoCodecs(nn.Module):
             # read raw video clip
             raw_clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
             imgByteArr = io.BytesIO()
+            print(raw_clip[0].format)
             for img in raw_clip:
-                img.save(imgByteArr, format=img.format)
+                img.save(imgByteArr, format="JPEG")
             width,height = shape
             fps = 25
             output_filename = 'tmp/videostreams/output.mp4'
