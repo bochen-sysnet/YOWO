@@ -251,7 +251,7 @@ class StandardVideoCodecs(nn.Module):
                 print('Codec not supported')
                 exit(1)
             # bgr24, rgb24, rgb?
-            process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format rgb24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
             for img in raw_clip:
                 process.stdin.write(np.array(img).tobytes())
             # Close and flush stdin
@@ -260,7 +260,6 @@ class StandardVideoCodecs(nn.Module):
             process.wait()
             # Terminate the sub-process
             process.terminate()
-            print('Compression done')
             # check video size
             video_size = os.path.getsize(output_filename)*8
             # Use OpenCV to read video
@@ -277,7 +276,6 @@ class StandardVideoCodecs(nn.Module):
                 clip.append(img)
             # When everything done, release the video capture object
             cap.release()
-            print(len(clip), len(raw_clip),video_size)
             assert len(clip) == len(raw_clip), 'Clip size mismatch'
             # create cache
             cache['clip'] = clip
