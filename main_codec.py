@@ -152,6 +152,7 @@ if cfg.TRAIN.EVALUATE:
     test(cfg, 0, model, model_codec, test_dataset, loss_module)
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
+        print(epoch)
         # Adjust learning rate
         lr_new = adjust_learning_rate(optimizer, epoch, cfg)
         
