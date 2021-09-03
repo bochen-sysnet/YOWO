@@ -20,7 +20,7 @@ from cfg import parser
 from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
-from codec.models import MRLVC
+from codec.models import LearnedVideoCodecs, StandardVideoCodecs
 
 
 ####### Load configuration arguments
@@ -52,19 +52,20 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-model_codec = MRLVC()
-model_codec.split()
-# model_codec = model_codec
-# model_codec = nn.DataParallel(model_codec) # in multi-gpu case
+if cfg.TRAIN.CODEC_NAME in ['MRLVC','RLVC','DVC']:
+    model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
+elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
+    model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
-
 
 
 ####### Create optimizer
 # ---------------------------------------------------------------
 optimizer = torch.optim.Adam(model_codec.parameters(), lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-best_score   = 0 # initialize best score
+# initialize best score
+best_score = 0 
+best_codec_score = 0
 
 ####### Load yowo model
 # ---------------------------------------------------------------
@@ -76,12 +77,22 @@ if cfg.TRAIN.RESUME_PATH:
     cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
     best_score = checkpoint['score']
     model.load_state_dict(checkpoint['state_dict'])
-    # optimizer.load_state_dict(checkpoint['optimizer'])
     print("Loaded model score: ", checkpoint['score'])
     print("===================================================================")
     del checkpoint
-
-####### load codec model: todo
+    # try to load codec model 
+    if cfg.TRAIN.CODEC_NAME not in ['MRLVC','RLVC','DVC']:
+        print("No need to load for ", cfg.TRAIN.CODEC_NAME)
+    elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
+        checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
+        best_codec_score = checkpoint['score']
+        model_codec.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        print("Loaded model codec score: ", checkpoint['score'])
+        del checkpoint
+    else:
+        print("Cannot load model codec. Start with a new model.")
+    print("===================================================================")
 
 
 ####### Create backup directory if necessary
@@ -151,11 +162,11 @@ else:
         score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
 
         # Save the model to backup directory
-        is_best = score > best_score
+        is_best = score > best_codec_score
         if is_best:
             print("New best score is achieved: ", score)
-            print("Previous score was: ", best_score)
-            best_score = score
+            print("Previous score was: ", best_codec_score)
+            best_codec_score = score
 
         state = {
             'epoch': epoch,
@@ -163,5 +174,5 @@ else:
             'optimizer': optimizer.state_dict(),
             'score': score
             }
-        save_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES)
+        save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))
