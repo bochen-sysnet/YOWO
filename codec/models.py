@@ -285,7 +285,7 @@ class StandardVideoCodecs(nn.Module):
             cache['metrics'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),clip[i]
+                Y1_raw,Y1_com = transform(raw_clip[i]).unsqueeze(0).cuda(),clip[i].unsqueeze(0)
                 cache['loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
