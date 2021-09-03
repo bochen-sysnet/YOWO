@@ -174,7 +174,6 @@ class LearnedVideoCodecs(nn.Module):
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
-        print(frame_idx)
         if startNewClip:
             # read raw video clip
             clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
@@ -189,6 +188,7 @@ class LearnedVideoCodecs(nn.Module):
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//GOP*GOP
             print(Iframe_idx,frame_idx)
+            print(clip.keys())
             assert Iframe_idx > 0, 'accessing invalid index'
             for i in range(Iframe_idx,frame_idx):
                 self._process_single_frame(i, GOP, cache)
