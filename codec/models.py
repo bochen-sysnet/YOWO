@@ -277,7 +277,7 @@ class StandardVideoCodecs(nn.Module):
                 clip.append(img)
             # When everything done, release the video capture object
             cap.release()
-            print(len(clip), len(raw_clip))
+            print(len(clip), len(raw_clip),video_size)
             assert len(clip) == len(raw_clip), 'Clip size mismatch'
             # create cache
             cache['clip'] = clip
