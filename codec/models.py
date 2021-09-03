@@ -187,6 +187,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['metrics'] = {}
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//GOP*GOP
+            print(Iframe_idx,frame_idx)
             assert Iframe_idx > 0, 'accessing invalid index'
             for i in range(Iframe_idx,frame_idx):
                 self._process_single_frame(i, GOP, cache)
