@@ -138,7 +138,7 @@ class LightweightEncoder(nn.Module):
 		# calculate bpp (actual)
 		bits_act = torch.FloatTensor([len(b''.join(string))*8])
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()
+		aux_loss = self.entropy_bottleneck.loss()
 
 		return x, bits_act, bits_est， aux_loss
 
