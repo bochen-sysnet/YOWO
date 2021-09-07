@@ -41,7 +41,7 @@ class DeepCOD(nn.Module):
 		self.output_conv = Output_conv(no_of_hidden_units)
 		
 	def forward(self, x):
-		x,bits_act,bits_est = self.encoder(x)
+		x,bits_act,bits_est,aux_loss = self.encoder(x)
 
 		# reconstruct
 		x = self.conv1(x)
@@ -50,7 +50,7 @@ class DeepCOD(nn.Module):
 		x = self.resblock_up2(x)
 		x = self.output_conv(x)
 		
-		return x,bits_act,bits_est
+		return x,bits_act,bits_est,aux_loss
 
 def orthorgonal_regularizer(w,scale,cuda=False):
 	N, C, H, W = w.size()
@@ -137,8 +137,10 @@ class LightweightEncoder(nn.Module):
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		bits_act = torch.FloatTensor([len(b''.join(string))*8])
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()
 
-		return x, bits_act, bits_est
+		return x, bits_act, bits_est， aux_loss
 
 class Output_conv(nn.Module):
 

@@ -78,7 +78,7 @@ class LearnedVideoCodecs(nn.Module):
         if Y0_com is None:
             # we can compress with bpg,deepcod ...
             if self.image_coder_name == 'deepcod':
-                Y1_com,bits_act,bits_est = self._image_coder(Y1_raw)
+                Y1_com,bits_act,bits_est,aux_loss = self._image_coder(Y1_raw)
                 # calculate bpp
                 batch_size, _, Height, Width = Y1_com.shape
                 bpp_est = bits_est/(Height * Width * batch_size)
@@ -107,12 +107,12 @@ class LearnedVideoCodecs(nn.Module):
                     metrics = PSNR(Y1_raw, Y1_com)
                 else:
                     metrics = MSSSIM(Y1_raw, Y1_com)
-                bpp_est, loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
+                bpp_est, loss, aux_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
             else:
                 Y1_com = Y1_raw
                 bpp_act = torch.FloatTensor([24])
                 metrics = torch.FloatTensor([0])
-            return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
+            return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
@@ -120,7 +120,7 @@ class LearnedVideoCodecs(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp,mv_aux = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
@@ -128,7 +128,7 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
+        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp,res_aux = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -170,7 +170,9 @@ class LearnedVideoCodecs(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics)
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, bpp_act, metrics
+        # auxilary loss
+        aux_loss = mv_aux + res_aux
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
@@ -183,6 +185,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['loss'] = {}
+            cache['aux'] = {}
             cache['bpp_act'] = {}
             cache['metrics'] = {}
             # compress from the first frame of the first clip to the current frame
@@ -208,12 +211,13 @@ class LearnedVideoCodecs(nn.Module):
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
             RPM_flag = True
-        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, bpp_act, metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
+        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, aux_loss, bpp_act, metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
         cache['latent'] = latent.detach()
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['loss'][i] = img_loss
+        cache['aux'][i] = aux_loss
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
@@ -526,9 +530,12 @@ class ComprNet(nn.Module):
         log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()
+        
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
-        return hat, latent_hat, hidden, bits_act, bits_est
+        return hat, latent_hat, hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):

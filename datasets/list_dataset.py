@@ -93,7 +93,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
         
-        frame_idx, clip, label, bpp_est, loss, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
+        frame_idx, clip, label, bpp_est, loss, aux, bpp_act, metrics = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
         
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
@@ -101,7 +101,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if self.target_transform is not None:
             label = self.target_transform(label)
 
-        return (frame_idx, clip, label, bpp_est, loss, bpp_act, metrics)
+        return (frame_idx, clip, label, bpp_est, loss, aux, bpp_act, metrics)
             
     def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
