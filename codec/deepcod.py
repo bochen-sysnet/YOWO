@@ -140,7 +140,7 @@ class LightweightEncoder(nn.Module):
         # auxilary loss
 		aux_loss = self.entropy_bottleneck.loss()
 
-		return x, bits_act, bits_est， aux_loss
+		return x, bits_act, bits_est, aux_loss
 
 class Output_conv(nn.Module):
 
