@@ -136,6 +136,8 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
+        # auxilary loss
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
         if self.name == 'disable it for now' and RPM_flag:
@@ -170,8 +172,6 @@ class LearnedVideoCodecs(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics)
-        # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
@@ -211,7 +211,7 @@ class LearnedVideoCodecs(nn.Module):
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
             RPM_flag = True
-        Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, aux_loss, bpp_act, metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
+        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
         cache['latent'] = latent.detach()
