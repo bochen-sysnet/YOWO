@@ -58,9 +58,9 @@ elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable codec parameters: {}'.format(pytorch_total_params))
-pytorch_nonaux_params = sum(p.numel() for n,p in model_codec.parameters() if (not n.endswith(".quantiles")) and p.requires_grad)
+pytorch_nonaux_params = sum(p.numel() for n,p in model_codec.named_parameters() if (not n.endswith(".quantiles")) and p.requires_grad)
 logging('Total number of trainable non-aux parameters: {}'.format(pytorch_nonaux_params))
-pytorch_aux_params = sum(p.numel() for n,p in model_codec.parameters() if n.endswith(".quantiles") and p.requires_grad)
+pytorch_aux_params = sum(p.numel() for n,p in model_codec.named_parameters() if n.endswith(".quantiles") and p.requires_grad)
 logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params))
 
 
