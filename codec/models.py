@@ -172,7 +172,7 @@ class LearnedVideoCodecs(nn.Module):
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             loss = 32*(1-metrics)
         # auxilary loss
-        aux_loss = mv_aux + res_aux.to(mv_aux.device)
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         print('MRLVC aux', aux_loss)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         
@@ -497,8 +497,9 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck(128)
+        self.entropy_bottleneck = EntropyBottleneck(channels)
         self.entropy_bottleneck.update()
+        self.channels = channels
         self.use_RNN = use_RNN
         if use_RNN:
             self.enc_lstm = ConvLSTM(channels)
@@ -533,7 +534,7 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()
+        aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)

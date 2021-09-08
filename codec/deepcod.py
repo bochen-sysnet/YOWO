@@ -127,6 +127,7 @@ class LightweightEncoder(nn.Module):
 		self.sample = spectral_norm(self.sample)
 		self.entropy_bottleneck = EntropyBottleneck(channels)
 		self.entropy_bottleneck.update()
+        self.channels = channels
 
 	def forward(self, x):
 		x = self.sample(x)
@@ -138,7 +139,7 @@ class LightweightEncoder(nn.Module):
 		# calculate bpp (actual)
 		bits_act = torch.FloatTensor([len(b''.join(string))*8])
         # auxilary loss
-		aux_loss = self.entropy_bottleneck.loss()
+		aux_loss = self.entropy_bottleneck.loss()/self.channels
 
 		return x, bits_act, bits_est, aux_loss
 
