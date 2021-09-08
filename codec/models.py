@@ -147,7 +147,7 @@ class LearnedVideoCodecs(nn.Module):
         else:
             metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
             rec_loss = 32*(1-metrics)
-        img_loss = (rec_loss + warp_loss + mc_loss)*512
+        img_loss = (rec_loss + warp_loss + mc_loss)*1024
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
         if self.name == 'disable it for now' and RPM_flag:
