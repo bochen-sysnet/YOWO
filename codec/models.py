@@ -115,8 +115,8 @@ class LearnedVideoCodecs(nn.Module):
             return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
-        mv_hidden, res_hidden = torch.split(rae_hidden,128*4,dim=1)
-        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,128*2,dim=1)
+        mv_hidden, res_hidden = torch.split(rae_hidden,self.channels*4,dim=1)
+        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*2,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
@@ -140,7 +140,7 @@ class LearnedVideoCodecs(nn.Module):
         # replace the bits that used to do entropy encoding
         if self.name == 'MRLVC' and RPM_flag:
             # latent presentations
-            prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),128,dim=1)
+            prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),self.channels,dim=1)
             # RPM 
             prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
             prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
@@ -504,7 +504,7 @@ class ComprNet(nn.Module):
             self.dec_lstm = ConvLSTM(channels)
         
     def forward(self, x, hidden, RPM_flag):
-        state_enc, state_dec = torch.split(hidden,128*2,dim=1)
+        state_enc, state_dec = torch.split(hidden,self.channels*2,dim=1)
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
