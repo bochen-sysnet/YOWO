@@ -57,14 +57,18 @@ if cfg.TRAIN.CODEC_NAME in ['MRLVC','RLVC','DVC']:
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
-logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
+logging('Total number of trainable codec parameters: {}'.format(pytorch_total_params))
+pytorch_nonaux_params = sum(p.numel() for n,p in model_codec.parameters() if (not n.endswith(".quantiles")) and p.requires_grad)
+logging('Total number of trainable non-aux parameters: {}'.format(pytorch_nonaux_params))
+pytorch_aux_params = sum(p.numel() for n,p in model_codec.parameters() if n.endswith(".quantiles") and p.requires_grad)
+logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params))
 
 
 ####### Create optimizer
 # ---------------------------------------------------------------
 parameters = set(p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles"))
 aux_parameters = set(p for n, p in model_codec.named_parameters() if n.endswith(".quantiles"))
-optimizer = torch.optim.Adam(parameters, lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+optimizer = torch.optim.Adam(parameters, lr=1e-4)
 aux_optimizer = torch.optim.Adam(aux_parameters, lr=1e-3)
 # initialize best score
 best_score = 0 
@@ -157,10 +161,10 @@ if cfg.TRAIN.EVALUATE:
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
-        lr_new = adjust_learning_rate(optimizer, epoch, cfg)
+        # lr_new = adjust_learning_rate(optimizer, epoch, cfg)
         
         # Train and test model
-        logging('training at epoch %d, lr %f' % (epoch, lr_new))
+        logging('training at epoch %d' % (epoch))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, aux_optimizer)
         logging('testing at epoch %d' % (epoch))
         score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
