@@ -138,7 +138,7 @@ class LearnedVideoCodecs(nn.Module):
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
-        if self.name == 'MRLVC' and RPM_flag:
+        if self.name == 'disable it for now' and RPM_flag:
             # latent presentations
             prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),self.channels,dim=1)
             # RPM 
@@ -210,7 +210,7 @@ class LearnedVideoCodecs(nn.Module):
             Y0_com = None
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
-            RPM_flag = False
+            RPM_flag = True
         Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, aux_loss, bpp_act, metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
@@ -537,7 +537,7 @@ class ComprNet(nn.Module):
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
+        #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
         return hat, latent_hat, hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):

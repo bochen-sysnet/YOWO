@@ -140,7 +140,7 @@ class LightweightEncoder(nn.Module):
 		bits_act = torch.FloatTensor([len(b''.join(string))*8])
         # auxilary loss
 		aux_loss = self.entropy_bottleneck.loss()/self.channels
-		print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(x),torch.min(x),bits_act,bits_est),x.shape)
+		#print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(x),torch.min(x),bits_act,bits_est),x.shape)
 
 		return x, bits_act, bits_est, aux_loss
 
