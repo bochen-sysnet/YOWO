@@ -131,7 +131,7 @@ class LightweightEncoder(nn.Module):
 
 	def forward(self, x):
 		x = self.sample(x)
-        assert torch.max(x)<1 and torch.min(x)>-1, "max: %.3f, min %.3f" % (torch.max(x),torch.min(x))
+		assert torch.max(x)<1 and torch.min(x)>-1, "max: %.3f, min %.3f" % (torch.max(x),torch.min(x))
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
