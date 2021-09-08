@@ -124,8 +124,10 @@ class LearnedVideoCodecs(nn.Module):
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warp_loss = torch.mean(torch.pow(Y1_raw - Y1_warp.to(Y1_raw.device), 2))
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
+        mc_loss = torch.mean(torch.pow(Y1_raw - Y1_MC.to(Y1_raw.device), 2))
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
         res_hat,res_latent_hat,res_hidden,res_act,res_est,res_aux = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
@@ -138,6 +140,14 @@ class LearnedVideoCodecs(nn.Module):
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        # calculate metrics/loss
+        if use_psnr:
+            metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
+            rec_loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))
+        else:
+            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
+            rec_loss = 32*(1-metrics)
+        img_loss = (rec_loss + warp_loss + mc_loss)*512
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
         if self.name == 'disable it for now' and RPM_flag:
@@ -165,14 +175,7 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         if self.name != 'DVC':
             rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
-        # calculate metrics/loss
-        if use_psnr:
-            metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*1024
-        else:
-            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = 32*(1-metrics)
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, img_loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
