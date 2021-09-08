@@ -120,7 +120,7 @@ class LearnedVideoCodecs(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,mv_bits,mv_bpp,mv_aux = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
@@ -128,14 +128,14 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,res_hidden,res_bits,res_bpp,res_aux = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
+        res_hat,res_latent_hat,res_hidden,res_act,res_est,res_aux = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
         # estimated bits
-        bpp_est = (mv_bpp + res_bpp.cuda(0))/(Height * Width * batch_size)
+        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
-        bpp_act = (mv_bits + res_bits)/(Height * Width * batch_size)
+        bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
         if self.name == 'MRLVC' and RPM_flag:
@@ -516,6 +516,7 @@ class ComprNet(nn.Module):
         # quantization + entropy coding
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
+        print(torch.mean(abs(latent)),latent.shape,bits_act)
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
