@@ -45,10 +45,10 @@ class LearnedVideoCodecs(nn.Module):
         use_RNN = (self.name == 'MRLVC' or self.name == 'RLVC')
         self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        self.channels = channels
         if self.name == 'MRLVC':
-            self.RPM_mv = RecProbModel()
-            self.RPM_res = RecProbModel()
+            self.RPM_mv = RecProbModel(channels=channels)
+            self.RPM_res = RecProbModel(channels=channels)
+        self.channels = channels
         
         # split on multi-gpus
         self.split()
