@@ -112,6 +112,7 @@ class LearnedVideoCodecs(nn.Module):
                 Y1_com = Y1_raw
                 bpp_act = torch.FloatTensor([24])
                 metrics = torch.FloatTensor([0])
+            print('Deep aux', aux_loss)
             return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
@@ -172,6 +173,7 @@ class LearnedVideoCodecs(nn.Module):
             loss = 32*(1-metrics)
         # auxilary loss
         aux_loss = mv_aux + res_aux.to(mv_aux.device)
+        print('MRLVC aux', aux_loss)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
