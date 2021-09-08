@@ -344,7 +344,7 @@ class RecProbModel(nn.Module):
 
 def bits_estimation(x_target, sigma_mu, channels=128, tiny=1e-10):
 
-    sigma, mu = torch.split(sigma_mu, num_filters, dim=1)
+    sigma, mu = torch.split(sigma_mu, channels, dim=1)
 
     half = torch.FloatTensor([0.5]).cuda()
 
