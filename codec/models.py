@@ -44,8 +44,8 @@ class LearnedVideoCodecs(nn.Module):
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
         use_RNN = (self.name == 'MRLVC' or self.name == 'RLVC')
         # non rnn ignores other hiddens
-        self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=128/2, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=128/2, kernel1=5, padding1=2, kernel2=6, padding2=2)
         if self.name == 'MRLVC':
             self.RPM_mv = RecProbModel()
             self.RPM_res = RecProbModel()
