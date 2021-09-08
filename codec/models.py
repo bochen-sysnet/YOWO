@@ -34,7 +34,7 @@ from datasets.clip import *
 # GOP_size = args.f_P + args.b_P + 1
 # Output: compressed images, predicted bits, actual bits
 class LearnedVideoCodecs(nn.Module):
-    def __init__(self, name):
+    def __init__(self, name, channels=64):
         super(LearnedVideoCodecs, self).__init__()
         self.name = name # MRLVC,RLVC,DVC
         device = torch.device('cuda')
@@ -43,9 +43,9 @@ class LearnedVideoCodecs(nn.Module):
         self.image_coder_name = 'deepcod' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
         use_RNN = (self.name == 'MRLVC' or self.name == 'RLVC')
-        # non rnn ignores other hiddens
-        self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=64, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=64, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.channels = channels
         if self.name == 'MRLVC':
             self.RPM_mv = RecProbModel()
             self.RPM_res = RecProbModel()
@@ -204,7 +204,7 @@ class LearnedVideoCodecs(nn.Module):
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
         RPM_flag = False
-        rae_hidden, rpm_hidden = init_hidden(h,w)
+        rae_hidden, rpm_hidden = init_hidden(h,w,self.channels)
         latent = torch.zeros(1,8,4,4).cuda()
         if i%GOP == 0:
             Y0_com = None
@@ -299,9 +299,9 @@ class StandardVideoCodecs(nn.Module):
     def loss(self, app_loss, pix_loss, bpp_loss):
         return app_loss + pix_loss + bpp_loss
 
-def init_hidden(h,w):
-    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda()
-    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda()
+def init_hidden(h,w,channels):
+    rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
+    rpm_hidden = torch.zeros(1,channels*4,h//16,w//16).cuda()
     return rae_hidden, rpm_hidden
     
 def PSNR(Y1_raw, Y1_com):
