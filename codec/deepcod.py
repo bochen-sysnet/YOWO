@@ -127,7 +127,7 @@ class LightweightEncoder(nn.Module):
 		self.sample = spectral_norm(self.sample)
 		self.entropy_bottleneck = EntropyBottleneck(channels)
 		self.entropy_bottleneck.update()
-        self.channels = channels
+		self.channels = channels
 
 	def forward(self, x):
 		x = self.sample(x)
