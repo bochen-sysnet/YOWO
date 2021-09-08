@@ -52,6 +52,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model_codec.train()
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
+        aux_optimizer.zero_grad()
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
         for j in range(batch_size):
@@ -95,14 +96,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # loss.backward()
         scaler.scale(loss).backward()
         aux_loss.backward()
+        aux_optimizer.step()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             # optimizer.step()
             scaler.step(optimizer)
             scaler.update()
-            aux_optimizer.step()
             optimizer.zero_grad()
-            aux_optimizer.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
