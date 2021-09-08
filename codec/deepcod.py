@@ -131,7 +131,6 @@ class LightweightEncoder(nn.Module):
 
 	def forward(self, x):
 		x = self.sample(x)
-		print("max: %.3f, min %.3f" % (torch.max(x),torch.min(x)))
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
@@ -141,6 +140,7 @@ class LightweightEncoder(nn.Module):
 		bits_act = torch.FloatTensor([len(b''.join(string))*8])
         # auxilary loss
 		aux_loss = self.entropy_bottleneck.loss()/self.channels
+		print("max: %.3f, min %.3f" % (torch.max(x),torch.min(x)),bits_act,bits_est,x.shape)
 
 		return x, bits_act, bits_est, aux_loss
 

@@ -512,7 +512,6 @@ class ComprNet(nn.Module):
             x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
-        print("max: %.3f, min %.3f" % (torch.max(latent),torch.min(latent)))
 
         # quantization + entropy coding
         string = self.entropy_bottleneck.compress(latent)
@@ -537,6 +536,8 @@ class ComprNet(nn.Module):
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
+            
+        print("max: %.3f, min %.3f" % (torch.max(latent),torch.min(latent)),bits_act,bits_est,latent.shape)
         return hat, latent_hat, hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
