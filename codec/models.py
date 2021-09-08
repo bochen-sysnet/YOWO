@@ -210,7 +210,7 @@ class LearnedVideoCodecs(nn.Module):
             Y0_com = None
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
-            RPM_flag = True
+            RPM_flag = False
         Y1_com, rae_hidden,rpm_hidden,latent,bpp_est,img_loss, aux_loss, bpp_act, metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
@@ -537,7 +537,7 @@ class ComprNet(nn.Module):
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        print("max: %.3f, min %.3f" % (torch.max(latent),torch.min(latent)),bits_act,bits_est,latent.shape)
+        print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
         return hat, latent_hat, hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
