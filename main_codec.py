@@ -66,9 +66,8 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-parameters = set(p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles"))
-aux_parameters = set(p for n, p in model_codec.named_parameters() if n.endswith(".quantiles"))
-print(type(parameters))
+parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
+aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
 optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
