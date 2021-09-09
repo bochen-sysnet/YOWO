@@ -226,11 +226,11 @@ class LearnedVideoCodecs(nn.Module):
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
     
-    def loss(self, app_loss, pix_loss, bpp_loss):
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
         if self.name == 'MRLVC':
-            return app_loss + pix_loss + bpp_loss
+            return app_loss + pix_loss + bpp_loss + aux_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
-            return pix_loss + bpp_loss
+            return pix_loss + bpp_loss + aux_loss
         else:
             print('Loss not implemented')
             exit(1)

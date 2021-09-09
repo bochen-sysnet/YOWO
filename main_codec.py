@@ -68,8 +68,7 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 # ---------------------------------------------------------------
 parameters = set(p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles"))
 aux_parameters = set(p for n, p in model_codec.named_parameters() if n.endswith(".quantiles"))
-optimizer = torch.optim.Adam(parameters, lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-aux_optimizer = torch.optim.Adam(aux_parameters, lr=1)
+optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
 best_codec_score = 0
@@ -95,7 +94,6 @@ if cfg.TRAIN.RESUME_PATH:
         best_codec_score = checkpoint['score']
         model_codec.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
-        # aux_optimizer.load_state_dict(checkpoint['aux_optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
         del checkpoint
     else:
@@ -165,7 +163,7 @@ else:
         
         # Train and test model
         logging('training at epoch %d' % (epoch))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, aux_optimizer)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         logging('testing at epoch %d' % (epoch))
         score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
 
@@ -180,7 +178,6 @@ else:
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'aux_optimizer': aux_optimizer.state_dict(),
             'score': score
             }
         save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)

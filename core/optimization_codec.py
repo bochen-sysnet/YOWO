@@ -35,7 +35,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_loader, loss_module, o
 
 
 
-def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, aux_optimizer):
+def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -52,7 +52,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model_codec.train()
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
-        aux_optimizer.zero_grad()
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
         for j in range(batch_size):
@@ -83,7 +82,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 be_loss = torch.FloatTensor([0]).cuda(0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss)
+            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -95,8 +94,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
 
         # loss.backward()
         scaler.scale(loss).backward()
-        aux_loss.backward()
-        aux_optimizer.step()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             # optimizer.step()
