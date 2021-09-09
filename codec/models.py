@@ -161,6 +161,10 @@ class LearnedVideoCodecs(nn.Module):
             bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat.cuda(0), prob_latent_res.cuda(0), channels=self.channels)
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             bpp_est = bpp_est.unsqueeze(0)
+            # aux loss
+            mv_aux = rpm_aux_loss(prob_latent_mv.cuda(0))
+            res_aux = rpm_aux_loss(prob_latent_res.cuda(0))
+            aux_loss = (mv_aux + res_aux)/2
             # actual bits
             # if not self.training:
             #    bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
@@ -364,6 +368,22 @@ def bits_estimation(x_target, sigma_mu, channels=128, tiny=1e-10):
     bits = torch.sum(ent)
 
     return bits, sigma, mu
+    
+def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
+
+    sigma, mu = torch.split(sigma_mu, channels, dim=1)
+    
+    quantiles = torch.Tensor(channels, 1, 3)
+    init = torch.Tensor([-self.init_scale, 0, self.init_scale])
+    quantiles = init.repeat(quantiles.size(0), 1, 1)
+    
+    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
+    logits = torch.sigmoid((quantiles - mu) * (torch.exp(-sig) + tiny))
+    
+    target = np.log(2 / tiny - 1)
+    target = torch.Tensor([-target, 0, target]))
+    loss = torch.abs(logits - self.target).sum()
+    return loss
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
