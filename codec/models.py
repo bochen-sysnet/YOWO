@@ -499,7 +499,6 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         self.entropy_bottleneck = EntropyBottleneck(channels)
-        self.entropy_bottleneck.update()
         self.channels = channels
         self.use_RNN = use_RNN
         if use_RNN:
@@ -517,6 +516,7 @@ class ComprNet(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
+        self.entropy_bottleneck.update()
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)

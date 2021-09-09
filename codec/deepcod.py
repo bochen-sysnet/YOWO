@@ -126,11 +126,11 @@ class LightweightEncoder(nn.Module):
 		self.sample = nn.Conv2d(3, channels, kernel_size=kernel_size, stride=kernel_size, padding=0, bias=True)
 		self.sample = spectral_norm(self.sample)
 		self.entropy_bottleneck = EntropyBottleneck(channels)
-		self.entropy_bottleneck.update()
 		self.channels = channels
 
 	def forward(self, x):
 		x = self.sample(x)
+		self.entropy_bottleneck.update()
 		string = self.entropy_bottleneck.compress(x)
 		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
 		# calculate bpp (estimated)
