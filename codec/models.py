@@ -166,11 +166,11 @@ class LearnedVideoCodecs(nn.Module):
             res_aux = rpm_aux_loss(prob_latent_res.cuda(0),self.channels)
             aux_loss = (mv_aux + res_aux)/2
             # actual bits
-            if not self.training:
-               bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-               bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-               bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-               bpp_act = torch.FloatTensor([bpp_act])
+            #if not self.training:
+            #   bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+            #   bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+            #   bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
+            #   bpp_act = torch.FloatTensor([bpp_act])
             # hidden
             rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # latent
