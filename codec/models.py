@@ -383,7 +383,7 @@ def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
     logits = (quantiles - mu) * (torch.exp(-sig) + tiny)
     
     target = np.log(2 / tiny - 1)
-    target = torch.Tensor([-target, 0, target]))
+    target = torch.Tensor([-target, 0, target])
     loss = torch.abs(logits - target).sum()/(B*C*H*W*3)
     print('rpm',loss)
     return loss
