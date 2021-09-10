@@ -375,7 +375,7 @@ def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
     B,C,H,W = sigma.size()
     
-    quantiles = torch.Tensor([-init_scale, 0, init_scale])
+    quantiles = torch.Tensor([-init_scale, 0, init_scale]).cuda(0)
     
     sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
     sig = sig.view(*(list(sig.size()) + [1]))
