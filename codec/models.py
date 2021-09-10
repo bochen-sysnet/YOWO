@@ -384,8 +384,7 @@ def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
     
     target = np.log(2 / tiny - 1)
     target = torch.Tensor([-target, 0, target]).cuda(0)
-    loss = torch.abs(logits - target).sum()/(B*C*H*W*3)
-    print('rpm',loss)
+    loss = torch.abs(logits - target).sum()/(B*C*H*W)
     return loss
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
@@ -559,7 +558,6 @@ class ComprNet(nn.Module):
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
-        print('rae',aux_loss)
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
