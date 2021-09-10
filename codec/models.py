@@ -166,11 +166,11 @@ class LearnedVideoCodecs(nn.Module):
             res_aux = rpm_aux_loss(prob_latent_res.cuda(0))
             aux_loss = (mv_aux + res_aux)/2
             # actual bits
-            # if not self.training:
-            #    bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-            #    bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-            #    bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-            #    bpp_act = torch.FloatTensor([bpp_act])
+            if not self.training:
+               bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
+               bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
+               bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
+               bpp_act = torch.FloatTensor([bpp_act])
             # hidden
             rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # latent
@@ -370,19 +370,22 @@ def bits_estimation(x_target, sigma_mu, channels=128, tiny=1e-10):
     return bits, sigma, mu
     
 def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
+    # try to make it symmetric and cdf of certain quantiles close to tiny
 
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
+    B,C,H,W = sigma.size()
     
-    quantiles = torch.Tensor(channels, 1, 3)
-    init = torch.Tensor([-self.init_scale, 0, self.init_scale])
-    quantiles = init.repeat(quantiles.size(0), 1, 1)
+    quantiles = torch.Tensor([-self.init_scale, 0, self.init_scale])
     
     sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
-    logits = torch.sigmoid((quantiles - mu) * (torch.exp(-sig) + tiny))
+    sig = sig.view(*(list(sig.size()) + [1]))
+    mu = mu.view(*(list(mu.size()) + [1]))
+    logits = (quantiles - mu) * (torch.exp(-sig) + tiny)
     
     target = np.log(2 / tiny - 1)
     target = torch.Tensor([-target, 0, target]))
-    loss = torch.abs(logits - self.target).sum()
+    loss = torch.abs(logits - target).sum()/(B*C*H*W*3)
+    print('rpm',loss)
     return loss
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
@@ -556,6 +559,7 @@ class ComprNet(nn.Module):
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
+        print('rae',aux_loss)
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
