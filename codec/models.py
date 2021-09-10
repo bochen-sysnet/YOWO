@@ -162,8 +162,8 @@ class LearnedVideoCodecs(nn.Module):
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             bpp_est = bpp_est.unsqueeze(0)
             # aux loss
-            mv_aux = rpm_aux_loss(prob_latent_mv.cuda(0))
-            res_aux = rpm_aux_loss(prob_latent_res.cuda(0))
+            mv_aux = rpm_aux_loss(prob_latent_mv.cuda(0),self.channels)
+            res_aux = rpm_aux_loss(prob_latent_res.cuda(0),self.channels)
             aux_loss = (mv_aux + res_aux)/2
             # actual bits
             if not self.training:
