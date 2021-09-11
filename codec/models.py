@@ -162,7 +162,7 @@ class LearnedVideoCodecs(nn.Module):
             bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
             bpp_est = bpp_est.unsqueeze(0)
             # aux loss
-            aux_loss = torch.FloatTensor([0]).cuda(0)
+            aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
             # actual bits
             #if not self.training:
             #   bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
