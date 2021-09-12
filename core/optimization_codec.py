@@ -306,7 +306,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss，aux_loss)
+            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
