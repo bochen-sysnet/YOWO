@@ -40,4 +40,4 @@ RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
 
 RUN make && make install && ldconfig
 
-CMD ["python", "-c", "import cv2; print(cv2.getBuildInformation())"]
+CMD ["python3", "-c", "import cv2; print(cv2.getBuildInformation())"]
