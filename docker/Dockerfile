@@ -1,15 +1,16 @@
 FROM python:3
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir nibabel pydicom matplotlib pillow && \
-    pip install --no-cache-dir opencv-python opencv-contrib-python
+USER root
 
-WORKDIR /app
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir matplotlib pillow 
+
+WORKDIR /home/monet/research/opencv/build
+
+RUN make install
+
+WORKDIR /home/monet/research/YOWO/docker
 
 COPY . .
-
-CMD ["cat", "/etc/os-release"]
-
-CMD ["python", "--version"]
 
 CMD ["python", "-c", "import cv2; print(cv2.getBuildInformation())"]
