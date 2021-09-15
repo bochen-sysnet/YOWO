@@ -11,7 +11,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 
 RUN apt-get install -y python3.7 python3-pip
 
-RUN apt-get -y install git
+RUN apt-get -y install git cmake
 
 RUN pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir matplotlib pillow numpy
