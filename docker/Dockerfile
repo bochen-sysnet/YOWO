@@ -1,6 +1,9 @@
-FROM python:3
+FROM ubuntu:18.04
 
 USER root
+
+RUN apt-get update && \
+    apt-get install -y python3.6
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir matplotlib pillow 
