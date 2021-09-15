@@ -9,3 +9,5 @@ WORKDIR /app
 COPY . .
 
 CMD ["cat", "/etc/os-release"]
+
+CMD ["python", "--version"]
