@@ -11,8 +11,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 
 RUN apt-get install -y python3.7 python3-pip
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir matplotlib pillow numpy
+RUN pip3 install --no-cache-dir --upgrade pip3 && \
+    pip3 install --no-cache-dir matplotlib pillow numpy
 
 RUN git clone https://github.com/opencv/opencv.git
 
