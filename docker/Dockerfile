@@ -3,7 +3,8 @@ FROM ubuntu:18.04
 USER root
 
 RUN apt-get update && \
-    apt-get install -y python3.6
+    apt-get install -y python3.6 && \
+	apt-get install python3-pip
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir matplotlib pillow 
