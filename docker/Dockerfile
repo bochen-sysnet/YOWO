@@ -40,4 +40,8 @@ RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
 
 RUN make && make install && ldconfig
 
+RUN pip3 install torch torchvision torchaudio
+
 CMD ["python3", "-c", "import cv2; print(cv2.getBuildInformation())"]
+
+CMD ["python3", "-c", "import torch; print(torch.__version__)"]
