@@ -14,7 +14,7 @@ RUN apt-get install -y python3.7 python3-pip
 RUN apt-get -y install git cmake
 
 RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir matplotlib pillow numpy
+    pip3 install --no-cache-dir matplotlib pillow numpy tqdm
 
 RUN git clone https://github.com/opencv/opencv.git
 
@@ -42,6 +42,12 @@ RUN make && make install && ldconfig
 
 RUN pip3 install torch torchvision torchaudio
 
-CMD ["python3", "-c", "import cv2; print(cv2.getBuildInformation())"]
+COPY /home/monet/research/YOWO /home/monet/research/YOWO
 
-CMD ["python3", "-c", "import torch; print(torch.__version__)"]
+COPY /home/monet/research/dataset/ucf24 /home/monet/research/dataset/ucf24
+
+WORKDIR /home/monet/research/YOWO
+
+CMD ["python3", "-c", "import cv2; print(cv2.getBuildInformation()); import torch; print(torch.__version__)"]
+
+CMD ["python3", "main.py", "--cfg", "cfg/ucf24.yaml"]
