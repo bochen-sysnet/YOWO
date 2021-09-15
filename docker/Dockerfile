@@ -7,6 +7,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 WORKDIR /home/monet/research/opencv/build
 
+CMD ["pwd"]
+
 RUN make && make install
 
 WORKDIR /home/monet/research/YOWO/docker
