@@ -520,6 +520,7 @@ class ComprNet(nn.Module):
 
         # quantization + entropy coding
         self.entropy_bottleneck.update()
+        print(latent.size())
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
         latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
