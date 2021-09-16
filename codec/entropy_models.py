@@ -143,7 +143,7 @@ class EntropyBottleneck2(EntropyModel):
             #    logits = logits.permute(1,0,2,3).contiguous()
             #    logits = logits.reshape(64,1,-1)
                 
-        return logits,state
+        return logits
 
     @torch.jit.unused
     def _likelihood(self, inputs):
