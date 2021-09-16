@@ -62,7 +62,7 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        self.lstm = ConvLSTM(channels)
+        #self.lstm = ConvLSTM(channels)
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
