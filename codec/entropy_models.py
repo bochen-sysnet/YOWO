@@ -179,6 +179,7 @@ class EntropyBottleneck(EntropyModel):
         )
 
         if not torch.jit.is_scripting():
+            print(outputs.size())
             likelihood = self._likelihood(outputs)
             if self.use_likelihood_bound:
                 likelihood = self.likelihood_lower_bound(likelihood)
