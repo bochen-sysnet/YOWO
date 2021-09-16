@@ -133,6 +133,7 @@ class EntropyBottleneck(EntropyModel):
                 if stop_gradient:
                     factor = factor.detach()
                 logits += torch.tanh(factor) * torch.tanh(logits)
+            print(i,logits.size())
         return logits
 
     @torch.jit.unused
