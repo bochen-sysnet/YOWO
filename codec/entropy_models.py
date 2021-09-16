@@ -122,6 +122,7 @@ class EntropyBottleneck2(EntropyModel):
             matrix = getattr(self, f"_matrix{i:d}")
             if stop_gradient:
                 matrix = matrix.detach()
+            print(matrix.size(),logits.size())
             logits = torch.matmul(F.softplus(matrix), logits)
 
             bias = getattr(self, f"_bias{i:d}")
