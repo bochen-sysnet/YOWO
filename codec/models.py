@@ -154,6 +154,7 @@ class LearnedVideoCodecs(nn.Module):
             # latent presentations
             prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),self.channels,dim=1)
             # RPM 
+            print(prior_mv_latent.size(),hidden_rpm_mv.size())
             prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
             prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
             # estimate bpp
