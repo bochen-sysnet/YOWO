@@ -514,6 +514,7 @@ class ComprNet(nn.Module):
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
         if self.use_RNN:
+            print('rnn',x.size())
             x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
