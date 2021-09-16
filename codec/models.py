@@ -150,7 +150,7 @@ class LearnedVideoCodecs(nn.Module):
         img_loss = (rec_loss + warp_loss + mc_loss)/3*1024
         # during training the bits calculated using entropy bottleneck will
         # replace the bits that used to do entropy encoding
-        if self.name == 'not now' and RPM_flag:
+        if self.name == 'MRLVC' and RPM_flag:
             # latent presentations
             prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),self.channels,dim=1)
             # RPM 
