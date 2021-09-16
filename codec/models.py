@@ -230,7 +230,7 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
         if self.name == 'MRLVC':
-            return app_loss + pix_loss + bpp_loss + aux_loss
+            return bpp_loss + aux_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss
         else:
@@ -301,8 +301,8 @@ class StandardVideoCodecs(nn.Module):
                 cache['bpp_act'][i] = torch.FloatTensor([bpp])
         cache['max_idx'] = frame_idx-1
     
-    def loss(self, app_loss, pix_loss, bpp_loss):
-        return app_loss + pix_loss + bpp_loss
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
+        return app_loss + pix_loss + bpp_loss + aux_loss
 
 def init_hidden(h,w,channels):
     rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
