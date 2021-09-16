@@ -8,7 +8,7 @@ from torch import Tensor
 
 from compressai.entropy_models import EntropyModel
 
-class EntropyBottleneck(EntropyModel):
+class EntropyBottleneck2(EntropyModel):
     r"""Entropy bottleneck layer, introduced by J. Ballé, D. Minnen, S. Singh,
     S. J. Hwang, N. Johnston, in `"Variational image compression with a scale
     hyperprior" <https://arxiv.org/abs/1802.01436>`_.
@@ -24,7 +24,6 @@ class EntropyBottleneck(EntropyModel):
     def __init__(
         self,
         channels,
-        use_RNN = False,
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -62,6 +61,8 @@ class EntropyBottleneck(EntropyModel):
 
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
+        
+        self.lstm = ConvLSTM(channels)
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
@@ -133,8 +134,16 @@ class EntropyBottleneck(EntropyModel):
                 if stop_gradient:
                     factor = factor.detach()
                 logits += torch.tanh(factor) * torch.tanh(logits)
-            print(i,inputs.size(),logits.size())
-        return logits
+            
+            # rnn
+            #if i == len(self.filters)/2-1:
+            #    logits = logits.reshape(64,1,14,14)
+            #    logits = logits.permute(1,0,2,3).contiguous()
+            #    logits, state = self.lstm(logits, state)
+            #    logits = logits.permute(1,0,2,3).contiguous()
+            #    logits = logits.reshape(64,1,-1)
+                
+        return logits,state
 
     @torch.jit.unused
     def _likelihood(self, inputs):

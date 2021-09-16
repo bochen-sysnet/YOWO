@@ -22,7 +22,7 @@ sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import EntropyBottleneck
+from codec.entropy_models import EntropyBottleneck2
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -500,7 +500,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck(channels)
+        self.entropy_bottleneck = EntropyBottleneck2(channels)
         self.entropy_bottleneck.update()
         self.channels = channels
         self.use_RNN = use_RNN
@@ -514,7 +514,6 @@ class ComprNet(nn.Module):
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
         if self.use_RNN:
-            print('rnn',x.size())
             x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
