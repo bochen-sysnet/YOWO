@@ -24,6 +24,7 @@ class EntropyBottleneck(EntropyModel):
     def __init__(
         self,
         channels,
+        use_RNN = False,
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -224,3 +225,24 @@ class EntropyBottleneck(EntropyModel):
         medians = self._extend_ndims(self._get_medians().detach(), len(size))
         medians = medians.expand(len(strings), *([-1] * (len(size) + 1)))
         return super().decompress(strings, indexes, medians.dtype, medians)
+        
+class ConvLSTM(nn.Module):
+    def __init__(self, channels=128, forget_bias=1.0, activation=F.relu):
+        super(ConvLSTM, self).__init__()
+        self.conv = nn.Conv2d(2*channels, 4*channels, kernel_size=3, stride=1, padding=1)
+        self._forget_bias = forget_bias
+        self._activation = activation
+        self._channels = channels
+
+    def forward(self, x, state):
+        c, h = torch.split(state,self._channels,dim=1)
+        x = torch.cat((x, h), dim=1)
+        y = self.conv(x)
+        j, i, f, o = torch.split(y, self._channels, dim=1)
+        f = torch.sigmoid(f + self._forget_bias)
+        i = torch.sigmoid(i)
+        c = c * f + i * self._activation(j)
+        o = torch.sigmoid(o)
+        h = o * self._activation(c)
+
+        return h, torch.cat((c, h),dim=1)
