@@ -58,8 +58,7 @@ class LearnedVideoCodecs(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
 
-    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
-                RPM_flag, use_psnr=True):
+    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
@@ -79,7 +78,7 @@ class LearnedVideoCodecs(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv, RPM_flag)
+        mv_hat,mv_latent_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
@@ -89,7 +88,7 @@ class LearnedVideoCodecs(nn.Module):
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res, hidden_res.cuda(1), hidden_rpm_res.cuda(1), RPM_flag)
+        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res, hidden_res.cuda(1), hidden_rpm_res.cuda(1))
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -141,15 +140,13 @@ class LearnedVideoCodecs(nn.Module):
         Y0_com = cache['clip'][i-1].unsqueeze(0) if i>0 else None
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
-        RPM_flag = False
         rae_hidden, rpm_hidden = init_hidden(h,w,self.channels)
         latent = torch.zeros(1,8,4,4).cuda()
         if i%GOP == 0:
             Y0_com = None
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
-            #RPM_flag = True
-        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
+        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
         cache['latent'] = latent.detach()
@@ -481,7 +478,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,False)
+        self.entropy_bottleneck = EntropyBottleneck2(channels,use_RNN)
         self.entropy_bottleneck.update(torch.zeros(1,channels*4,196).cuda())
         self.channels = channels
         self.use_RNN = use_RNN
@@ -489,7 +486,7 @@ class ComprNet(nn.Module):
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         
-    def forward(self, x, hidden, rpm_hidden, RPM_flag):
+    def forward(self, x, hidden, rpm_hidden):
         state_enc, state_dec = torch.split(hidden,self.channels*2,dim=1)
         # compress
         x = self.gdn1(self.enc_conv1(x))
@@ -503,8 +500,7 @@ class ComprNet(nn.Module):
         self.entropy_bottleneck.update(rpm_hidden)
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
-        latent_decom, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
-        latent_hat = torch.round(latent) if RPM_flag else latent_decom
+        latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
