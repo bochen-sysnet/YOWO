@@ -73,7 +73,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # end of compression
         data = data.cuda() 
         with autocast():
-            if model_codec.name in ['MRLVC'] and epoch >= 1:
+            if model_codec.name[:5] in ['MRLVC'] and epoch >= 2:
                 output = model(data)
                 reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)

@@ -24,6 +24,7 @@ class EntropyBottleneck2(EntropyModel):
     def __init__(
         self,
         channels,
+        use_RNN = True,
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -62,13 +63,15 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        #self.lstm = ConvLSTM(channels)
+        if use_RNN:
+            self.lstm = nn.LSTM(196,196,1)
+        self.use_RNN = use_RNN
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, force = False):
+    def update(self, state, force = False):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
@@ -97,8 +100,9 @@ class EntropyBottleneck2(EntropyModel):
 
         half = float(0.5)
 
-        lower = self._logits_cumulative(samples - half, stop_gradient=True)
-        upper = self._logits_cumulative(samples + half, stop_gradient=True)
+        (state1,state2) = torch.split(state,self.channels*2,dim=1)
+        lower,_ = self._logits_cumulative(samples - half, state1, stop_gradient=True)
+        upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
         pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
 
@@ -110,13 +114,17 @@ class EntropyBottleneck2(EntropyModel):
         self._cdf_length = pmf_length + 2
         return True
 
-    def loss(self):
-        logits = self._logits_cumulative(self.quantiles, stop_gradient=True)
-        loss = torch.abs(logits - self.target).sum()
-        return loss
+    def loss(self,state):
+        (state1,state2) = torch.split(state,self.channels*2,dim=1)
+        logits,_ = self._logits_cumulative(self.quantiles, state1, stop_gradient=True)
+        loss1 = torch.abs(logits - self.target).sum()
+        logits,_ = self._logits_cumulative(self.quantiles, state2, stop_gradient=True)
+        loss2 = torch.abs(logits - self.target).sum()
+        return (loss1+loss2)/2
 
-    def _logits_cumulative(self, inputs, stop_gradient):
+    def _logits_cumulative(self, inputs, state, stop_gradient):
         # TorchScript not yet working (nn.Mmodule indexing not supported)
+        (c,h) = torch.split(state,self.channels,dim=1)
         logits = inputs
         for i in range(len(self.filters) + 1):
             matrix = getattr(self, f"_matrix{i:d}")
@@ -136,31 +144,30 @@ class EntropyBottleneck2(EntropyModel):
                 logits += torch.tanh(factor) * torch.tanh(logits)
             
             # rnn
-            #if i == len(self.filters)/2-1:
-            #    logits = logits.reshape(64,1,14,14)
-            #    logits = logits.permute(1,0,2,3).contiguous()
-            #    logits, state = self.lstm(logits, state)
-            #    logits = logits.permute(1,0,2,3).contiguous()
-            #    logits = logits.reshape(64,1,-1)
+            if self.use_RNN and i == len(self.filters)/2-1:
+                logits = logits.permute(1,0,2).contiguous() #(1,64,196)
+                logits, state = self.lstm(logits, (c,h)) # 1,64,64
+                logits = logits.permute(1,0,2).contiguous() #(64,1,196)
                 
-        return logits
+        return logits,state
 
     @torch.jit.unused
-    def _likelihood(self, inputs):
+    def _likelihood(self, inputs, state):
         half = float(0.5)
         v0 = inputs - half
         v1 = inputs + half
-        lower = self._logits_cumulative(v0, stop_gradient=False)
-        upper = self._logits_cumulative(v1, stop_gradient=False)
+        (state1,state2) = torch.split(state,self.channels*2,dim=1)
+        lower,state1 = self._logits_cumulative(v0, state1, stop_gradient=False)
+        upper,state2 = self._logits_cumulative(v1, state2, stop_gradient=False)
         sign = -torch.sign(lower + upper)
         sign = sign.detach()
         likelihood = torch.abs(
             torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower)
         )
-        return likelihood
+        return likelihood,(state1,state2)
 
     def forward(
-        self, x, training = None
+        self, x, state, training = None
     ):
         if training is None:
             training = self.training
@@ -188,7 +195,7 @@ class EntropyBottleneck2(EntropyModel):
         )
 
         if not torch.jit.is_scripting():
-            likelihood = self._likelihood(outputs)
+            likelihood,state = self._likelihood(outputs, state)
             if self.use_likelihood_bound:
                 likelihood = self.likelihood_lower_bound(likelihood)
         else:
@@ -202,7 +209,7 @@ class EntropyBottleneck2(EntropyModel):
         likelihood = likelihood.reshape(shape)
         likelihood = likelihood.permute(*inv_perm).contiguous()
 
-        return outputs, likelihood
+        return outputs, likelihood, state
 
     @staticmethod
     def _build_indexes(size):
@@ -236,23 +243,3 @@ class EntropyBottleneck2(EntropyModel):
         medians = medians.expand(len(strings), *([-1] * (len(size) + 1)))
         return super().decompress(strings, indexes, medians.dtype, medians)
         
-class ConvLSTM(nn.Module):
-    def __init__(self, channels=128, forget_bias=1.0, activation=F.relu):
-        super(ConvLSTM, self).__init__()
-        self.conv = nn.Conv2d(2*channels, 4*channels, kernel_size=3, stride=1, padding=1)
-        self._forget_bias = forget_bias
-        self._activation = activation
-        self._channels = channels
-
-    def forward(self, x, state):
-        c, h = torch.split(state,self._channels,dim=1)
-        x = torch.cat((x, h), dim=1)
-        y = self.conv(x)
-        j, i, f, o = torch.split(y, self._channels, dim=1)
-        f = torch.sigmoid(f + self._forget_bias)
-        i = torch.sigmoid(i)
-        c = c * f + i * self._activation(j)
-        o = torch.sigmoid(o)
-        h = o * self._activation(c)
-
-        return h, torch.cat((c, h),dim=1)

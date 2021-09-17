@@ -42,12 +42,9 @@ class LearnedVideoCodecs(nn.Module):
         self.MC_network = MCNet()
         self.image_coder_name = 'deepcod' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
-        use_RNN = (self.name == 'MRLVC' or self.name == 'RLVC')
+        use_RNN = (self.name[:5] == 'MRLVC' or self.name == 'RLVC')
         self.mv_codec = ComprNet(device, use_RNN=use_RNN, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, use_RNN=use_RNN, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        if self.name == 'MRLVC':
-            self.RPM_mv = RecProbModel(channels=channels)
-            self.RPM_res = RecProbModel(channels=channels)
         self.channels = channels
         
         # split on multi-gpus
@@ -60,9 +57,6 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
-        if self.name == 'MRLVC':
-            self.RPM_mv.cuda(1)
-            self.RPM_res.cuda(1)
 
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, \
                 RPM_flag, use_psnr=True):
@@ -76,61 +70,26 @@ class LearnedVideoCodecs(nn.Module):
         # If is I frame, return image compression result of Y1_raw
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
-            # we can compress with bpg,deepcod ...
-            if self.image_coder_name == 'deepcod':
-                Y1_com,bits_act,bits_est,aux_loss = self._image_coder(Y1_raw)
-                # calculate bpp
-                batch_size, _, Height, Width = Y1_com.shape
-                bpp_est = bits_est/(Height * Width * batch_size)
-                bpp_act = bits_act/(Height * Width * batch_size)
-                # calculate metrics/loss
-                if use_psnr:
-                    metrics = PSNR(Y1_raw, Y1_com)
-                    loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*1024
-                else:
-                    metrics = MSSSIM(Y1_raw, Y1_com)
-                    loss = 32*(1-metrics)
-            elif self.image_coder_name == 'bpg':
-                prename = "tmp/frames/prebpg"
-                binname = "tmp/frames/bpg"
-                postname = "tmp/frames/postbpg"
-                raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
-                raw_img.save(prename + '.jpg')
-                pre_bits = os.path.getsize(prename + '.jpg')*8
-                os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
-                os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
-                post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
-                bpp_act = torch.FloatTensor([post_bits])
-                bpg_img = Image.open(postname + '.jpg').convert('RGB')
-                Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
-                if use_psnr:
-                    metrics = PSNR(Y1_raw, Y1_com)
-                else:
-                    metrics = MSSSIM(Y1_raw, Y1_com)
-                bpp_est, loss, aux_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
-            else:
-                Y1_com = Y1_raw
-                bpp_act = torch.FloatTensor([24])
-                metrics = torch.FloatTensor([0])
+            Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics = I_compression(self.image_coder_name,Y1_raw,use_psnr)
             return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
-        mv_hidden, res_hidden = torch.split(rae_hidden,self.channels*4,dim=1)
-        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*2,dim=1)
+        hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
+        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*4,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, mv_hidden, RPM_flag)
+        mv_hat,mv_latent_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv, RPM_flag)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = torch.mean(torch.pow(Y1_raw - Y1_warp.to(Y1_raw.device), 2))
+        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
-        mc_loss = torch.mean(torch.pow(Y1_raw - Y1_MC.to(Y1_raw.device), 2))
+        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
         res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,res_hidden,res_act,res_est,res_aux = self.res_codec(res, res_hidden.cuda(1), RPM_flag)
+        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res, hidden_res.cuda(1), hidden_rpm_res.cuda(1), RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -141,42 +100,16 @@ class LearnedVideoCodecs(nn.Module):
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
-        if use_psnr:
-            metrics = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
-            rec_loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))
-        else:
-            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-            rec_loss = 32*(1-metrics)
+        metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
+        rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3*1024
-        # during training the bits calculated using entropy bottleneck will
-        # replace the bits that used to do entropy encoding
-        if self.name == 'not' and RPM_flag:
-            # latent presentations
-            prior_mv_latent, prior_res_latent = torch.split(prior_latent.cuda(1),self.channels,dim=1)
-            # RPM 
-            prob_latent_mv, hidden_rpm_mv = self.RPM_mv(prior_mv_latent.cuda(1), hidden_rpm_mv.cuda(1))
-            prob_latent_res, hidden_rpm_res = self.RPM_res(prior_res_latent.cuda(1), hidden_rpm_res.cuda(1))
-            # estimate bpp
-            bits_est_mv, sigma_mv, mu_mv = bits_estimation(mv_latent_hat, prob_latent_mv.cuda(0), channels=self.channels)
-            bits_est_res, sigma_res, mu_res = bits_estimation(res_latent_hat.cuda(0), prob_latent_res.cuda(0), channels=self.channels)
-            bpp_est = (bits_est_mv + bits_est_res)/(Height * Width * batch_size)
-            bpp_est = bpp_est.unsqueeze(0)
-            # aux loss
-            aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-            # actual bits
-            #if not self.training:
-            #   bits_act_mv = entropy_coding('mv', 'tmp/bitstreams', mv_latent_hat.detach().cpu().numpy(), sigma_mv.detach().cpu().numpy(), mu_mv.detach().cpu().numpy())
-            #   bits_act_res = entropy_coding('res', 'tmp/bitstreams', res_latent_hat.detach().cpu().numpy(), sigma_res.detach().cpu().numpy(), mu_res.detach().cpu().numpy())
-            #   bpp_act = (bits_act_mv + bits_act_res)/(Height * Width * batch_size)
-            #   bpp_act = torch.FloatTensor([bpp_act])
-            # hidden
-            rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
+        # hidden
+        rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # latent
         prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
-            
         # hidden states
         if self.name != 'DVC':
-            rae_hidden = torch.cat((mv_hidden, res_hidden.cuda(0)),dim=1)
+            rae_hidden = torch.cat((hidden_mv, hidden_res.cuda(0)),dim=1)
         return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, img_loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
@@ -215,7 +148,7 @@ class LearnedVideoCodecs(nn.Module):
             Y0_com = None
         elif i%GOP > 1:
             rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
-            RPM_flag = True
+            #RPM_flag = True
         Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, RPM_flag)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
@@ -229,7 +162,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
-        if self.name == 'MRLVC':
+        if self.name[:5] == 'MRLVC':
             return app_loss + pix_loss + bpp_loss + aux_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss
@@ -303,10 +236,58 @@ class StandardVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
         return app_loss + pix_loss + bpp_loss + aux_loss
+        
+def calc_metrics(Y1_raw, Y1_com, use_psnr):
+    if use_psnr:
+        metrics = PSNR(Y1_raw, Y1_com)
+    else:
+        metrics = MSSSIM(Y1_raw, Y1_com)
+    return metrics
+    
+def calc_loss(Y1_raw, Y1_com, use_psnr):
+    if use_psnr:
+        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*1024
+    else:
+        metrics = MSSSIM(Y1_raw, Y1_com)
+        loss = 32*(1-metrics)
+    return loss
+        
+def I_compression(Y1_raw, image_coder_name, use_psnr):
+    # we can compress with bpg,deepcod ...
+    if image_coder_name == 'deepcod':
+        Y1_com,bits_act,bits_est,aux_loss = self._image_coder(Y1_raw)
+        # calculate bpp
+        batch_size, _, Height, Width = Y1_com.shape
+        bpp_est = bits_est/(Height * Width * batch_size)
+        bpp_act = bits_act/(Height * Width * batch_size)
+        # calculate metrics/loss
+        metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
+        loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+    elif image_coder_name == 'bpg':
+        prename = "tmp/frames/prebpg"
+        binname = "tmp/frames/bpg"
+        postname = "tmp/frames/postbpg"
+        raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
+        raw_img.save(prename + '.jpg')
+        pre_bits = os.path.getsize(prename + '.jpg')*8
+        os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
+        os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
+        post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
+        bpp_act = torch.FloatTensor([post_bits])
+        bpg_img = Image.open(postname + '.jpg').convert('RGB')
+        Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+        metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
+        loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+        bpp_est, aux_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
+    else:
+        print('This image compression not implemented.')
+        exit(0)
+    return Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics
 
 def init_hidden(h,w,channels):
     rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
-    rpm_hidden = torch.zeros(1,channels*4,h//16,w//16).cuda()
+    #rpm_hidden = torch.zeros(1,channels*4,h//16,w//16).cuda()
+    rpm_hidden = torch.zeros(1,channels*8,(h//16)*(w//16)).cuda()
     return rae_hidden, rpm_hidden
     
 def PSNR(Y1_raw, Y1_com):
@@ -500,7 +481,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels)
+        self.entropy_bottleneck = EntropyBottleneck2(channels,False)
         self.entropy_bottleneck.update()
         self.channels = channels
         self.use_RNN = use_RNN
@@ -508,7 +489,7 @@ class ComprNet(nn.Module):
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         
-    def forward(self, x, hidden, RPM_flag):
+    def forward(self, x, hidden, rpm_hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden,self.channels*2,dim=1)
         # compress
         x = self.gdn1(self.enc_conv1(x))
@@ -519,10 +500,10 @@ class ComprNet(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
-        self.entropy_bottleneck.update()
+        self.entropy_bottleneck.update(rpm_hidden)
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
-        latent_decom, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+        latent_decom, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
         latent_hat = torch.round(latent) if RPM_flag else latent_decom
 
         # decompress
@@ -538,13 +519,13 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()/self.channels
+        aux_loss = self.entropy_bottleneck.loss(rpm_hidden)/self.channels
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
         #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
-        return hat, latent_hat, hidden, bits_act, bits_est, aux_loss
+        return hat, latent_hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):
