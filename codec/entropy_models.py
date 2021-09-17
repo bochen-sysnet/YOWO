@@ -107,11 +107,13 @@ class EntropyBottleneck2(EntropyModel):
         upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
         pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
+        print('pmf',pmf.size())
 
         pmf = pmf[:, 0, :]
         tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
 
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
+        print('qpmf',quantized_cdf.size())
         self._quantized_cdf = quantized_cdf
         self._cdf_length = pmf_length + 2
         return True
