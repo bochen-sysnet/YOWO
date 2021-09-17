@@ -64,7 +64,7 @@ class EntropyBottleneck2(EntropyModel):
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
         if use_RNN:
-            self.lstm = nn.LSTM(196,196,1)
+            self.lstm = nn.LSTM(3,3,1)
         self.use_RNN = use_RNN
 
     def _get_medians(self):
@@ -145,6 +145,8 @@ class EntropyBottleneck2(EntropyModel):
             
             # rnn
             if self.use_RNN and i == len(self.filters)/2-1:
+                print(logits.size())
+                exit(0)
                 logits = logits.permute(1,0,2).contiguous() #(1,64,196)
                 logits, state = self.lstm(logits, (c,h)) # 1,64,64
                 logits = logits.permute(1,0,2).contiguous() #(64,1,196)

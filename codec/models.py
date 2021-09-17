@@ -478,7 +478,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,False)
+        self.entropy_bottleneck = EntropyBottleneck2(channels,use_RNN)
         self.entropy_bottleneck.update(torch.zeros(1,channels*4,196).cuda())
         self.channels = channels
         self.use_RNN = use_RNN
