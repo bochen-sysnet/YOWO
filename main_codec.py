@@ -90,7 +90,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
-        cfg.TRAIN.BEGIN_EPOCH = 1 #checkpoint['epoch'] + 1
+        cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
