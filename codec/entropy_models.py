@@ -164,7 +164,8 @@ class EntropyBottleneck2(EntropyModel):
         likelihood = torch.abs(
             torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower)
         )
-        return likelihood,(state1,state2)
+        state = torch.cat((state1,state2),dim=1)
+        return likelihood,state
 
     def forward(
         self, x, state, training = None
