@@ -96,8 +96,8 @@ class EntropyBottleneck2(EntropyModel):
         device = pmf_start.device
         samples = torch.arange(max_length, device=device)
 
+        print(samples.size(),pmf_start.size())
         samples = samples[None, :] + pmf_start[:, None, None]
-        print(samples)
 
         half = float(0.5)
 
