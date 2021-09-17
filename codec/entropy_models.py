@@ -101,7 +101,8 @@ class EntropyBottleneck2(EntropyModel):
 
         half = float(0.5)
 
-        (state1,state2) = torch.split(state,self.filters*2,dim=1)
+        print(state.size())
+        state1,state2 = torch.split(state,self.filters*2,dim=1)
         lower,_ = self._logits_cumulative(samples - half, state1, stop_gradient=True)
         upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
