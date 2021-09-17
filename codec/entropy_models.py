@@ -27,7 +27,6 @@ class EntropyBottleneck(EntropyModel):
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
-        **kwargs: Any,
     ):
         super().__init__()
 
