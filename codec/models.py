@@ -18,11 +18,11 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.autograd import Function
 from torchvision import transforms
-from compressai.entropy_models import EntropyBottleneck
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
+from codec.entropy_models import EntropyBottleneck
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -366,24 +366,6 @@ def bits_estimation(x_target, sigma_mu, channels=128, tiny=1e-10):
     bits = torch.sum(ent)
 
     return bits, sigma, mu
-    
-def rpm_aux_loss(sigma_mu, channels=128, tiny=1e-10, init_scale=10.0):
-    # try to make it symmetric and cdf of certain quantiles close to tiny
-
-    sigma, mu = torch.split(sigma_mu, channels, dim=1)
-    B,C,H,W = sigma.size()
-    
-    quantiles = torch.Tensor([-init_scale, 0, init_scale]).cuda(0)
-    
-    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
-    sig = sig.view(*(list(sig.size()) + [1]))
-    mu = mu.view(*(list(mu.size()) + [1]))
-    logits = (quantiles - mu) * (torch.exp(-sig) + tiny)
-    
-    target = np.log(2 / tiny - 1) # the quantile that achieves tiny tail mass
-    target = torch.Tensor([-target, 0, target]).cuda(0)
-    loss = torch.abs(logits - target).sum()/(B*C*H*W) # the converted quantiles should approximate the target
-    return loss
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
