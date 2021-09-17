@@ -97,6 +97,7 @@ class EntropyBottleneck2(EntropyModel):
         samples = torch.arange(max_length, device=device)
 
         samples = samples[None, :] + pmf_start[:, None, None]
+        print(samples)
 
         half = float(0.5)
 
@@ -145,6 +146,7 @@ class EntropyBottleneck2(EntropyModel):
             
             # rnn
             if self.use_RNN and i == len(self.filters)/2-1:
+                # (64,3,21)/(64,3,196)
                 print(logits.size())
                 exit(0)
                 logits = logits.permute(1,0,2).contiguous() #(1,64,196)
