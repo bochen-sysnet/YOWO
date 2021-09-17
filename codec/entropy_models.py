@@ -96,9 +96,7 @@ class EntropyBottleneck2(EntropyModel):
         device = pmf_start.device
         samples = torch.arange(max_length, device=device)
 
-        print(samples.size(),pmf_start.size())
         samples = samples[None, :] + pmf_start[:, None, None]
-        print(samples.size())
 
         half = float(0.5)
 
@@ -107,13 +105,11 @@ class EntropyBottleneck2(EntropyModel):
         upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
         pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
-        print('pmf',pmf.size())
 
         pmf = pmf[:, 0, :]
         tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
 
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
-        print('qpmf',quantized_cdf.size())
         self._quantized_cdf = quantized_cdf
         self._cdf_length = pmf_length + 2
         return True
@@ -150,11 +146,11 @@ class EntropyBottleneck2(EntropyModel):
             # rnn
             if self.use_RNN and i == len(self.filters)/2-1:
                 # (64,3,21)/(64,3,196)
-                print(logits.size())
-                exit(0)
-                logits = logits.permute(1,0,2).contiguous() #(1,64,196)
-                logits, state = self.lstm(logits, (c,h)) # 1,64,64
-                logits = logits.permute(1,0,2).contiguous() #(64,1,196)
+                logits = logits.permute(0,2,1).contiguous() #(64,196,3)
+                logits = logits.reshape(1,-1,3) # (1,64*196,3)
+                logits, state = self.lstm(logits, (c,h)) 
+                logits = logits.reshape(64,-1,3)
+                logits = logits.permute(0,2,1).contiguous() #(64,3,196)
                 
         return logits,state
 
