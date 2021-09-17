@@ -23,14 +23,13 @@ class EntropyBottleneck(EntropyModel):
 
     def __init__(
         self,
-        channels: int,
-        *args: Any,
-        tail_mass: float = 1e-9,
-        init_scale: float = 10,
-        filters: Tuple[int, ...] = (3, 3, 3, 3),
+        channels,
+        tail_mass = 1e-9,
+        init_scale = 10,
+        filters = (3, 3, 3, 3),
         **kwargs: Any,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
         self.channels = int(channels)
         self.filters = tuple(int(f) for f in filters)
@@ -64,11 +63,11 @@ class EntropyBottleneck(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
 
-    def _get_medians(self) -> Tensor:
+    def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, force: bool = False) -> bool:
+    def update(self, force = False):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
@@ -110,12 +109,12 @@ class EntropyBottleneck(EntropyModel):
         self._cdf_length = pmf_length + 2
         return True
 
-    def loss(self) -> Tensor:
+    def loss(self):
         logits = self._logits_cumulative(self.quantiles, stop_gradient=True)
         loss = torch.abs(logits - self.target).sum()
         return loss
 
-    def _logits_cumulative(self, inputs: Tensor, stop_gradient: bool) -> Tensor:
+    def _logits_cumulative(self, inputs, stop_gradient):
         # TorchScript not yet working (nn.Mmodule indexing not supported)
         logits = inputs
         for i in range(len(self.filters) + 1):
@@ -137,7 +136,7 @@ class EntropyBottleneck(EntropyModel):
         return logits
 
     @torch.jit.unused
-    def _likelihood(self, inputs: Tensor) -> Tensor:
+    def _likelihood(self, inputs):
         half = float(0.5)
         v0 = inputs - half
         v1 = inputs + half
@@ -151,8 +150,8 @@ class EntropyBottleneck(EntropyModel):
         return likelihood
 
     def forward(
-        self, x: Tensor, training: Optional[bool] = None
-    ) -> Tuple[Tensor, Tensor]:
+        self, x, training = None
+    ):
         if training is None:
             training = self.training
 
