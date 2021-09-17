@@ -98,6 +98,7 @@ class EntropyBottleneck2(EntropyModel):
 
         print(samples.size(),pmf_start.size())
         samples = samples[None, :] + pmf_start[:, None, None]
+        print(samples.size())
 
         half = float(0.5)
 
