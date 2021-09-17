@@ -70,7 +70,7 @@ class LearnedVideoCodecs(nn.Module):
         # If is I frame, return image compression result of Y1_raw
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
-            Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,use_psnr)
+            Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self.image_coder,use_psnr)
             return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
@@ -252,10 +252,10 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
         loss = 32*(1-metrics)
     return loss
         
-def I_compression(Y1_raw, image_coder_name, use_psnr):
+def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
     # we can compress with bpg,deepcod ...
     if image_coder_name == 'deepcod':
-        Y1_com,bits_act,bits_est,aux_loss = self._image_coder(Y1_raw)
+        Y1_com,bits_act,bits_est,aux_loss = _image_coder(Y1_raw)
         # calculate bpp
         batch_size, _, Height, Width = Y1_com.shape
         bpp_est = bits_est/(Height * Width * batch_size)
