@@ -101,7 +101,7 @@ class LearnedVideoCodecs(nn.Module):
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
-        img_loss = (rec_loss + warp_loss + mc_loss)/3*1024
+        img_loss = (rec_loss + warp_loss + mc_loss)/3
         # hidden
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # latent
