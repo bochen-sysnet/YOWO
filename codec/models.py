@@ -497,7 +497,7 @@ class ComprNet(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
-        self.entropy_bottleneck.update(rpm_hidden)
+        self.entropy_bottleneck.update()
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
         latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
@@ -515,7 +515,7 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss(rpm_hidden)/self.channels
+        aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         if self.use_RNN:
             hidden = torch.cat((state_enc, state_dec),dim=1)

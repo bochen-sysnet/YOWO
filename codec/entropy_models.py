@@ -72,7 +72,7 @@ class EntropyBottleneck2(EntropyModel):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, state, force = False):
+    def update(self, force = False):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
@@ -101,8 +101,7 @@ class EntropyBottleneck2(EntropyModel):
 
         half = float(0.5)
 
-        print(state.size())
-        state1,state2 = torch.split(state,self.filters*2,dim=1)
+        state1,state2 = torch.zeros(1,64*3,3).cuda(),torch.zeros(1,64*3,3).cuda()
         lower,_ = self._logits_cumulative(samples - half, state1, stop_gradient=True)
         upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
@@ -116,7 +115,7 @@ class EntropyBottleneck2(EntropyModel):
         self._cdf_length = pmf_length + 2
         return True
 
-    def loss(self,state):
+    def loss(self):
         state1,state2 = torch.zeros(1,64*21,3).cuda(),torch.zeros(1,64*21,3).cuda()
         logits,_ = self._logits_cumulative(self.quantiles, state1, stop_gradient=True)
         loss1 = torch.abs(logits - self.target).sum()
@@ -126,7 +125,7 @@ class EntropyBottleneck2(EntropyModel):
 
     def _logits_cumulative(self, inputs, state, stop_gradient):
         # TorchScript not yet working (nn.Mmodule indexing not supported)
-        (c,h) = torch.split(state,self.filters,dim=1)
+        (c,h) = torch.split(state,state.size(1)/2,dim=1)
         logits = inputs
         for i in range(len(self.filters) + 1):
             matrix = getattr(self, f"_matrix{i:d}")
@@ -162,7 +161,7 @@ class EntropyBottleneck2(EntropyModel):
         half = float(0.5)
         v0 = inputs - half
         v1 = inputs + half
-        (state1,state2) = torch.split(state,self.filters*2,dim=1)
+        (state1,state2) = torch.split(state,state.size(1)/2,dim=1)
         lower,state1 = self._logits_cumulative(v0, state1, stop_gradient=False)
         upper,state2 = self._logits_cumulative(v1, state2, stop_gradient=False)
         sign = -torch.sign(lower + upper)
