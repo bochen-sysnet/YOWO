@@ -116,7 +116,7 @@ class EntropyBottleneck2(EntropyModel):
         return True
 
     def loss(self):
-        state1,state2 = torch.zeros(1,64*3*2,3).cuda(1),torch.zeros(1,64*3*2,3).cuda(1)
+        state1,state2 = torch.zeros(1,64*3*2,3).to(self.quantiles),torch.zeros(1,64*3*2,3).to(self.quantiles)
         logits,_ = self._logits_cumulative(self.quantiles, state1, stop_gradient=True)
         loss1 = torch.abs(logits - self.target).sum()
         logits,_ = self._logits_cumulative(self.quantiles, state2, stop_gradient=True)
