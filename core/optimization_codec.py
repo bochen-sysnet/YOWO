@@ -79,7 +79,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                 aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                 img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            elif epoch >=2:
+            elif epoch >=1:
                 reg_loss = torch.FloatTensor([0]).cuda(0)
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                 aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
