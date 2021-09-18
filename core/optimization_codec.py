@@ -73,17 +73,22 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # end of compression
         data = data.cuda() 
         with autocast():
-            if model_codec.name[:5] in ['MRLVC'] and epoch >= 2:
+            if epoch >= 3:
                 output = model(data)
                 reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                 aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                 img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            else:
+            elif epoch >=2:
                 reg_loss = torch.FloatTensor([0]).cuda(0)
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                 aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                 img_loss = torch.FloatTensor([0]).cuda(0)
+            else:
+                reg_loss = torch.FloatTensor([0]).cuda(0)
+                reg_loss = torch.FloatTensor([0]).cuda(0)
+                reg_loss = torch.FloatTensor([0]).cuda(0)
+                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
