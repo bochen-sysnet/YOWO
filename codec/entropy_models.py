@@ -63,9 +63,9 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        self.filters = 3
+        self.kernel = 3
         if use_RNN:
-            self.lstm = nn.LSTM(self.filters,self.filters,1)
+            self.lstm = nn.LSTM(self.kernel,self.kernel,1)
         self.use_RNN = use_RNN
 
     def _get_medians(self):
