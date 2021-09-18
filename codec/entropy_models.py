@@ -101,7 +101,7 @@ class EntropyBottleneck2(EntropyModel):
 
         half = float(0.5)
 
-        state1,state2 = torch.zeros(1,64*3,3).cuda(),torch.zeros(1,64*3,3).cuda()
+        state1,state2 = torch.zeros(1,64*21*2,3).cuda(),torch.zeros(1,64*21*2,3).cuda()
         lower,_ = self._logits_cumulative(samples - half, state1, stop_gradient=True)
         upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
         sign = -torch.sign(lower + upper)
@@ -116,7 +116,7 @@ class EntropyBottleneck2(EntropyModel):
         return True
 
     def loss(self):
-        state1,state2 = torch.zeros(1,64*21,3).cuda(),torch.zeros(1,64*21,3).cuda()
+        state1,state2 = torch.zeros(1,64*3*2,3).cuda(),torch.zeros(1,64*3*2,3).cuda()
         logits,_ = self._logits_cumulative(self.quantiles, state1, stop_gradient=True)
         loss1 = torch.abs(logits - self.target).sum()
         logits,_ = self._logits_cumulative(self.quantiles, state2, stop_gradient=True)
