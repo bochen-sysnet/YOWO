@@ -125,7 +125,7 @@ class EntropyBottleneck2(EntropyModel):
 
     def _logits_cumulative(self, inputs, state, stop_gradient):
         # TorchScript not yet working (nn.Mmodule indexing not supported)
-        (c,h) = torch.split(state,state.size(1)/2,dim=1)
+        (c,h) = torch.split(state,state.size(1)//2,dim=1)
         logits = inputs
         for i in range(len(self.filters) + 1):
             matrix = getattr(self, f"_matrix{i:d}")
@@ -161,7 +161,7 @@ class EntropyBottleneck2(EntropyModel):
         half = float(0.5)
         v0 = inputs - half
         v1 = inputs + half
-        (state1,state2) = torch.split(state,state.size(1)/2,dim=1)
+        (state1,state2) = torch.split(state,state.size(1)//2,dim=1)
         lower,state1 = self._logits_cumulative(v0, state1, stop_gradient=False)
         upper,state2 = self._logits_cumulative(v1, state2, stop_gradient=False)
         sign = -torch.sign(lower + upper)
