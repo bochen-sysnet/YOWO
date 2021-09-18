@@ -152,6 +152,7 @@ class EntropyBottleneck2(EntropyModel):
                 logits, state = self.lstm(logits, (c,h)) 
                 logits = logits.reshape(64,-1,3)
                 logits = logits.permute(0,2,1).contiguous() #(64,3,196)
+                state = torch.cat(state,dim=1)
                 
         return logits,state
 
