@@ -74,7 +74,7 @@ class LearnedVideoCodecs(nn.Module):
         # otherwise, it's P frame
         # hidden states
         hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
-        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,channels*(Height//16)*(Width//16)*4,dim=1)
+        hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*(Height//16)*(Width//16)*4,dim=1)
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow

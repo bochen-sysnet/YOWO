@@ -147,7 +147,6 @@ class EntropyBottleneck2(EntropyModel):
             # rnn
             if self.use_RNN and i == len(self.filters)/2-1:
                 # (64,3,21)/(64,3,196)
-                print(logits.size())
                 logits = logits.permute(0,2,1).contiguous() #(64,196,3)
                 logits = logits.reshape(1,-1,3) # (1,64*196,3)
                 logits, state = self.lstm(logits, (c,h)) 
