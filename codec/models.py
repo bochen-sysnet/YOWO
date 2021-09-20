@@ -416,8 +416,8 @@ class LossNet(nn.Module):
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
 
-        im1_warped_fine = F.grid_sample(im1, loc, align_corners=True)
-        loss_layer = torch.mean(torch.pow(im1_warped_fine-im1,2))
+        im1_warped_fine = F.grid_sample(im1, loc + flow_fine.permute(0,2,3,1), align_corners=True)
+        loss_layer = torch.mean(torch.pow(im1_warped_fine-im2,2))
 
         return loss_layer, flow_fine
 
