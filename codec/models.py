@@ -58,7 +58,7 @@ class LearnedVideoCodecs(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
 
-    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, prior_latent, use_psnr=True):
+    def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         # RPM flag: whether the first P frame (0: yes, it is the first P frame)
@@ -70,7 +70,7 @@ class LearnedVideoCodecs(nn.Module):
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
             Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, rae_hidden, rpm_hidden, prior_latent, bpp_est, loss, aux_loss, bpp_act, metrics
+            return Y1_com, rae_hidden, rpm_hidden, bpp_est, loss, aux_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
@@ -107,12 +107,10 @@ class LearnedVideoCodecs(nn.Module):
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         # hidden
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
-        # latent
-        prior_latent = torch.cat((mv_latent_hat, res_latent_hat.cuda(0)),dim=1)
         # hidden states
         if self.name != 'DVC':
             rae_hidden = torch.cat((hidden_mv, hidden_res.cuda(0)),dim=1)
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, prior_latent, bpp_est, img_loss, aux_loss, bpp_act, metrics
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, bpp_est, img_loss, aux_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
@@ -148,11 +146,10 @@ class LearnedVideoCodecs(nn.Module):
         if i%GOP == 0:
             Y0_com = None
         elif i%GOP > 1:
-            rae_hidden, rpm_hidden, latent = cache['rae_hidden'], cache['rpm_hidden'], cache['latent']
-        Y1_com,rae_hidden,rpm_hidden,latent,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent)
+            rae_hidden, rpm_hidden = cache['rae_hidden'], cache['rpm_hidden']
+        Y1_com,rae_hidden,rpm_hidden,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
-        cache['latent'] = latent.detach()
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['loss'][i] = img_loss
         cache['aux'][i] = aux_loss
