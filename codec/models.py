@@ -87,8 +87,8 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
-        res = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res, hidden_res.cuda(1), hidden_rpm_res.cuda(1))
+        res_tensor = Y1_raw.cuda(1) - Y1_MC
+        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res_tensor, hidden_res.cuda(1), hidden_rpm_res.cuda(1))
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -96,7 +96,7 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
-        print(mv_act,res_act,Height,Width,batch_size,bpp_act)
+        print(mv_tensor.size(),mv_act,res_tensor.size(),res_act,bpp_act)
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
