@@ -259,6 +259,7 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
         loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+        flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     elif image_coder_name == 'bpg':
         prename = "tmp/frames/prebpg"
         binname = "tmp/frames/bpg"
@@ -274,11 +275,11 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
         loss = calc_loss(Y1_raw, Y1_com, use_psnr)
-        bpp_est, aux_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_est, aux_loss, flow_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
     else:
         print('This image compression not implemented.')
         exit(0)
-    return Y1_com, bpp_est, loss, aux_loss, bpp_act, metrics
+    return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics
 
 def init_hidden(h,w,channels):
     rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
