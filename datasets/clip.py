@@ -212,9 +212,11 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
         label[0:tsz] = tmp
     
     if train:
-        return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['loss'][im_ind-1], cache['aux'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]
+        return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], cache['aux'][im_ind-1], \
+                cache['flow_loss'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]
     else:
-        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, cache['bpp_est'][im_ind-1], cache['loss'][im_ind-1], cache['aux'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]
+        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], \
+                cache['aux'][im_ind-1], cache['flow_loss'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]
 
 def load_data_detection(base_path, imgpath, train, train_dur, sampling_rate, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
     # clip loading and  data augmentation

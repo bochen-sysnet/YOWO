@@ -121,6 +121,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['img_loss'] = {}
+            cache['flow_loss'] = {}
             cache['aux'] = {}
             cache['bpp_act'] = {}
             cache['metrics'] = {}
