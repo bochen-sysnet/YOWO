@@ -96,6 +96,7 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
+        print(mv_act,res_act,Height,Width,batch_size,bpp_act)
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
@@ -500,7 +501,6 @@ class ComprNet(nn.Module):
         self.entropy_bottleneck.update(True)
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
-        print(latent.size(),bits_act)
         latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
 
         # decompress
