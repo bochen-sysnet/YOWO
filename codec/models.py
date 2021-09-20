@@ -76,7 +76,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*(Height//16)*(Width//16)*4,dim=1)
         # estimate optical flow
-        mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
         mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
@@ -102,12 +102,13 @@ class LearnedVideoCodecs(nn.Module):
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3
+        flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # hidden states
         if self.name != 'DVC':
             rae_hidden = torch.cat((hidden_mv, hidden_res.cuda(0)),dim=1)
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, bpp_est, img_loss, aux_loss, bpp_act, metrics
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
@@ -119,7 +120,7 @@ class LearnedVideoCodecs(nn.Module):
             # create cache
             cache['clip'] = clip
             cache['bpp_est'] = {}
-            cache['loss'] = {}
+            cache['img_loss'] = {}
             cache['aux'] = {}
             cache['bpp_act'] = {}
             cache['metrics'] = {}
@@ -144,22 +145,23 @@ class LearnedVideoCodecs(nn.Module):
             Y0_com = None
         elif i%GOP > 1:
             rae_hidden, rpm_hidden = cache['rae_hidden'], cache['rpm_hidden']
-        Y1_com,rae_hidden,rpm_hidden,bpp_est,img_loss,aux_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden)
+        Y1_com,rae_hidden,rpm_hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, rae_hidden, rpm_hidden)
         cache['rae_hidden'] = rae_hidden.detach()
         cache['rpm_hidden'] = rpm_hidden.detach()
         cache['clip'][i] = Y1_com.detach().squeeze(0)
-        cache['loss'][i] = img_loss
+        cache['img_loss'][i] = img_loss
+        cache['flow_loss'][i] = flow_loss
         cache['aux'][i] = aux_loss
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act
         cache['max_idx'] = i
     
-    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name[:5] == 'MRLVC':
-            return app_loss + pix_loss + bpp_loss + aux_loss
+            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
-            return pix_loss + bpp_loss + aux_loss
+            return pix_loss + bpp_loss + aux_loss + flow_loss
         else:
             print('Loss not implemented')
             exit(1)
