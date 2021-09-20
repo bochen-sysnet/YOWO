@@ -96,7 +96,8 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
-        print(mv_tensor.size(),torch.mean(mv_tensor),torch.max(mv_tensor),torch.mean(mv_tensor),mv_act,res_tensor.size(),torch.mean(res_tensor),torch.max(res_tensor),torch.mean(res_tensor),res_act)
+        print('m',mv_act,(mv_tensor.size()),float(torch.mean(mv_tensor)),float(torch.max(mv_tensor)),float(torch.mean(mv_tensor)))
+        print('r',res_act,res_tensor.size(),float(torch.mean(res_tensor)),float(torch.max(res_tensor)),float(torch.mean(res_tensor)))
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
