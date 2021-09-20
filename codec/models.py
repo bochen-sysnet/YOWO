@@ -81,9 +81,7 @@ class LearnedVideoCodecs(nn.Module):
         mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
-        Y1_warp = F.grid_sample(Y0_com, loc, align_corners=True)
-        test = calc_loss(Y0_com, Y1_warp.to(Y0_com.device), use_psnr)
-        print('test',test)
+        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
