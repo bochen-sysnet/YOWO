@@ -108,7 +108,7 @@ class EntropyBottleneck2(EntropyModel):
         pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
 
         pmf = pmf[:, 0, :]
-        print(pmf)
+        print(pmf,pmf.shape)
         exit(0)
         tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
 
