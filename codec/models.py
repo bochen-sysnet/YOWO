@@ -78,7 +78,7 @@ class LearnedVideoCodecs(nn.Module):
         # estimate optical flow
         mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
-        mv_hat,mv_latent_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
+        mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
@@ -88,7 +88,7 @@ class LearnedVideoCodecs(nn.Module):
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
-        res_hat,res_latent_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res_tensor, hidden_res.cuda(1), hidden_rpm_res.cuda(1))
+        res_hat,hidden_res,hidden_rpm_res,res_act,res_est,res_aux = self.res_codec(res_tensor, hidden_res.cuda(1), hidden_rpm_res.cuda(1))
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -96,6 +96,7 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
+        print(warp_loss,mc_loss)
         print('m',mv_act,(mv_tensor.size()),float(torch.mean(mv_tensor)),float(torch.max(mv_tensor)),float(torch.mean(mv_tensor)))
         print('r',res_act,res_tensor.size(),float(torch.mean(res_tensor)),float(torch.max(res_tensor)),float(torch.mean(res_tensor)))
         # auxilary loss
@@ -523,7 +524,7 @@ class ComprNet(nn.Module):
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
         #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
-        return hat, latent_hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
+        return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):
