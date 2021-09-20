@@ -81,12 +81,7 @@ class LearnedVideoCodecs(nn.Module):
         mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
-        Y1_warp = F.grid_sample(Y0_com, loc, align_corners=True)
-        
-        # test
-        test_loss = calc_loss(Y0_com, Y1_warp.to(Y0_com.device), use_psnr)
-        print('test',test_loss)
-        
+        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
@@ -102,8 +97,6 @@ class LearnedVideoCodecs(nn.Module):
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
         print(l1.cpu().data.item(),l2.cpu().data.item(),l3.cpu().data.item(),l4.cpu().data.item(),l5.cpu().data.item())
-        print('m',mv_act,(mv_tensor.size()),float(torch.mean(mv_tensor)),float(torch.max(mv_tensor)),float(torch.mean(mv_tensor)))
-        print('r',res_act,res_tensor.size(),float(torch.mean(res_tensor)),float(torch.max(res_tensor)),float(torch.mean(res_tensor)))
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
@@ -423,8 +416,8 @@ class LossNet(nn.Module):
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
 
-        im1_warped_fine = F.grid_sample(im1, loc + flow_fine.permute(0,2,3,1), align_corners=True)
-        loss_layer = torch.mean(torch.pow(im1_warped_fine-im2,2))
+        im1_warped_fine = F.grid_sample(im1, loc, align_corners=True)
+        loss_layer = torch.mean(torch.pow(im1_warped_fine-im1,2))
 
         return loss_layer, flow_fine
 
