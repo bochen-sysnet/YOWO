@@ -99,7 +99,6 @@ class LearnedVideoCodecs(nn.Module):
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
         print(l1.cpu().data.item(),l2.cpu().data.item(),l3.cpu().data.item(),l4.cpu().data.item(),l5.cpu().data.item())
-        print(warp_loss,mc_loss)
         print('m',mv_act,(mv_tensor.size()),float(torch.mean(mv_tensor)),float(torch.max(mv_tensor)),float(torch.mean(mv_tensor)))
         print('r',res_act,res_tensor.size(),float(torch.mean(res_tensor)),float(torch.max(res_tensor)),float(torch.mean(res_tensor)))
         # auxilary loss
@@ -108,6 +107,7 @@ class LearnedVideoCodecs(nn.Module):
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3
+        print(rec_loss, warp_loss, mc_loss)
         # hidden
         rpm_hidden = torch.cat((hidden_rpm_mv.cuda(0), hidden_rpm_res.cuda(0)),dim=1)
         # hidden states
