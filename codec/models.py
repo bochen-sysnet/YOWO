@@ -82,6 +82,8 @@ class LearnedVideoCodecs(nn.Module):
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc, align_corners=True)
+        test = calc_loss(Y0_com, Y1_warp.to(Y0_com.device), use_psnr)
+        print('test',test)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
