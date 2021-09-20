@@ -76,7 +76,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
         hidden_rpm_mv, hidden_rpm_res = torch.split(rpm_hidden,self.channels*(Height//16)*(Width//16)*4,dim=1)
         # estimate optical flow
-        mv_tensor, _, _, _, _, _ = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        mv_tensor, l1, l2, l3, l4, l5 = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         # compress optical flow
         mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
@@ -96,6 +96,7 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
+        print(l1.cpu().data.item(),l2.cpu().data.item(),l3.cpu().data.item(),l4.cpu().data.item(),l5.cpu().data.item())
         print(warp_loss,mc_loss)
         print('m',mv_act,(mv_tensor.size()),float(torch.mean(mv_tensor)),float(torch.max(mv_tensor)),float(torch.mean(mv_tensor)))
         print('r',res_act,res_tensor.size(),float(torch.mean(res_tensor)),float(torch.max(res_tensor)),float(torch.mean(res_tensor)))
