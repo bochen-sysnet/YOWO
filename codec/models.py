@@ -500,6 +500,7 @@ class ComprNet(nn.Module):
         self.entropy_bottleneck.update(True)
         string = self.entropy_bottleneck.compress(latent)
         bits_act = torch.FloatTensor([len(b''.join(string))*8])
+        print(latent.size(),bits_act)
         latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
 
         # decompress
