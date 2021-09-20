@@ -109,7 +109,6 @@ class EntropyBottleneck2(EntropyModel):
 
         pmf = pmf[:, 0, :]
         print(pmf,pmf.shape,torch.sum(pmf))
-        exit(0)
         tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
 
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
