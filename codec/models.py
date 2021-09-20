@@ -81,7 +81,12 @@ class LearnedVideoCodecs(nn.Module):
         mv_hat,hidden_mv,hidden_rpm_mv,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, hidden_mv, hidden_rpm_mv)
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
-        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        Y1_warp = F.grid_sample(Y0_com, loc, align_corners=True)
+        
+        # test
+        test_loss = calc_loss(Y0_com, Y1_warp.to(Y0_com.device), use_psnr)
+        print('test',test_loss)
+        
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
@@ -558,13 +563,12 @@ class MCNet(nn.Module):
         return m13
 
 def get_grid_locations(b, h, w):
-    y_range = torch.linspace(-1, 1, h)
-    x_range = torch.linspace(-1, 1, w)
-    y_grid, x_grid = torch.meshgrid(y_range, x_range)
-    loc = torch.cat((y_grid.unsqueeze(-1), x_grid.unsqueeze(-1)), -1)
-    loc = loc.unsqueeze(0)
-    loc = loc.repeat(b,1,1,1)
-    return loc
+    new_h = torch.linspace(-1,1,h).view(-1,1).repeat(1,w)
+    new_w = torch.linspace(-1,1,w).repeat(h,1)
+    grid  = torch.cat((new_w.unsqueeze(2),new_h.unsqueeze(2)),dim=2)
+    grid  = grid.unsqueeze(0)
+    grid = grid.repeat(b,1,1,1)
+    return grid
 
 if __name__ == '__main__':
     # Adam, lr=1e-4,1e-6
