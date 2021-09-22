@@ -162,7 +162,7 @@ else:
         r = adjust_codec_learning_rate(optimizer, epoch, cfg)
         
         # Train and test model
-        logging('training at epoch %d, r=.2f' % (epoch,r))
+        logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         logging('testing at epoch %d' % (epoch))
         score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
