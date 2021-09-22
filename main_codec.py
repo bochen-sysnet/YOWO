@@ -90,6 +90,8 @@ if cfg.TRAIN.RESUME_PATH:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
+        print(checkpoint['state_dict']['mv_codec.entropy_bottleneck._quantized_cdf'][0,:],checkpoint['state_dict']['mv_codec.entropy_bottleneck._cdf_length'])
+        print(checkpoint['state_dict']['res_codec.entropy_bottleneck._quantized_cdf'][0,:],checkpoint['state_dict']['res_codec.entropy_bottleneck._cdf_length'])
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_state_dict(checkpoint['state_dict'])
