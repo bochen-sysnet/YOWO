@@ -172,9 +172,6 @@ class LearnedVideoCodecs(nn.Module):
         for name, param in state_dict.items():
             if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
                  continue
-            if isinstance(param, Parameter):
-                # backwards compatibility for serialized parameters
-                param = param.data
             own_state[name].copy_(param)
         
 class StandardVideoCodecs(nn.Module):
