@@ -160,7 +160,7 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name[:5] == 'MRLVC':
-            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
+            return app_loss + pix_loss + bpp_loss + aux_loss*0.1 + flow_loss*0.1
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
         else:
