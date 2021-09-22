@@ -167,6 +167,16 @@ class LearnedVideoCodecs(nn.Module):
             print('Loss not implemented')
             exit(1)
         
+    def load_my_state_dict(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
+                 continue
+            if isinstance(param, Parameter):
+                # backwards compatibility for serialized parameters
+                param = param.data
+            own_state[name].copy_(param)
+        
 class StandardVideoCodecs(nn.Module):
     def __init__(self, name):
         super(StandardVideoCodecs, self).__init__()
