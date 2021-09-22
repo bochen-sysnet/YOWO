@@ -61,16 +61,11 @@ class LearnedVideoCodecs(nn.Module):
     def forward(self, Y0_com, Y1_raw, rae_hidden, rpm_hidden, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
-        # RPM flag: whether the first P frame (0: yes, it is the first P frame)
-        # exp1: encode all frames with I_flag on
-        # exp2: encode all frames without RPM_flag on
-        # exp3: encode I frames with I_flag, first P frames with RPM_flag off, 
-        # other P frames with RPM_flag on
-        # If is I frame, return image compression result of Y1_raw
+        gamma_0, gamma_1, gamma_2, gamma_3 = 1,1,.1,.1
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
-            Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, rae_hidden, rpm_hidden, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics
+            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
+            return Y1_com, rae_hidden, rpm_hidden, gamma_0*bpp_est, gamma_1*img_loss, gamma_2*aux_loss, gamma_3*flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         hidden_mv, hidden_res = torch.split(rae_hidden,self.channels*4,dim=1)
@@ -108,7 +103,7 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         if self.name != 'DVC':
             rae_hidden = torch.cat((hidden_mv, hidden_res.cuda(0)),dim=1)
-        return Y1_com.cuda(0), rae_hidden, rpm_hidden, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return Y1_com.cuda(0), rae_hidden, rpm_hidden, gamma_0*bpp_est, gamma_1*img_loss, gamma_2*aux_loss, gamma_3*flow_loss, bpp_act, metrics
         
     def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
                     frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
@@ -160,7 +155,7 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name[:5] == 'MRLVC':
-            return app_loss + pix_loss + bpp_loss + aux_loss*0.1 + flow_loss*0.1
+            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
         else:
