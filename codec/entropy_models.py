@@ -112,6 +112,7 @@ class EntropyBottleneck2(EntropyModel):
 
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
         self._quantized_cdf = quantized_cdf
+        print(quantized_cdf.size())
         self._cdf_length = pmf_length + 2
         return True
 
