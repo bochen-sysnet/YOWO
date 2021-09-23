@@ -149,7 +149,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['aux'][i] = aux_loss
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
-        cache['bpp_act'][i] = bpp_act
+        cache['bpp_act'][i] = bpp_act.cpu()
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
@@ -429,7 +429,6 @@ class ComprNet(nn.Module):
         
         # calculate bpp (actual)
         if self.training:
-            print(bits_est)
             bits_act = bits_est
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
