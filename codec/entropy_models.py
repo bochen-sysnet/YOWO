@@ -306,6 +306,7 @@ class EntropyBottleneck2(EntropyModel):
     def get_actual_bits(self, x, RPM_flag):
         if self.use_RPM and RPM_flag:
             bits_act = entropy_coding(self.name, 'tmp/bitstreams', torch.round(x).detach().cpu().numpy(), self.sigma.detach().cpu().numpy(), self.mu.detach().cpu().numpy())
+            torch.FloatTensor([bits_act])
         else:
             string = self.compress(x)
             bits_act = torch.FloatTensor([len(b''.join(string))*8])
