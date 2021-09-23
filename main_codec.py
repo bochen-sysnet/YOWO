@@ -52,7 +52,7 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-if cfg.TRAIN.CODEC_NAME in ['MRLVC','RLVC','DVC']:
+if cfg.TRAIN.CODEC_NAME in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP','RLVC','DVC']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
@@ -86,9 +86,10 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MRLVC','RLVC','DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP','RLVC','DVC']:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
+        print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']

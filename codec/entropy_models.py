@@ -28,7 +28,7 @@ class EntropyBottleneck2(EntropyModel):
         self,
         channels,
         name,
-        model_type = 'base',
+        model_type = 'BASE',
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),

@@ -35,15 +35,14 @@ from datasets.clip import *
 class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=64):
         super(LearnedVideoCodecs, self).__init__()
-        self.name = name # MRLVC,RLVC,DVC
+        self.name = name # 'MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP',RLVC,DVC
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
         self.image_coder_name = 'deepcod' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
-        use_RNN = (self.name[:5] == 'MRLVC' or self.name == 'RLVC')
-        self.mv_codec = ComprNet(device, 'mv', use_RNN=use_RNN, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, 'res', use_RNN=use_RNN, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
         
         # split on multi-gpus
@@ -387,7 +386,7 @@ class ConvLSTM(nn.Module):
         return h, torch.cat((c, h),dim=1)
 
 class ComprNet(nn.Module):
-    def __init__(self, device, name, use_RNN=True, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+    def __init__(self, device, data_name, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
         super(ComprNet, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -403,10 +402,15 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,name,'RHP')
+        bottleneck_type = 'BASE'
+        if codec_name in ['MRLVC-RPM', 'RLVC']:
+            bottleneck_type = 'RPM'
+        elif codec_name in ['MRLVC-RHP']:
+            bottleneck_type = 'RHP'
+        self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,bottleneck_type)
         self.channels = channels
-        self.use_RNN = use_RNN
-        if use_RNN:
+        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'RLVC'])
+        if use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         
@@ -415,7 +419,7 @@ class ComprNet(nn.Module):
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
-        if self.use_RNN:
+        if self.use_RAE:
             x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
@@ -433,7 +437,7 @@ class ComprNet(nn.Module):
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
-        if self.use_RNN:
+        if self.use_RAE:
             x, state_dec = self.enc_lstm(x, state_dec)
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
@@ -441,7 +445,7 @@ class ComprNet(nn.Module):
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
         
-        if self.use_RNN:
+        if self.use_RAE:
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
         #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
