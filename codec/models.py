@@ -122,7 +122,7 @@ class LearnedVideoCodecs(nn.Module):
             for i in range(Iframe_idx,frame_idx):
                 self._process_single_frame(i, GOP, cache, i==Iframe_idx)
         else:
-            self._process_single_frame(frame_idx-1, GOP, cache)
+            self._process_single_frame(frame_idx-1, GOP, cache, False)
             
     def _process_single_frame(self, i, GOP, cache, isNew):
         # frame shape
