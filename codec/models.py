@@ -403,7 +403,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,name,'base')
+        self.entropy_bottleneck = EntropyBottleneck2(channels,name,'RHP')
         self.channels = channels
         self.use_RNN = use_RNN
         if use_RNN:
@@ -428,10 +428,7 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # calculate bpp (actual)
-        if self.training:
-            bits_act = bits_est
-        else:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
