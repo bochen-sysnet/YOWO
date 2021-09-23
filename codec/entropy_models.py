@@ -121,7 +121,7 @@ class EntropyBottleneck2(EntropyModel):
 
                 bias = getattr(self, f"_bias{i:d}")
                 bias = bias.detach().view(1,self.channels,-1)
-                bias, b_state = self.lstm_bias[i](bias, torch.split(b_state.to(b_state.device),self.channels,dim=1))
+                bias, b_state = self.lstm_bias[i](bias, torch.split(b_state.to(bias.device),self.channels,dim=1))
                 bias = bias.view(self.channels, filters[i + 1], 1)
                 setattr(self, f"_bias{i:d}", nn.Parameter(bias))
                 b_state = torch.cat(b_state,dim=1)
@@ -129,7 +129,7 @@ class EntropyBottleneck2(EntropyModel):
                 if i < len(self.filters):
                     factor = getattr(self, f"_factor{i:d}")
                     factor = factor.detach().view(1,self.channels,-1)
-                    factor, f_state = self.lstm_factor[i](factor, torch.split(f_state.to(f_state.device),self.channels,dim=1)) 
+                    factor, f_state = self.lstm_factor[i](factor, torch.split(f_state.to(factor.device),self.channels,dim=1)) 
                     factor = factor.view(self.channels, filters[i + 1], 1)
                     setattr(self, f"_factor{i:d}", nn.Parameter(factor))
                     f_state = torch.cat(f_state,dim=1)
