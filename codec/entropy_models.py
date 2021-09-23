@@ -96,8 +96,9 @@ class EntropyBottleneck2(EntropyModel):
         if self.use_RPM:
             h = w = 224
             return torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        else:
+        elif self.use_RPM:
             return self.model_states
+        return None
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
