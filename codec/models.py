@@ -61,7 +61,7 @@ class LearnedVideoCodecs(nn.Module):
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
-        gamma_0, gamma_1, gamma_2, gamma_3 = 1,1,.1,.01
+        gamma_0, gamma_1, gamma_2, gamma_3 = 1,1,.01,.01
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
@@ -404,7 +404,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,name,False)
+        self.entropy_bottleneck = EntropyBottleneck2(channels,name,'RHP')
         self.channels = channels
         self.use_RNN = use_RNN
         if use_RNN:

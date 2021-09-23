@@ -25,8 +25,7 @@ class EntropyBottleneck2(EntropyModel):
         self,
         channels,
         name,
-        use_RHP = False,
-        use_RPM = False,
+        model_type = 'base',
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -65,11 +64,10 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        self.use_RHP = use_RHP
-        self.use_RPM = use_RPM
+        self.use_RHP = model_type == 'RHP'
+        self.use_RPM = model_type == 'RPM'
         self.name = name
         if use_RHP:
-            assert not use_RPM, 'cannot both RPM and RHP'
             self.lstm_matrix = nn.ModuleList() 
             self.lstm_bias = nn.ModuleList() 
             self.lstm_factor = nn.ModuleList() 
@@ -88,7 +86,6 @@ class EntropyBottleneck2(EntropyModel):
                 layer_states = [m_state,b_state,f_state]
                 self.model_states.append(layer_states)
         if use_RPM:
-            assert not use_RHP, 'cannot both RPM and RHP'
             self.sigma = self.mu = self.prior_latent = None
             self.RPM = RecProbModel(channels)
         
