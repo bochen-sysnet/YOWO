@@ -422,7 +422,16 @@ class ComprNet(nn.Module):
 
         # quantization + entropy coding
         latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
+        
+        # calculate bpp (estimated)
+        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        
+        # calculate bpp (actual)
+        if self.training:
+            bits_act = bits_est
+        else:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
@@ -431,11 +440,6 @@ class ComprNet(nn.Module):
             x, state_dec = self.enc_lstm(x, state_dec)
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x) # compressed optical flow (less accurate)
-        
-        # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
-        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
-        print(bits_act,bits_est)
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
