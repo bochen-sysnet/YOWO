@@ -410,7 +410,7 @@ class ComprNet(nn.Module):
         self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
         self.channels = channels
         self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'RLVC'])
-        if use_RAE:
+        if self.use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         
