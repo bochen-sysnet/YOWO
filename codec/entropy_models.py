@@ -109,6 +109,7 @@ class EntropyBottleneck2(EntropyModel):
             
         # update matrix, bias and factor with RNN
         if self.use_RHP:
+            print(self.state_dict())
             filters = (1,) + self.filters + (1,)
             for i in range(len(self.filters) + 1):
                 m_state,b_state,f_state = state[i]
