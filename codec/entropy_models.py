@@ -365,12 +365,12 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
 
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
 
-    half = torch.FloatTensor([0.5]).cuda()
+    half = torch.FloatTensor([0.5]).to(x_target.device)
 
     upper = x_target + half
     lower = x_target - half
 
-    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
+    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x_target.device))
     upper_l = torch.sigmoid((upper - mu) * (torch.exp(-sig) + tiny))
     lower_l = torch.sigmoid((lower - mu) * (torch.exp(-sig) + tiny))
     p_element = upper_l - lower_l
