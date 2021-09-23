@@ -82,7 +82,7 @@ class LearnedVideoCodecs(nn.Module):
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
-        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden.cuda(1), rpm_res_hidden.cuda(1), RPM_flag)
+        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -412,7 +412,7 @@ class ComprNet(nn.Module):
             self.dec_lstm = ConvLSTM(channels)
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag):
-        state_enc, state_dec = torch.split(hidden,self.channels*2,dim=1)
+        state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
