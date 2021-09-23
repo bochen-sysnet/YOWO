@@ -88,7 +88,7 @@ class LearnedVideoCodecs(nn.Module):
         # estimated bits
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
-        bpp_act = (mv_act + res_act)/(Height * Width * batch_size)
+        bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
