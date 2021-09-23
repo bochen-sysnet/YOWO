@@ -435,6 +435,7 @@ class ComprNet(nn.Module):
         # calculate bpp (estimated)
         log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        print(bits_act,bits_est)
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
