@@ -429,6 +429,7 @@ class ComprNet(nn.Module):
         
         # calculate bpp (actual)
         if self.training:
+            print(bits_est)
             bits_act = bits_est
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
