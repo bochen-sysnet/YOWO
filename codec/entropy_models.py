@@ -67,7 +67,7 @@ class EntropyBottleneck2(EntropyModel):
         self.use_RHP = model_type == 'RHP'
         self.use_RPM = model_type == 'RPM'
         self.name = name
-        if use_RHP:
+        if self.use_RHP:
             self.lstm_matrix = nn.ModuleList() 
             self.lstm_bias = nn.ModuleList() 
             self.lstm_factor = nn.ModuleList() 
@@ -85,7 +85,7 @@ class EntropyBottleneck2(EntropyModel):
                 f_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
                 layer_states = [m_state,b_state,f_state]
                 self.model_states.append(layer_states)
-        if use_RPM:
+        if self.use_RPM:
             self.sigma = self.mu = self.prior_latent = None
             self.RPM = RecProbModel(channels)
         
