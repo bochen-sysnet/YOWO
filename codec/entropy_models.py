@@ -226,7 +226,7 @@ class EntropyBottleneck2(EntropyModel):
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
             self.prior_latent = torch.round(x)
-            return self.prior_latent, likelihood, rpm_hidden
+            return self.prior_latent, likelihood, rpm_hidden.detach()
         self.prior_latent = torch.round(x)
             
         if training is None:
