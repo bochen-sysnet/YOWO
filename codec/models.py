@@ -286,7 +286,7 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
 
 def init_hidden(h,w,channels):
     rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
-    return torch.split(rae_hidden,schannels*4,dim=1)
+    return torch.split(rae_hidden,channels*4,dim=1)
     
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
