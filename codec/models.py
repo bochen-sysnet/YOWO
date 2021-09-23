@@ -402,12 +402,12 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        bottleneck_type = 'BASE'
+        self.bottleneck_type = 'BASE'
         if codec_name in ['MRLVC-RPM', 'RLVC']:
-            bottleneck_type = 'RPM'
+            self.bottleneck_type = 'RPM'
         elif codec_name in ['MRLVC-RHP']:
-            bottleneck_type = 'RHP'
-        self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,bottleneck_type)
+            self.bottleneck_type = 'RHP'
+        self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
         self.channels = channels
         self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'RLVC'])
         if use_RAE:
@@ -432,7 +432,10 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
+        if self.bottleneck_type == 'RPM':
+            bits_act = bits_est
+        else:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
