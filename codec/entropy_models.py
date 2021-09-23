@@ -221,9 +221,8 @@ class EntropyBottleneck2(EntropyModel):
     def forward(
         self, x, rpm_hidden, RPM_flag, training = None
     ):
-        if self.use_RHP:
-            rpm_hidden,_ = self.update(rpm_hidden, True)
-        elif self.use_RPM and RPM_flag:
+        rpm_hidden,_ = self.update(rpm_hidden, True)
+        if self.use_RPM and RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
             self.prior_latent = torch.round(x)
