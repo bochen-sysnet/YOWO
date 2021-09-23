@@ -24,7 +24,9 @@ class EntropyBottleneck2(EntropyModel):
     def __init__(
         self,
         channels,
-        use_RNN = True,
+        name,
+        use_RHP = False,
+        use_RPM = False,
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -63,20 +65,78 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        self.kernel = 3
-        if use_RNN:
-            self.lstm = nn.LSTM(self.kernel,self.kernel,1)
-        self.use_RNN = use_RNN
+        self.use_RHP = use_RHP
+        self.use_RPM = use_RPM
+        self.name = name
+        if use_RHP:
+            assert not use_RPM, 'cannot both RPM and RHP'
+            self.lstm_matrix = nn.ModuleList() 
+            self.lstm_bias = nn.ModuleList() 
+            self.lstm_factor = nn.ModuleList() 
+            self.model_states = []
+            for i in range(len(self.filters) + 1):
+                # build rnn
+                kernel = filters[i + 1] * filters[i]
+                self.lstm_matrix.append(nn.LSTM(kernel,kernel,1))
+                kernel = filters[i + 1]
+                self.lstm_bias.append(nn.LSTM(kernel,kernel,1))
+                self.lstm_factor.append(nn.LSTM(kernel,kernel,1))
+                # initial states
+                m_state = torch.zeros(1,channels*2,filters[i + 1] * filters[i]).cuda()
+                b_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
+                f_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
+                layer_states = [m_state,b_state,f_state]
+                self.model_states.append(layer_states)
+        if use_RPM:
+            assert not use_RHP, 'cannot both RPM and RHP'
+            self.sigma = self.mu = self.prior_latent = None
+            self.RPM = RecProbModel(channels)
+        
+    def init_state(self):
+        if self.use_RPM:
+            h = w = 224
+            return torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        else:
+            return self.model_states
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, force = False):
+    def update(self, state, force = False):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
             return False
+            
+        # update matrix, bias and factor with RNN
+        if self.use_RHP:
+            filters = (1,) + self.filters + (1,)
+            for i in range(len(self.filters) + 1):
+                m_state,b_state,f_state = state[i]
+                matrix = getattr(self, f"_matrix{i:d}")
+                matrix = matrix.detach().view(1,self.channels,-1)
+                matrix, m_state = self.lstm_matrix[i](matrix, torch.split(m_state,self.channels,dim=1)) 
+                matrix = matrix.view(self.channels, filters[i + 1], filters[i])
+                setattr(self, f"_matrix{i:d}", matrix)
+                m_state = torch.cat(m_state,dim=1)
+
+                bias = getattr(self, f"_bias{i:d}")
+                bias = bias.detach().view(1,self.channels,-1)
+                bias, b_state = self.lstm_bias[i](bias, torch.split(b_state,self.channels,dim=1))
+                bias = bias.view(self.channels, filters[i + 1], 1)
+                setattr(self, f"_bias{i:d}", bias)
+                b_state = torch.cat(b_state,dim=1)
+
+                if i < len(self.filters):
+                    factor = getattr(self, f"_factor{i:d}")
+                    factor = factor.detach().view(1,self.channels,-1)
+                    factor, f_state = self.lstm_factor[i](factor, torch.split(f_state,self.channels,dim=1)) 
+                    factor = factor.view(self.channels, filters[i + 1], 1)
+                    setattr(self, f"_factor{i:d}", factor)
+                    f_state = torch.cat(f_state,dim=1)
+                    
+                state[i] = [m_state.detach(),b_state.detach(),f_state.detach()]
 
         medians = self.quantiles[:, 0, 1]
 
@@ -101,9 +161,8 @@ class EntropyBottleneck2(EntropyModel):
 
         half = float(0.5)
 
-        state1,state2 = torch.zeros(1,64*21*2,3),torch.zeros(1,64*21*2,3)
-        lower,_ = self._logits_cumulative(samples - half, state1, stop_gradient=True)
-        upper,_ = self._logits_cumulative(samples + half, state2, stop_gradient=True)
+        lower = self._logits_cumulative(samples - half, stop_gradient=True)
+        upper = self._logits_cumulative(samples + half, stop_gradient=True)
         sign = -torch.sign(lower + upper)
         pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
 
@@ -113,19 +172,17 @@ class EntropyBottleneck2(EntropyModel):
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
         self._quantized_cdf = quantized_cdf
         self._cdf_length = pmf_length + 2
-        return True
+        return state, True
 
-    def loss(self):
-        state1,state2 = torch.zeros(1,64*3*2,3).to(self.quantiles),torch.zeros(1,64*3*2,3).to(self.quantiles)
-        logits,_ = self._logits_cumulative(self.quantiles, state1, stop_gradient=True)
-        loss1 = torch.abs(logits - self.target).sum()
-        logits,_ = self._logits_cumulative(self.quantiles, state2, stop_gradient=True)
-        loss2 = torch.abs(logits - self.target).sum()
-        return (loss1+loss2)/2
+    def loss(self, RPM_flag):
+        if self.use_RPM and RPM_flag:
+            return torch.FloatTensor([0]).squeeze(0).cuda(0)
+        logits = self._logits_cumulative(self.quantiles, stop_gradient=True)
+        loss = torch.abs(logits - self.target).sum()
+        return loss
 
-    def _logits_cumulative(self, inputs, state, stop_gradient):
+    def _logits_cumulative(self, inputs, stop_gradient):
         # TorchScript not yet working (nn.Mmodule indexing not supported)
-        (c,h) = torch.split(state,state.size(1)//2,dim=1)
         logits = inputs
         for i in range(len(self.filters) + 1):
             matrix = getattr(self, f"_matrix{i:d}")
@@ -143,38 +200,35 @@ class EntropyBottleneck2(EntropyModel):
                 if stop_gradient:
                     factor = factor.detach()
                 logits += torch.tanh(factor) * torch.tanh(logits)
-            
-            # rnn
-            if self.use_RNN and i == len(self.filters)/2-1:
-                # (64,3,21)/(64,3,196)
-                logits = logits.permute(0,2,1).contiguous() #(64,196,3)
-                logits = logits.reshape(1,-1,3) # (1,64*196,3)
-                logits, state = self.lstm(logits, (c,h)) 
-                logits = logits.reshape(64,-1,3)
-                logits = logits.permute(0,2,1).contiguous() #(64,3,196)
-                state = torch.cat(state,dim=1)
                 
-        return logits,state
+        return logits
 
     @torch.jit.unused
-    def _likelihood(self, inputs, state):
+    def _likelihood(self, inputs):
         half = float(0.5)
         v0 = inputs - half
         v1 = inputs + half
-        (state1,state2) = torch.split(state,state.size(1)//2,dim=1)
-        lower,state1 = self._logits_cumulative(v0, state1, stop_gradient=False)
-        upper,state2 = self._logits_cumulative(v1, state2, stop_gradient=False)
+        lower = self._logits_cumulative(v0, stop_gradient=False)
+        upper = self._logits_cumulative(v1, stop_gradient=False)
         sign = -torch.sign(lower + upper)
         sign = sign.detach()
         likelihood = torch.abs(
             torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower)
         )
-        state = torch.cat((state1,state2),dim=1)
-        return likelihood,state
+        return likelihood
 
     def forward(
-        self, x, state, training = None
+        self, x, rpm_hidden, RPM_flag, training = None
     ):
+        if self.use_RHP:
+            rpm_hidden,_ = self.update(rpm_hidden, True)
+        elif self.use_RPM and RPM_flag:
+            assert self.prior_latent is not None, 'prior latent is none!'
+            likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
+            self.prior_latent = torch.round(x)
+            return self.prior_latent, likelihood, rpm_hidden
+        self.prior_latent = torch.round(x)
+            
         if training is None:
             training = self.training
 
@@ -201,7 +255,7 @@ class EntropyBottleneck2(EntropyModel):
         )
 
         if not torch.jit.is_scripting():
-            likelihood,state = self._likelihood(outputs, state)
+            likelihood = self._likelihood(outputs)
             if self.use_likelihood_bound:
                 likelihood = self.likelihood_lower_bound(likelihood)
         else:
@@ -215,7 +269,7 @@ class EntropyBottleneck2(EntropyModel):
         likelihood = likelihood.reshape(shape)
         likelihood = likelihood.permute(*inv_perm).contiguous()
 
-        return outputs, likelihood, state
+        return outputs, likelihood, rpm_hidden
 
     @staticmethod
     def _build_indexes(size):
@@ -249,3 +303,83 @@ class EntropyBottleneck2(EntropyModel):
         medians = medians.expand(len(strings), *([-1] * (len(size) + 1)))
         return super().decompress(strings, indexes, medians.dtype, medians)
         
+    def get_actual_bits(self, x, RPM_flag):
+        if self.use_RPM and RPM_flag:
+            bits_act = entropy_coding(self.name, 'tmp/bitstreams', torch.round(x).detach().cpu().numpy(), self.sigma.detach().cpu().numpy(), self.mu.detach().cpu().numpy())
+        else:
+            string = self.compress(x)
+            bits_act = torch.FloatTensor([len(b''.join(string))*8])
+        return bits_act
+        
+# conditional probability
+# predict y_t based on parameters computed from y_t-1
+class RecProbModel(nn.Module):
+    def __init__(self, channels=128, act=torch.tanh):
+        super(RecProbModel, self).__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.lstm = ConvLSTM(channels)
+        self.conv5 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv6 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x, x_target, hidden):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x, hidden = self.lstm(x, hidden)
+        x = F.relu(self.conv5(x))
+        x = F.relu(self.conv6(x))
+        x = F.relu(self.conv7(x))
+        sigma_mu = F.relu(self.conv8(x))
+        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, channels)
+        return likelihood, hidden, sigma, mu
+
+def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
+
+    sigma, mu = torch.split(sigma_mu, channels, dim=1)
+
+    half = torch.FloatTensor([0.5]).cuda()
+
+    upper = x_target + half
+    lower = x_target - half
+
+    sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).cuda())
+    upper_l = torch.sigmoid((upper - mu) * (torch.exp(-sig) + tiny))
+    lower_l = torch.sigmoid((lower - mu) * (torch.exp(-sig) + tiny))
+    p_element = upper_l - lower_l
+    p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
+
+    return p_element, sigma, mu
+
+def entropy_coding(lat, path_bin, latent, sigma, mu):
+
+    if lat == 'mv':
+        bias = 50
+    else:
+        bias = 100
+
+    bin_name = lat + '.bin'
+    bitout = arithmeticcoding.BitOutputStream(open(path_bin + bin_name, "wb"))
+    enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
+
+    for h in range(latent.shape[1]):
+        for w in range(latent.shape[2]):
+            for ch in range(latent.shape[3]):
+                mu_val = mu[0, h, w, ch] + bias
+                sigma_val = sigma[0, h, w, ch]
+                symbol = latent[0, h, w, ch] + bias
+
+                freq = arithmeticcoding.logFrequencyTable_exp(mu_val, sigma_val, np.int(bias * 2 + 1))
+                enc.write(freq, symbol)
+
+    enc.finish()
+    bitout.close()
+
+    bits_value = os.path.getsize(path_bin + bin_name) * 8
+
+    return bits_value
