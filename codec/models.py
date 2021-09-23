@@ -19,7 +19,6 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
-import codec.arithmeticcoding as arithmeticcoding
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import EntropyBottleneck2

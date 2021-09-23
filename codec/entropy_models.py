@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from compressai.entropy_models import EntropyModel
+sys.path.append('..')
+import codec.arithmeticcoding as arithmeticcoding
 
 class EntropyBottleneck2(EntropyModel):
     r"""Entropy bottleneck layer, introduced by J. Ballé, D. Minnen, S. Singh,
