@@ -333,7 +333,7 @@ class RecProbModel(nn.Module):
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
         sigma_mu = F.relu(self.conv8(x))
-        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, channels)
+        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, self.channels)
         return likelihood, hidden, sigma, mu
         
 class ConvLSTM(nn.Module):
