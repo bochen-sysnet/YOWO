@@ -322,6 +322,7 @@ class RecProbModel(nn.Module):
         self.conv6 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
+        self.channels = channels
 
     def forward(self, x, x_target, hidden):
         x = F.relu(self.conv1(x))
