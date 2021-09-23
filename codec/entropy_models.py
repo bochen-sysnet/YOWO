@@ -85,17 +85,17 @@ class EntropyBottleneck2(EntropyModel):
                 f_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
                 layer_states = [m_state,b_state,f_state]
                 self.model_states.append(layer_states)
-        if self.use_RPM:
+        elif self.use_RPM:
             self.sigma = self.mu = self.prior_latent = None
             self.RPM = RecProbModel(channels)
+            h = w = 224
+            self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        else:
+            self.model_states = None
+             
         
     def init_state(self):
-        if self.use_RPM:
-            h = w = 224
-            return torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        elif self.use_RPM:
-            return self.model_states
-        return None
+        return self.model_states
 
     def _get_medians(self):
         medians = self.quantiles[:, :, 1:2]
