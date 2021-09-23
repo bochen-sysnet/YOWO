@@ -216,6 +216,7 @@ class EntropyBottleneck2(EntropyModel):
         likelihood = torch.abs(
             torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower)
         )
+        likelihood = torch.clip(likelihood, min=self.tail_mass, max=1 - self.tail_mass)
         return likelihood
 
     def forward(
