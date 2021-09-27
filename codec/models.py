@@ -104,9 +104,11 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
-    def update_cache(self, clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, transform, clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
             # create cache
+            if transform is not None:
+                clip = [transform(img).cuda() for img in clip]
             cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['img_loss'] = {}
@@ -173,7 +175,7 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, raw_clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, transform, raw_clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
             imgByteArr = io.BytesIO()
             width,height = 224,224
@@ -189,7 +191,7 @@ class StandardVideoCodecs(nn.Module):
             # bgr24, rgb24, rgb?
             process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
             for img in raw_clip:
-                process.stdin.write(np.array(img.cpu()).tobytes())
+                process.stdin.write(np.array(img).tobytes())
             # Close and flush stdin
             process.stdin.close()
             # Wait for sub-process to finish
