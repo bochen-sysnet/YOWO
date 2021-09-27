@@ -234,8 +234,8 @@ class StandardVideoCodecs(nn.Module):
                 cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
         cache['max_idx'] = frame_idx-1
     
-    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
-        return app_loss + pix_loss + bpp_loss + aux_loss
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
+        return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         
 def calc_metrics(Y1_raw, Y1_com, use_psnr):
     if use_psnr:
