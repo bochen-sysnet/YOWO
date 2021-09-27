@@ -13,6 +13,7 @@ import cv2
 from datasets import ava_helper, cv2_transform
 from datasets.dataset_utils import retry_load_images, get_frame_idx, get_sequence
 from datasets import image
+from torchvision import transforms
 
 logger = logging.getLogger(__name__)
 
@@ -496,239 +497,47 @@ class Ava_codec(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self._keyframe_indices)
+        
+    def _images_preprocessing_cv2(self, imgs):
+        
+        transform = transforms.Compose([
+                            transforms.ToTensor(),
+                            transforms.Normalize(
+                                mean=self._data_mean,
+                                std=self._data_std,
+                            ),
+                        ])
+        
+        # 255->1,HWC->CHW,RGB
+        imgs = [transform(img).cuda() for img in imgs]
 
-    def _images_and_boxes_preprocessing_cv2(self, imgs, boxes):
-        """
-        This function performs preprocessing for the input images and
-        corresponding boxes for one clip with opencv as backend.
-
-        Args:
-            imgs (tensor): the images.
-            boxes (ndarray): the boxes for the current clip.
-
-        Returns:
-            imgs (tensor): list of preprocessed images.
-            boxes (ndarray): preprocessed boxes.
-        """
-
-        height, width, _ = imgs[0].shape
+        return imgs
+        
+    def _boxes_preprocessing_cv2(self, boxes):
+        height, width = self.cache['hw']
 
         boxes[:, [0, 2]] *= width
         boxes[:, [1, 3]] *= height
         boxes = cv2_transform.clip_boxes_to_image(boxes, height, width)
 
-        # `transform.py` is list of np.array. However, for AVA, we only have
-        # one np.array.
         boxes = [boxes]
 
-        # The image now is in HWC, BGR format.
-        if self._split == "train":  # "train"
-            ''' slow-fast augmentation'''
-            # imgs, boxes = cv2_transform.random_short_side_scale_jitter_list(
-            #     imgs,
-            #     min_size=self._jitter_min_scale,
-            #     max_size=self._jitter_max_scale,
-            #     boxes=boxes,
-            # )
-            # imgs, boxes = cv2_transform.random_crop_list(
-            #     imgs, self._crop_size, order="HWC", boxes=boxes
-            # )
-            ''' zoom in augmentation '''
-            # imgs = [cv2_transform.scale(self._jitter_min_scale, img) for img in imgs]
-            # boxes = [
-            #     cv2_transform.scale_boxes(
-            #         self._jitter_min_scale, boxes[0], height, width
-            #     )
-            # ]
-            ''' label augmentation '''
-            mean = [v * 255.0 for v in self._data_mean]
-            imgs, boxes = cv2_transform.cdet_augmentation(imgs, boxes, mean=mean)
-            boxes = cv2_transform.box_augmentation(boxes)
-            boxes = cv2_transform.resize_boxes(self._crop_size, boxes, imgs[0].shape[0], imgs[0].shape[1])
-            imgs = [cv2_transform.resize(self._crop_size, img) for img in imgs]
-
-            if self.random_horizontal_flip:
-                imgs, boxes = cv2_transform.horizontal_flip_list(
-                    0.5, imgs, order="HWC", boxes=boxes
-                )
-        elif self._split == "val":  # need modified
-            # Short side to test_scale. Non-local and STRG uses 256.
-            # imgs = [cv2_transform.scale(self._crop_size, img) for img in imgs]
-            # boxes = [
-            #     cv2_transform.scale_boxes(
-            #         self._crop_size, boxes[0], height, width
-            #     )
-            # ]
-            # imgs, boxes = cv2_transform.spatial_shift_crop_list(
-            #     self._crop_size, imgs, 1, boxes=boxes
-            # )
-            imgs = [cv2_transform.resize(self._crop_size, img) for img in imgs]
-            boxes = cv2_transform.resize_boxes(self._crop_size, boxes, height, width)
-
-            if self._test_force_flip:
-                imgs, boxes = cv2_transform.horizontal_flip_list(
-                    1, imgs, order="HWC", boxes=boxes
-                )
-        elif self._split == "test":  # need modified
-            # Short side to test_scale. Non-local and STRG uses 256.
-            # imgs = [cv2_transform.scale(self._jitter_min_scale, img) for img in imgs]
-            # boxes = [
-            #     cv2_transform.scale_boxes(
-            #         self._jitter_min_scale, boxes[0], height, width
-            #     )
-            # ]
-            # imgs, boxes = cv2_transform.spatial_shift_crop_list(
-            #     self._crop_size, imgs, 1, boxes=boxes
-            # )
-            imgs = [cv2_transform.resize(self._crop_size, img) for img in imgs]
-            boxes = cv2_transform.resize_boxes(self._crop_size, boxes, height, width)
-
-            # if self._test_force_flip:
-            #     imgs, boxes = cv2_transform.horizontal_flip_list(
-            #         1, imgs, order="HWC", boxes=boxes
-            #     )
-            # mean = [v * 255.0 for v in self._data_mean]
-            # # imgs, boxes, pad_w, pad_h, ratio = cv2_transform.longer_scale(imgs, boxes, self._crop_size, mean)
-            # imgs, boxes, pad_w, pad_h = cv2_transform.cdet_preprocess(imgs, boxes, mean=mean)
-
-            if self._test_force_flip:
-                imgs, boxes = cv2_transform.horizontal_flip_list(
-                    1, imgs, order="HWC", boxes=boxes
-                )
-        else:
-            raise NotImplementedError(
-                "Unsupported split mode {}".format(self._split)
-            )
-        # Convert image to CHW keeping BGR order.
-        imgs = [cv2_transform.HWC2CHW(img) for img in imgs]
-
-        # Image [0, 255] -> [0, 1].
-        imgs = [img / 255.0 for img in imgs]
-
-        imgs = [
-            np.ascontiguousarray(
-                # img.reshape((3, self._crop_size, self._crop_size))
-                img.reshape((3, imgs[0].shape[1], imgs[0].shape[2]))
-            ).astype(np.float32)
-            for img in imgs
-        ]
-
-        # Do color augmentation (after divided by 255.0).
-        if self._split == "train" and self._use_color_augmentation:
-            if not self._pca_jitter_only:
-                imgs = cv2_transform.color_jitter_list(
-                    imgs,
-                    img_brightness=0.4,
-                    img_contrast=0.4,
-                    img_saturation=0.4,
-                )
-
-            imgs = cv2_transform.lighting_list(
-                imgs,
-                alphastd=0.1,
-                eigval=np.array(self._pca_eigval).astype(np.float32),
-                eigvec=np.array(self._pca_eigvec).astype(np.float32),
-            )
-
-        # Normalize images by mean and std.
-        imgs = [
-            cv2_transform.color_normalization(
-                img,
-                np.array(self._data_mean, dtype=np.float32),
-                np.array(self._data_std, dtype=np.float32),
-            )
-            for img in imgs
-        ]
-
-        # Concat list of images to single ndarray.
-        imgs = np.concatenate(
-            [np.expand_dims(img, axis=1) for img in imgs], axis=1
-        )
-
-        if not self._use_bgr:
-            # Convert image format from BGR to RGB.
-            imgs = imgs[::-1, ...]
-
-        imgs = np.ascontiguousarray(imgs)
-        imgs = torch.from_numpy(imgs)
+        # The image now is in HWC, BGR format. 
+        boxes = cv2_transform.resize_boxes(self._crop_size, boxes, height, width)
+        
         bx_count = boxes[0].shape[0]
         boxes = cv2_transform.clip_boxes_to_image(
-            boxes[0], imgs[0].shape[1], imgs[0].shape[2]
+            boxes[0], self._crop_size, self._crop_size
         )
-        boxes = cv2_transform.transform_cxcywh(boxes, imgs[0].shape[1], imgs[0].shape[2])
+        boxes = cv2_transform.transform_cxcywh(boxes, self._crop_size, self._crop_size)
         assert bx_count == boxes.shape[0]
 
-        return imgs, boxes
+        return boxes
 
     def __getitem__(self, idx):
-        """
-        Generate corresponding clips, boxes, labels and metadata for given idx.
+        ret, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = self._load_data_from_cache(idx)
 
-        Args:
-            idx (int): the video index provided by the pytorch sampler.
-        Returns:
-            frames (tensor): the frames of sampled from the video. The dimension
-                is `channel` x `num frames` x `height` x `width`.
-            label (ndarray): the label for correspond boxes for the current video.
-            idx (int): the video index provided by the pytorch sampler.
-            extra_data (dict): a dict containing extra data fields, like "boxes",
-                "ori_boxes" and "metadata".
-        """
-        # Get the frame idxs for current clip. We can use it as center or latest
-        video_idx, sec_idx, sec, frame_idx = self._keyframe_indices[idx]
-        clip_label_list = self._keyframe_boxes_and_labels[video_idx][sec_idx]
-
-        assert self.cfg.AVA.IMG_PROC_BACKEND != 'pytorch'
-        sample_rate = self._sample_rate
-        seq_len = self._video_length * sample_rate
-        seq = get_sequence(
-            frame_idx,
-            seq_len // 2,
-            sample_rate,
-            num_frames=len(self._image_paths[video_idx]),
-        )
-        image_paths = [self._image_paths[video_idx][frame - 1] for frame in seq]
-        imgs = retry_load_images(image_paths, backend=self.cfg.AVA.IMG_PROC_BACKEND)
-
-        assert len(clip_label_list) > 0
-        assert len(clip_label_list) <= self._max_objs
-        num_objs = len(clip_label_list)
-        keyframe_info = self._image_paths[video_idx][frame_idx - 1]
-        src_height, src_width = imgs[0].shape[0], imgs[0].shape[1]
-
-        # Get boxes and labels for current clip.
-        boxes = []
-        labels = []
-        for box_labels in clip_label_list:
-            boxes.append(box_labels[0])
-            labels.append(box_labels[1])
-
-        boxes = np.array(boxes)
-        ori_boxes = boxes.copy()
-
-        imgs, boxes = self._images_and_boxes_preprocessing_cv2(
-            imgs, boxes=boxes
-        )
-
-        inp_height, inp_width = imgs.size(2), imgs.size(3)
-
-        assert boxes.shape[1] == 4
-        assert num_objs == len(labels)
-        assert boxes.shape[0] <= self._max_objs
-        assert boxes.shape[0] == len(labels)
-
-        ret_cls   = np.zeros((self._max_objs, self.n_classes), dtype=np.float32)
-        ret_boxes = np.zeros((self._max_objs, 4), dtype=np.float32)
-        for i in range(num_objs):
-            ret_boxes[i, :] = boxes[i]
-            label = np.array(labels[i])
-            assert len(label) > 0, 'Fatal Error'
-            for cls_ind in label:
-                    ret_cls[i, cls_ind - 1] = 1
-
-        ret = {'clip': imgs, 'cls': ret_cls, 'boxes': ret_boxes, 'metadata':np.array([video_idx, sec, src_width, src_height])}
-
-        return ret
+        return ret, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
 
     def _prepare_cdet(self, num_objs, boxes, labels, inp_width, inp_height):
         output_w = inp_width // self._downsample
@@ -784,17 +593,95 @@ class Ava_codec(torch.utils.data.Dataset):
 
         return ret
         
+    def _read_video_clip(self, idx):
+        # Get the frame idxs for current clip. We can use it as center or latest
+        video_idx, sec_idx, sec, frame_idx = self._keyframe_indices[idx]
+
+        assert self.cfg.AVA.IMG_PROC_BACKEND != 'pytorch'
+        sample_rate = self._sample_rate
+        seq_len = self._video_length * sample_rate
+        seq = list(range(len(self._image_paths[video_idx])))
+        image_paths = [self._image_paths[video_idx][frame - 1] for frame in seq]
+        imgs = retry_load_images(image_paths, backend=self.cfg.AVA.IMG_PROC_BACKEND)
+        self.cache['hw'] = (imgs[0].shape[0],imgs[0].shape[1])
+        
+        imgs = []
+        for image_path in image_paths:
+            imgs.append(Image.open(image_path).convert('RGB'))
+            
+        imgs = [img.resize(self.cache['hw']) for img in imgs]
+                    
+        return imgs
+        
+    def _load_data_from_cache(self, idx):
+        # Get the frame idxs for current clip. We can use it as center or latest
+        video_idx, sec_idx, sec, frame_idx = self._keyframe_indices[idx]
+        clip_label_list = self._keyframe_boxes_and_labels[video_idx][sec_idx]
+
+        assert self.cfg.AVA.IMG_PROC_BACKEND != 'pytorch'
+        sample_rate = self._sample_rate
+        seq_len = self._video_length * sample_rate
+        assert frame_idx>=1
+        seq = get_sequence(
+            frame_idx,
+            seq_len // 2,
+            sample_rate,
+            num_frames=len(self._image_paths[video_idx]),
+        )
+        imgs = [self.cache['clip'][frame - 1] for frame in seq]
+
+        assert len(clip_label_list) > 0
+        assert len(clip_label_list) <= self._max_objs
+        num_objs = len(clip_label_list)
+        keyframe_info = self._image_paths[video_idx][frame_idx - 1]
+        src_height, src_width = imgs[0].shape[0], imgs[0].shape[1]
+
+        # Get boxes and labels for current clip.
+        boxes = []
+        labels = []
+        for box_labels in clip_label_list:
+            boxes.append(box_labels[0])
+            labels.append(box_labels[1])
+
+        boxes = np.array(boxes)
+        ori_boxes = boxes.copy()
+
+        boxes = self._boxes_preprocessing_cv2(boxes)
+
+        assert boxes.shape[1] == 4
+        assert num_objs == len(labels)
+        assert boxes.shape[0] <= self._max_objs
+        assert boxes.shape[0] == len(labels)
+
+        ret_cls   = np.zeros((self._max_objs, self.n_classes), dtype=np.float32)
+        ret_boxes = np.zeros((self._max_objs, 4), dtype=np.float32)
+        for i in range(num_objs):
+            ret_boxes[i, :] = boxes[i]
+            label = np.array(labels[i])
+            assert len(label) > 0, 'Fatal Error'
+            for cls_ind in label:
+                    ret_cls[i, cls_ind - 1] = 1
+                 
+        ret = {'clip': imgs, 'cls': ret_cls, 'boxes': ret_boxes, 'metadata':np.array([video_idx, sec, src_width, src_height])}
+        
+        return ret, cache['bpp_est'][frame_idx-1], cache['img_loss'][frame_idx-1], cache['aux'][frame_idx-1], \
+                cache['flow_loss'][frame_idx-1], cache['bpp_act'][frame_idx-1], cache['metrics'][frame_idx-1]
+        
     def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         # use codec to process the video first
         video_idx, sec_idx, sec, frame_idx = self._keyframe_indices[index]
+        startNewClip = (video_idx != self.prev_video or self.cache['max_idx'] != frame_idx-2)
+        sample_rate = self._sample_rate
+        seq_len = self._video_length * sample_rate
+        if startNewClip:
+            # create RGB, HWC, 255 
+            self.cache['clip'] = self._read_video_clip(index)
+            if model_codec.name not in ['x265', 'x264']:
+                self.cache['clip'] = self._images_preprocessing_cv2(self.cache['clip'])
+        model_codec.update_cache(frame_idx, 10, seq_len, sample_rate, self.cache, startNewClip, (self._crop_size,self._crop_size))
+        if startNewClip:
+            if model_codec.name in ['x265', 'x264']:
+                self.cache['clip'] = self._images_preprocessing_cv2(self.cache['clip'])
         self.prev_video = video_idx
-        
-def read_video_clip():
-    # read a whole video
-    pass
-    
-def load_data_from_cache():
-    # load sequence from compressed cache
-    pass

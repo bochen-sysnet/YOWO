@@ -114,8 +114,16 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
         # x265/x264/MRLVC/RLVC/DVC
         # read whole video
-        clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
-        model_codec.update_cache(self.transform, clip, im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
+        if startNewClip:
+            self.cache['clip'] = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
+            if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
+                self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
+        else:
+            clip = None
+        model_codec.update_cache(im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
+        if startNewClip:
+            if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
+                self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         self.prev_video = cur_video
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):

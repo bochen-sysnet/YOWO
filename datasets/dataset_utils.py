@@ -65,10 +65,10 @@ def get_sequence(center_idx, half_len, sample_rate, num_frames):
     seq = list(range(center_idx - half_len*2 + 1*sample_rate, center_idx+1*sample_rate, sample_rate))
     
     for seq_idx in range(len(seq)):
-        if seq[seq_idx] < 0:
-            seq[seq_idx] = 0
+        if seq[seq_idx] < 1:
+            seq[seq_idx] = 1
         elif seq[seq_idx] >= num_frames:
-            seq[seq_idx] = num_frames - 1
+            seq[seq_idx] = num_frames
     return seq
 
 

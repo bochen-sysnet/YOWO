@@ -35,7 +35,7 @@ from datasets.clip import *
 class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=128):
         super(LearnedVideoCodecs, self).__init__()
-        self.name = name # 'MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP',RLVC,DVC
+        self.name = name # 'MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP',RLVC,DVC,RAW
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
@@ -66,6 +66,10 @@ class LearnedVideoCodecs(nn.Module):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
+        if self.name == 'RAW':
+            bpp_est = bpp_act = metrics = torch.FloatTensor([0]).cuda(0)
+            aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+            return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act. metrics
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
             return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
@@ -104,12 +108,9 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
-    def update_cache(self, transform, clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
             # create cache
-            if transform is not None:
-                clip = [transform(img).cuda() for img in clip]
-            cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['img_loss'] = {}
             cache['flow_loss'] = {}
@@ -175,10 +176,10 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, transform, raw_clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
         if startNewClip:
             imgByteArr = io.BytesIO()
-            width,height = 224,224
+            width,height = shape
             fps = 25
             Q = 27#15,19,23,27
             GOP = 10
@@ -193,6 +194,7 @@ class StandardVideoCodecs(nn.Module):
             # bgr24, rgb24, rgb?
             #process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
             process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
+            raw_clip = cache['clip']
             for img in raw_clip:
                 process.stdin.write(np.array(img).tobytes())
             # Close and flush stdin
@@ -214,12 +216,11 @@ class StandardVideoCodecs(nn.Module):
                 # Capture frame-by-frame
                 ret, img = cap.read()
                 if ret != True:break
-                clip.append(transform(img).cuda())
+                clip.append(img)
             # When everything done, release the video capture object
             cap.release()
             assert len(clip) == len(raw_clip), 'Clip size mismatch'
             # create cache
-            cache['clip'] = clip
             cache['bpp_est'] = {}
             cache['img_loss'] = {}
             cache['bpp_act'] = {}
@@ -228,13 +229,15 @@ class StandardVideoCodecs(nn.Module):
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),clip[i]
+                Y1_raw = torch.FloatTensor(raw_clip[i]).cuda()
+                Y1_com = torch.FloatTensor(clip[i]).cuda()
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = torch.FloatTensor([bpp])
                 cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
+            cache['clip'] = clip
         cache['max_idx'] = frame_idx-1
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):

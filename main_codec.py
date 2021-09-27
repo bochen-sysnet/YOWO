@@ -114,14 +114,8 @@ dataset = cfg.TRAIN.DATASET
 assert dataset == 'ucf24' or dataset == 'jhmdb21' or dataset == 'ava', 'invalid dataset'
 
 if dataset == 'ava':
-    train_dataset = Ava(cfg, split='train', only_detection=False)
-    test_dataset  = Ava(cfg, split='val', only_detection=False)
-
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True, 
-                                               num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=True, pin_memory=True)
-    
-    test_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=False,
-                                               num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=False, pin_memory=True)
+    train_dataset = Ava_codec(cfg, split='train', only_detection=False)
+    test_dataset  = Ava_codec(cfg, split='val', only_detection=False)
 
     loss_module   = RegionLoss_Ava(cfg).cuda()
 
@@ -139,13 +133,7 @@ elif dataset in ['ucf24', 'jhmdb21']:
                        shape=(cfg.DATA.TRAIN_CROP_SIZE, cfg.DATA.TRAIN_CROP_SIZE),
                        transform=transforms.Compose([transforms.ToTensor()]), 
                        train=False, clip_duration=cfg.DATA.NUM_FRAMES, sampling_rate=cfg.DATA.SAMPLING_RATE)
-
-    # cannot use dataloader because the data loading should be interactive
-    # train_loader  = torch.utils.data.DataLoader(train_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
-    #                                           num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=True, pin_memory=True)
-    # test_loader   = torch.utils.data.DataLoader(test_dataset, batch_size= cfg.TRAIN.BATCH_SIZE, shuffle=False,
-    #                                           num_workers=cfg.DATA_LOADER.NUM_WORKERS, drop_last=False, pin_memory=True)
-
+                       
     loss_module   = RegionLoss(cfg).cuda()
 
     train = getattr(sys.modules[__name__], 'train_ucf24_jhmdb21_codec')
