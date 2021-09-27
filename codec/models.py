@@ -33,7 +33,7 @@ from datasets.clip import *
 # GOP_size = args.f_P + args.b_P + 1
 # Output: compressed images, predicted bits, actual bits
 class LearnedVideoCodecs(nn.Module):
-    def __init__(self, name, channels=128):
+    def __init__(self, name, channels=64):
         super(LearnedVideoCodecs, self).__init__()
         self.name = name # 'MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP',RLVC,DVC
         device = torch.device('cuda')
