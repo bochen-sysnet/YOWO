@@ -51,6 +51,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
 
     model.eval()
     model_codec.train()
+    model_codec.update(epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression

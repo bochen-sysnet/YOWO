@@ -55,11 +55,16 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
+        
+    def update(self, epoch):
+        if epoch == 1:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
+        else:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
 
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
-        gamma_0, gamma_1, gamma_2, gamma_3 = 1,1,.01,.01
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
@@ -97,7 +102,7 @@ class LearnedVideoCodecs(nn.Module):
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), hidden_states, gamma_0*bpp_est, gamma_1*img_loss, gamma_2*aux_loss, gamma_3*flow_loss, bpp_act, metrics
+        return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
     def update_cache(self, clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
