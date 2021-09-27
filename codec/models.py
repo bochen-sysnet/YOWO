@@ -188,8 +188,8 @@ class StandardVideoCodecs(nn.Module):
                 cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
             elif self.name == 'x264':
                 libname = 'libx264'
-                cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b strategy 0 -sc threshold 0 -loglevel debug {output_filename}'
-                #cmd = f'/usr/bin/ffmpeg -y -pix_fmt yuv420p -s {width}x{height} -f rawvideo -r {fps} -i pipe: -c:v libx264 -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b strategy 0 -sc threshold 0 -loglevel debug {output_filename}'
+                cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b strategy 0 -sc_threshold 0 -loglevel debug {output_filename}'
+                #cmd = f'/usr/bin/ffmpeg -y -pix_fmt yuv420p -s {width}x{height} -f rawvideo -r {fps} -i pipe: -c:v libx264 -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b strategy 0 -sc_threshold 0 -loglevel debug {output_filename}'
             else:
                 print('Codec not supported')
                 exit(1)
