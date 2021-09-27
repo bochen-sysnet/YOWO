@@ -185,7 +185,7 @@ class StandardVideoCodecs(nn.Module):
             output_filename = 'tmp/videostreams/output.mp4'
             if self.name == 'x265':
                 libname = 'libx265'
-                cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf 24 {output_filename}'
+                cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
                 #cmd = f'/usr/bin/ffmpeg -pix_fmt yuv420p -s {width}x{height} -f rawvideo -r {fps} -i pipe: -c:v libx265 -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
             elif self.name == 'x264':
                 libname = 'libx264'
