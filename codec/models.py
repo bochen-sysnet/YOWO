@@ -176,7 +176,7 @@ class StandardVideoCodecs(nn.Module):
     def update_cache(self, raw_clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
             imgByteArr = io.BytesIO()
-            width,height = shape
+            width,height = 224,224
             fps = 25
             output_filename = 'tmp/videostreams/output.mp4'
             if self.name == 'x265':
