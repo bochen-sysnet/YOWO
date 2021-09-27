@@ -68,7 +68,7 @@ class LearnedVideoCodecs(nn.Module):
         batch_size, _, Height, Width = Y1_raw.shape
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, hidden_states, gamma_0*bpp_est, gamma_1*img_loss, gamma_2*aux_loss, gamma_3*flow_loss, bpp_act, metrics
+            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
