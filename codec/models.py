@@ -180,16 +180,21 @@ class StandardVideoCodecs(nn.Module):
             imgByteArr = io.BytesIO()
             width,height = 224,224
             fps = 25
+            Q = 27#15,19,23,27
+            GOP = 10
             output_filename = 'tmp/videostreams/output.mp4'
             if self.name == 'x265':
                 libname = 'libx265'
+                cmd = f'/usr/bin/ffmpeg -pix_fmt yuv420p -s {width}x{height} -r {fps} -i pipe: -c:v libx265 -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
             elif self.name == 'x264':
                 libname = 'libx264'
+                cmd = f'/usr/bin/ffmpeg -y -pix_fmt yuv420p -s {width}x{height} -r {fps} -i pipe: -c:v libx264 -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b strategy 0 -sc threshold 0 -loglevel debug {output_filename}'
             else:
                 print('Codec not supported')
                 exit(1)
             # bgr24, rgb24, rgb?
-            process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            #process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+            process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
             for img in raw_clip:
                 process.stdin.write(np.array(img).tobytes())
             # Close and flush stdin
