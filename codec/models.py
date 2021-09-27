@@ -221,6 +221,8 @@ class StandardVideoCodecs(nn.Module):
             cache['img_loss'] = {}
             cache['bpp_act'] = {}
             cache['metrics'] = {}
+            cache['flow_loss'] = {}
+            cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
                 Y1_raw,Y1_com = transform(raw_clip[i]).cuda(),clip[i]
@@ -228,6 +230,8 @@ class StandardVideoCodecs(nn.Module):
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = torch.FloatTensor([bpp])
+                cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
+                cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
         cache['max_idx'] = frame_idx-1
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss):
