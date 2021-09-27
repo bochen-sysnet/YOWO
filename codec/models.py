@@ -173,11 +173,8 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
-                    frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, raw_clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
-            # read raw video clip
-            raw_clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
             imgByteArr = io.BytesIO()
             width,height = shape
             fps = 25
