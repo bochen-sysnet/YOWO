@@ -113,6 +113,90 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         cur_video = im_split[1]
         startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
         # x265/x264/MRLVC/RLVC/DVC
-        model_codec.update_cache(self.base_path, imgpath, self.train, self.shape, self.dataset, self.transform, \
-            im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
+        # read whole video
+        clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
+        if self.transform is not None:
+            clip = [transform(img).cuda() for img in clip]
+        model_codec.update_cache(clip, im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
         self.prev_video = cur_video
+    
+def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
+    # load whole video as a clip for further processing
+    # all frames in a video should be processed with the same augmentation or no augmentation
+    # the data will be loaded from the current clip
+    
+    im_split = imgpath.split('/')
+
+    img_folder = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1])
+    if dataset_use == 'ucf24':
+        max_num = len(os.listdir(img_folder))
+    elif dataset_use == 'jhmdb21':
+        max_num = len(os.listdir(img_folder)) - 1
+
+    clip = []
+
+    for i in range(max_num):
+        
+        if dataset_use == 'ucf24':
+            path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.jpg'.format(i+1))
+        elif dataset_use == 'jhmdb21':
+            path_tmp = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1] ,'{:05d}.png'.format(i+1))
+
+        clip.append(Image.open(path_tmp).convert('RGB'))
+    
+    clip = [img.resize(shape) for img in clip]
+    
+    return clip
+    
+def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_rate, cache, dataset_use='ucf24'):
+    # load 8/16 frames from video clips
+    
+    im_split = imgpath.split('/')
+    num_parts = len(im_split)
+    im_ind = int(im_split[num_parts-1][0:5])
+    labpath = os.path.join(base_path, 'labels', im_split[0], im_split[1] ,'{:05d}.txt'.format(im_ind))
+    
+    img_folder = os.path.join(base_path, 'rgb-images', im_split[0], im_split[1])
+    if dataset_use == 'ucf24':
+        max_num = len(os.listdir(img_folder))
+    elif dataset_use == 'jhmdb21':
+        max_num = len(os.listdir(img_folder)) - 1
+    
+    clip_tmp = cache['clip']
+    
+    ### We change downsampling rate throughout training as a       ###
+    ### temporal augmentation, which brings around 1-2 frame       ###
+    ### mAP. During test time it is set to cfg.DATA.SAMPLING_RATE. ###
+    d = sample_rate
+        
+    clip = []
+    for i in reversed(range(train_dur)):
+        # make it as a loop
+        i_temp = im_ind - i * d - 1
+        if i_temp < 0:
+            i_temp = 0
+        elif i_temp > max_num-1:
+            i_temp = max_num-1
+        clip.append(clip_tmp[i_temp])
+        
+    _,h,w = clip[0].shape
+    label = torch.zeros(50*5)
+    try:
+        tmp = torch.from_numpy(read_truths_args(labpath, 8.0/w).astype('float32'))
+    except Exception:
+        tmp = torch.zeros(1,5)
+
+    tmp = tmp.view(-1)
+    tsz = tmp.numel()
+
+    if tsz > 50*5:
+        label = tmp[0:50*5]
+    elif tsz > 0:
+        label[0:tsz] = tmp
+    
+    if train:
+        return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], cache['aux'][im_ind-1], \
+                cache['flow_loss'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]
+    else:
+        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], \
+                cache['aux'][im_ind-1], cache['flow_loss'][im_ind-1], cache['bpp_act'][im_ind-1], cache['metrics'][im_ind-1]

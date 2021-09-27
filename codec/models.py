@@ -99,13 +99,8 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, gamma_0*bpp_est, gamma_1*img_loss, gamma_2*aux_loss, gamma_3*flow_loss, bpp_act, metrics
         
-    def update_cache(self, base_path, imgpath, train, shape, dataset, transform, \
-                    frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, clip, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
         if startNewClip:
-            # read raw video clip
-            clip = read_video_clip(base_path, imgpath, train, clip_duration, sampling_rate, shape, dataset)
-            if transform is not None:
-                clip = [transform(img).cuda() for img in clip]
             # create cache
             cache['clip'] = clip
             cache['bpp_est'] = {}
