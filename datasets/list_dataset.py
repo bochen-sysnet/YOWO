@@ -116,7 +116,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # read whole video
         clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
         if self.transform is not None:
-            clip = [transform(img).cuda() for img in clip]
+            clip = [self.transform(img).cuda() for img in clip]
         model_codec.update_cache(clip, im_ind, 10, self.clip_duration, self.sampling_rate, self.cache, startNewClip)
         self.prev_video = cur_video
     
