@@ -405,11 +405,11 @@ class ComprNet(nn.Module):
         self.bottleneck_type = 'BASE'
         if codec_name in ['MRLVC-RPM', 'RLVC']:
             self.bottleneck_type = 'RPM'
-        elif codec_name in ['MRLVC-RHP']:
+        elif codec_name in ['MRLVC-RHP', 'MRLVC-RHP-128']:
             self.bottleneck_type = 'RHP'
         self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
         self.channels = channels
-        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'RLVC'])
+        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128', 'RLVC'])
         if self.use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
