@@ -156,7 +156,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        if self.name[:5] == 'MRLVC':
+        if self.name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128', 'RAW']:
             return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
