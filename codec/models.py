@@ -44,6 +44,7 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
+        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
         
         # split on multi-gpus
         self.split()
