@@ -108,7 +108,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
-    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip):
+    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
