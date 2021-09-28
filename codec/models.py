@@ -70,7 +70,7 @@ class LearnedVideoCodecs(nn.Module):
         if self.name == 'RAW':
             bpp_est = bpp_act = metrics = torch.FloatTensor([0]).cuda(0)
             aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-            return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act. metrics
+            return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
             return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
