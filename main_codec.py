@@ -52,7 +52,7 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-if cfg.TRAIN.CODEC_NAME in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128','RLVC','DVC']:
+if cfg.TRAIN.CODEC_NAME in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
