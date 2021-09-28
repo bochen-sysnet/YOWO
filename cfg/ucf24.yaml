@@ -1,7 +1,7 @@
 TRAIN:
   RESUME_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_best.pth"
-  RESUME_CODEC_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RHP-128_best.pth"
-  CODEC_NAME: "MRLVC-RHP-128"
+  #RESUME_CODEC_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RHP-128_best.pth"
+  CODEC_NAME: "MRLVC-RHP"
   DATASET: ucf24  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 4
   TOTAL_BATCH_SIZE: 128

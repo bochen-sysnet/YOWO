@@ -39,7 +39,7 @@ class LearnedVideoCodecs(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.image_coder_name = 'deepcod' # or BPG or none
+        self.image_coder_name = 'bpg' # or BPG or none
         self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
         self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
