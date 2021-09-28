@@ -261,10 +261,10 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
         
 def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
     # we can compress with bpg,deepcod ...
+    batch_size, _, Height, Width = Y1_raw.shape
     if image_coder_name == 'deepcod':
         Y1_com,bits_act,bits_est,aux_loss = _image_coder(Y1_raw)
         # calculate bpp
-        batch_size, _, Height, Width = Y1_com.shape
         bpp_est = bits_est/(Height * Width * batch_size)
         bpp_act = bits_act/(Height * Width * batch_size)
         # calculate metrics/loss
