@@ -34,9 +34,9 @@ class DeepCOD(nn.Module):
 		out_size = 3
 		no_of_hidden_units = 64
 		self.encoder = LightweightEncoder(out_size, kernel_size=4, num_centers=8)
-		self.conv1 = Middle_conv(out_size,out_size)
+		self.conv1 = Attention(out_size,no_of_hidden_units) #Middle_conv(out_size,out_size)
 		self.resblock_up1 = Resblock_up(out_size,no_of_hidden_units)
-		self.conv2 = Middle_conv(no_of_hidden_units,no_of_hidden_units)
+		self.conv2 = Attention(no_of_hidden_units,no_of_hidden_units) #Middle_conv(no_of_hidden_units,no_of_hidden_units)
 		self.resblock_up2 = Resblock_up(no_of_hidden_units,no_of_hidden_units)
 		self.output_conv = Output_conv(no_of_hidden_units)
 		
