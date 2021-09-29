@@ -39,7 +39,15 @@ class LearnedVideoCodecs(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.image_coder_name = 'bpg' # or BPG or none
+        if 'COD' in name:
+            self.image_coder_name = 'deepcod'
+        elif 'BPG' in name:
+            self.image_coder_name = 'bpg' 
+        elif 'AE' in name:
+            self.image_coder_name == 'autoencoder'
+        else:
+            print('I frame compression not implemented:',name)
+            exit(1)
         print('I-frame compression:',self.image_coder_name)
         if self.image_coder_name == 'deepcod':
             self._image_coder = DeepCOD()
@@ -162,7 +170,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        if self.name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128', 'RAW']:
+        if self.name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
             return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
@@ -421,11 +429,11 @@ class ComprNet(nn.Module):
         self.bottleneck_type = 'BASE'
         if codec_name in ['MRLVC-RPM', 'RLVC']:
             self.bottleneck_type = 'RPM'
-        elif codec_name in ['MRLVC-RHP', 'MRLVC-RHP-128']:
+        elif codec_name in ['MRLVC-RHP-COD', 'MRLVC-RHP-BPG']:
             self.bottleneck_type = 'RHP'
         self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
         self.channels = channels
-        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP', 'MRLVC-RHP-128', 'RLVC'])
+        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC'])
         if self.use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)

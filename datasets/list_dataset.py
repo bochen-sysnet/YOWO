@@ -122,6 +122,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             clip = None
         GOP = 10
         if epoch < 1:
+            # epoch >=0 means pretraining on I-frame compression
             GOP = 1
         model_codec.update_cache(im_ind, GOP, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
         if startNewClip:
