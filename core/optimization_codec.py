@@ -137,7 +137,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec)
+            train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
             frame_idx.append(f)
@@ -154,7 +154,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # end of compression
         data = data.cuda() 
         with autocast():
-            if epoch >= 2:
+            if epoch >= 3:
                 output = model(data)
                 reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
                 be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
