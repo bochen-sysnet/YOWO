@@ -39,7 +39,8 @@ class LearnedVideoCodecs(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.image_coder_name = 'deepcod' # or BPG or none
+        self.image_coder_name = 'autoencoder' # or BPG or none
+        print('I-frame compression:',self.image_coder_name)
         if self.image_coder_name == 'deepcod':
             self._image_coder = DeepCOD()
         elif self.image_coder_name == 'autoencoder':
@@ -267,7 +268,7 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
 def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
     # we can compress with bpg,deepcod ...
     batch_size, _, Height, Width = Y1_raw.shape
-    if image_coder_name == 'deepcod':
+    if image_coder_name in ['deepcod','autoencoder']:
         Y1_com,bits_act,bits_est,aux_loss = _image_coder(Y1_raw)
         # calculate bpp
         bpp_est = bits_est/(Height * Width * batch_size)
