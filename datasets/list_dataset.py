@@ -121,7 +121,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         else:
             clip = None
         GOP = 10
-        if epoch == 0:
+        if epoch < 1:
             GOP = 1
         model_codec.update_cache(im_ind, GOP, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
         if startNewClip:
