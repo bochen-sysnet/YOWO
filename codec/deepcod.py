@@ -11,7 +11,7 @@ from torch.autograd import Variable
 from torch.nn.utils import spectral_norm
 sys.path.append('..')
 from codec.huffman import HuffmanCoding
-from compressai.entropy_models import EntropyBottleneck
+from codec.entropy_models import EntropyBottleneck2
 
 
 class Middle_conv(nn.Module):
@@ -125,20 +125,17 @@ class LightweightEncoder(nn.Module):
 		super(LightweightEncoder, self).__init__()
 		self.sample = nn.Conv2d(3, channels, kernel_size=kernel_size, stride=kernel_size, padding=0, bias=True)
 		self.sample = spectral_norm(self.sample)
-		self.entropy_bottleneck = EntropyBottleneck(channels)
+		self.entropy_bottleneck = EntropyBottleneck2(channels,'I_frame')
 		self.channels = channels
-		self.entropy_bottleneck.update()
 
 	def forward(self, x):
 		x = self.sample(x)
-		self.entropy_bottleneck.update()
-		string = self.entropy_bottleneck.compress(x)
-		x, likelihoods = self.entropy_bottleneck(x, training=self.training)
+        x, likelihoods, _ = self.entropy_bottleneck(x, None, False, training=self.training)
 		# calculate bpp (estimated)
 		log2 = torch.log(torch.FloatTensor([2])).cuda()
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
-		bits_act = torch.FloatTensor([len(b''.join(string))*8])
+		bits_act = self.entropy_bottleneck.get_actual_bits(x, False)
         # auxilary loss
 		aux_loss = self.entropy_bottleneck.loss()/self.channels
 		#print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(x),torch.min(x),bits_act,bits_est),x.shape)
