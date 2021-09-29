@@ -98,7 +98,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("Loaded model codec score: ", checkpoint['score'])
         del checkpoint
     else:
-        print("Cannot load model codec"， cfg.TRAIN.CODEC_NAME)
+        print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
     print("===================================================================")
 
 
