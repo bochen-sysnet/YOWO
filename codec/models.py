@@ -58,7 +58,7 @@ class LearnedVideoCodecs(nn.Module):
         self.res_codec.cuda(1)
         
     def update(self, epoch):
-        if epoch == 1:
+        if epoch <= 1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
