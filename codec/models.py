@@ -40,7 +40,12 @@ class LearnedVideoCodecs(nn.Module):
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
         self.image_coder_name = 'deepcod' # or BPG or none
-        self._image_coder = DeepCOD() if self.image_coder_name == 'deepcod' else None
+        if self.image_coder_name == 'deepcod':
+            self._image_coder = DeepCOD()
+        elif self.image_coder_name == 'autoencoder':
+            self._image_coder = AutoEncoder(device, 'I_frame', in_channels=3, channels=channels)
+        else:
+            self._image_coder = None
         self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
@@ -463,6 +468,54 @@ class ComprNet(nn.Module):
             
         #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
         return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
+        
+class AutoEncoder(nn.Module):
+    def __init__(self, device, data_name, in_channels=3, channels=128, kernel1=5, padding1=2, kernel2=6, padding2=2):
+        super(AutoEncoder, self).__init__()
+        self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
+        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
+        self.gdn1 = GDN(channels)
+        self.gdn2 = GDN(channels)
+        self.gdn3 = GDN(channels)
+        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
+        self.igdn1 = GDN(channels, inverse=True)
+        self.igdn2 = GDN(channels, inverse=True)
+        self.igdn3 = GDN(channels, inverse=True)
+        self.entropy_bottleneck = EntropyBottleneck2(channels,data_name)
+        self.channels = channels
+        
+    def forward(self, x):
+        # compress
+        x = self.gdn1(self.enc_conv1(x))
+        x = self.gdn2(self.enc_conv2(x))
+        x = self.gdn3(self.enc_conv3(x))
+        latent = self.enc_conv4(x) # latent optical flow
+
+        # quantization + entropy coding
+        latent_hat, likelihoods, _ = self.entropy_bottleneck(latent, None, False, training=self.training)
+        
+        # calculate bpp (estimated)
+        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        
+        # calculate bpp (actual)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent, False)
+
+        # decompress
+        x = self.igdn1(self.dec_conv1(latent_hat))
+        x = self.igdn2(self.dec_conv2(x))
+        x = self.igdn3(self.dec_conv3(x))
+        hat = self.dec_conv4(x) # compressed optical flow (less accurate)
+        
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss(False)/self.channels
+        
+        return hat, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):

@@ -137,7 +137,7 @@ class LightweightEncoder(nn.Module):
 		# calculate bpp (actual)
 		bits_act = self.entropy_bottleneck.get_actual_bits(x, False)
         # auxilary loss
-		aux_loss = self.entropy_bottleneck.loss(False)/self.channels
+		aux_loss = self.entropy_bottleneck.loss(False)/self.channels + orthorgonal_regularizer(self.sample.weight,0.0001,True)
 		#print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(x),torch.min(x),bits_act,bits_est),x.shape)
 
 		return x, bits_act, bits_est, aux_loss
