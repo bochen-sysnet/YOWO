@@ -249,7 +249,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec)
+            train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             batch,be,il,a,fl,ba,m = train_dataset[data_idx]
             data.append(batch['clip'])
@@ -371,7 +371,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            test_dataset.preprocess(data_idx, model_codec)
+            test_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = test_dataset[data_idx]
             frame_idx.append(f)
