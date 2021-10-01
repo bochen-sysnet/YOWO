@@ -58,7 +58,12 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
-        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
+        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
+        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
+        # gamma_2: the weight of auxilary loss (affecting bits estimation)
+        # gamma_3: the weight of flow loss (affecting flow estimation)
+        # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
+        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,.01,.01,10
         
         # split on multi-gpus
         self.split()
@@ -73,9 +78,9 @@ class LearnedVideoCodecs(nn.Module):
         
     def update(self, epoch):
         if epoch <= 1:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,10
         else:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,.01,.01,10
 
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame
@@ -87,7 +92,7 @@ class LearnedVideoCodecs(nn.Module):
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
+            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*self.gamma_4*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
@@ -160,6 +165,7 @@ class LearnedVideoCodecs(nn.Module):
             RPM_flag = True
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
+        # we can also not detach here
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
@@ -299,8 +305,9 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         bpg_img = Image.open(postname + '.jpg').convert('RGB')
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
-        loss = calc_loss(Y1_raw, Y1_com, use_psnr)
-        bpp_est, aux_loss, flow_loss = torch.FloatTensor([0]).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0), torch.FloatTensor([0]).squeeze(0).cuda(0)
+        #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+        loss = bpp_est = torch.FloatTensor([0]).cuda(0)
+        aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     else:
         print('This image compression not implemented.')
         exit(0)
