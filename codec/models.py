@@ -125,7 +125,7 @@ class LearnedVideoCodecs(nn.Module):
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
-        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
@@ -137,6 +137,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['aux'] = {}
             cache['bpp_act'] = {}
             cache['metrics'] = {}
+            cache['hidden'] = None
             # compress from the first frame of the first clip to the current frame
             Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//GOP*GOP
             Iframe_idx = max(0,Iframe_idx)
@@ -152,21 +153,19 @@ class LearnedVideoCodecs(nn.Module):
         Y0_com = cache['clip'][i-1].unsqueeze(0) if i>0 else None
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
-        if isNew:
+        RPM_flag = False
+        hidden = cache['hidden']
+        if i%GOP == 0:
+            Y0_com = None
             rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
             rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
             hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        else:
-            hidden = cache['hidden']
-        RPM_flag = False
-        if i%GOP == 0:
-            Y0_com = None
         elif i%GOP >= 2:
             RPM_flag = True
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         # we can also not detach here
-        cache['clip'][i] = Y1_com.detach().squeeze(0)
+        cache['clip'][i] = Y1_com.squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
         cache['aux'][i] = aux_loss

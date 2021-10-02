@@ -104,7 +104,7 @@ class EntropyBottleneck2(EntropyModel):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, state, force = False):
+    def update(self, state, force = False, stopGradient = True):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
@@ -116,28 +116,40 @@ class EntropyBottleneck2(EntropyModel):
             for i in range(len(self.filters) + 1):
                 m_state,b_state,f_state = state[i]
                 matrix = getattr(self, f"_matrix{i:d}")
-                matrix = matrix.detach().view(1,self.channels,-1)
+                matrix = matrix.view(1,self.channels,-1)
+                if stopGradient:
+                    matrix = matrix.detach()
                 matrix, m_state = self.lstm_matrix[i](matrix, torch.split(m_state.to(matrix.device),self.channels,dim=1)) 
                 matrix = matrix.view(self.channels, filters[i + 1], filters[i])
                 setattr(self, f"_matrix{i:d}", nn.Parameter(matrix))
                 m_state = torch.cat(m_state,dim=1)
+                if stopGradient:
+                    m_state = m_state.detach()
 
                 bias = getattr(self, f"_bias{i:d}")
-                bias = bias.detach().view(1,self.channels,-1)
+                bias = bias.view(1,self.channels,-1)
+                if stopGradient:
+                    bias = bias.detach()
                 bias, b_state = self.lstm_bias[i](bias, torch.split(b_state.to(bias.device),self.channels,dim=1))
                 bias = bias.view(self.channels, filters[i + 1], 1)
                 setattr(self, f"_bias{i:d}", nn.Parameter(bias))
                 b_state = torch.cat(b_state,dim=1)
+                if stopGradient:
+                    b_state = b_state.detach()
 
                 if i < len(self.filters):
                     factor = getattr(self, f"_factor{i:d}")
-                    factor = factor.detach().view(1,self.channels,-1)
+                    factor = factor.view(1,self.channels,-1)
+                    if stopGradient:
+                        factor = factor.detach()
                     factor, f_state = self.lstm_factor[i](factor, torch.split(f_state.to(factor.device),self.channels,dim=1)) 
                     factor = factor.view(self.channels, filters[i + 1], 1)
                     setattr(self, f"_factor{i:d}", nn.Parameter(factor))
                     f_state = torch.cat(f_state,dim=1)
+                    if stopGradient:
+                        f_state = f_state.detach()
                     
-                state[i] = [m_state.detach(),b_state.detach(),f_state.detach()]
+                state[i] = [m_state,b_state,f_state]
 
         medians = self.quantiles[:, 0, 1]
 
@@ -220,15 +232,20 @@ class EntropyBottleneck2(EntropyModel):
         return likelihood
 
     def forward(
-        self, x, rpm_hidden, RPM_flag, training = None
+        self, x, rpm_hidden, RPM_flag, training = None, stopGradient = True
     ):
         rpm_hidden,_ = self.update(rpm_hidden, True)
         if self.use_RPM and RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
-            likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x).detach(), rpm_hidden)
-            self.prior_latent = torch.round(x).detach()
-            return self.prior_latent, likelihood, rpm_hidden.detach()
-        self.prior_latent = torch.round(x).detach()
+            likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
+            self.prior_latent = torch.round(x)
+            if stopGradient:
+                self.prior_latent = self.prior_latent.detach()
+                rpm_hidden = rpm_hidden.detach()
+            return self.prior_latent, likelihood, rpm_hidden
+        self.prior_latent = torch.round(x)
+        if stopGradient:
+            self.prior_latent = self.prior_latent.detach()
             
         if training is None:
             training = self.training
