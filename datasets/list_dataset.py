@@ -85,6 +85,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         self.sampling_rate = sampling_rate
         self.cache = {} # cache for current video clip
         self.prev_video = '' # previous video name to determine whether its a whole new video
+        self.last_frame = False
 
     def __len__(self):
         return self.nSamples
@@ -129,6 +130,17 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         self.prev_video = cur_video
+        # check if the last frame of a clip
+        if index == len(self)-1:
+            self.last_frame = True
+        else:
+            imgpath = self.lines[index+1].rstrip()
+            im_split = imgpath.split('/')
+            num_parts = len(im_split)
+            nxt_im_ind = int(im_split[num_parts-1][0:5])
+            nxt_video = im_split[1]
+            self.last_frame = (cur_video != nxt_video or im_ind != nxt_im_ind-1)
+        
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
     # load whole video as a clip for further processing

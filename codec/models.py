@@ -155,7 +155,6 @@ class LearnedVideoCodecs(nn.Module):
         # hidden variables
         RPM_flag = False
         hidden = cache['hidden']
-        print(i)
         if i%GOP == 0:
             Y0_com = None
             rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)

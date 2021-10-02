@@ -134,18 +134,27 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # start compression
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
-            # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, epoch)
-            # read one clip
-            f,d,t,be,il,ax,fl,ba,me = train_dataset[data_idx]
-            if epoch >= 2:
-                data = d.unsqueeze(0).cuda()
-                target = t.unsqueeze(0)
-                rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
-            else:
-                rl = torch.FloatTensor([0]).squeeze(0).cuda(0)
-            # accumulate loss    
-            loss = model_codec.loss(rl,il,be,ax,fl)
+            with autocast():
+                # compress one batch of the data
+                train_dataset.preprocess(data_idx, model_codec, epoch)
+                # read one clip
+                f,d,t,be,il,ax,fl,ba,me = train_dataset[data_idx]
+                if epoch >= 2:
+                    data = d.unsqueeze(0).cuda()
+                    target = t.unsqueeze(0)
+                    rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
+                else:
+                    rl = torch.FloatTensor([0]).squeeze(0).cuda(0)
+                # accumulate loss    
+                loss = model_codec.loss(rl,il,be,ax,fl)
+            # decide whether to update model, maybe only update when its a new video
+            retain_graph = (train_dataset.last_frame == False)
+            print(retain_graph)
+            scaler.scale(loss).backward(retain_graph=retain_graph)
+            if not retain_graph:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
             # update meters
             aux_loss_module.update(ax.cpu().data.item())
             img_loss_module.update(il.cpu().data.item())
@@ -154,19 +163,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             all_loss_module.update(loss.cpu().data.item())
             ba_loss_module.update(ba.cpu().data.item())
             metrics_module.update(me.cpu().data.item())  
-            print(f)
-        exit(0)    
-
-        # loss.backward()
-        # the last frame in GOP does not retain graph
-        # and the minimum unit to update the model should be a GOP
-        scaler.scale(loss).backward(retain_graph=True)
-        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-        if batch_idx % steps == 0:
-            # optimizer.step()
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
