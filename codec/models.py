@@ -80,7 +80,7 @@ class LearnedVideoCodecs(nn.Module):
         if epoch <= 1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,10
         else:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,.01,.01,10
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 10,10,.01,.01,1
 
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame
