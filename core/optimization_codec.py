@@ -129,7 +129,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model.eval()
     model_codec.train()
     model_codec.update(epoch)
-    torch.autograd.set_detect_anomaly(True)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
@@ -184,7 +183,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             # optimizer.step()
-            scaler.step(optimizer)
+            #scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
 
