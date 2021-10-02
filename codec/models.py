@@ -305,8 +305,8 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
         #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
-        loss = bpp_est = torch.FloatTensor([0]).cuda(0)
-        aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_est = torch.FloatTensor([0]).cuda(0)
+        loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     else:
         print('This image compression not implemented.')
         exit(0)
