@@ -132,53 +132,30 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
-        img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []; reg_loss_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
-            f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
+            f,d,t,be,il,ax,fl,ba,me = train_dataset[data_idx]
             if epoch >= 2:
                 data = d.unsqueeze(0).cuda()
                 target = t.unsqueeze(0)
                 rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
-            print(be,il,a,fl,ba,m)
-            exit(0)
-            reg_loss_list.append(rl)
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            flow_loss_list.append(fl)
-            bpp_act_list.append(ba)
-            metrics_list.append(m)
-        # end of compression
-        with autocast():
-            if epoch >= 2:
-                output = model(data)
-                reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             else:
-                reg_loss = torch.FloatTensor([0]).cuda(0)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
-            ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+                rl = torch.FloatTensor([0]).squeeze(0).cuda(0)
+            # accumulate loss    
+            loss = model_codec.loss(rl,il,be,ax,fl)
             # update meters
-            aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            aux_loss_module.update(ax.cpu().data.item())
+            img_loss_module.update(il.cpu().data.item())
+            flow_loss_module.update(fl.cpu().data.item())
+            be_loss_module.update(be.cpu().data.item())
+            all_loss_module.update(loss.cpu().data.item())
+            ba_loss_module.update(ba.cpu().data.item())
+            metrics_module.update(me.cpu().data.item())  
+            print(f)
+        exit(0)    
 
         # loss.backward()
         # the last frame in GOP does not retain graph
