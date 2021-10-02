@@ -317,7 +317,7 @@ def init_hidden(h,w,channels):
     
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
-    log10 = torch.log(torch.FloatTensor([10])).cuda()
+    log10 = torch.log(torch.FloatTensor([10])).unsqueeze(0).cuda()
     quality = 10.0*torch.log(1/train_mse)/log10
     return quality
 
