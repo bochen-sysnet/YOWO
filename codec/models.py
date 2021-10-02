@@ -457,9 +457,8 @@ class ComprNet(nn.Module):
         latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
         
         # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
-        print(torch.sum(torch.log(likelihoods)))
         
         # calculate bpp (actual)
         if self.bottleneck_type == 'RPM':
