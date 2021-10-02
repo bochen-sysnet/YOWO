@@ -155,11 +155,12 @@ class LearnedVideoCodecs(nn.Module):
         # hidden variables
         RPM_flag = False
         hidden = cache['hidden']
-        if i%GOP == 0:
-            Y0_com = None
+        if isNew:
             rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
             rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
             hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+        if i%GOP == 0:
+            Y0_com = None
         elif i%GOP >= 2:
             RPM_flag = True
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
