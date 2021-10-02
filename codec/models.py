@@ -300,7 +300,7 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
         os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
         post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
-        bpp_act = torch.FloatTensor([post_bits])
+        bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
         bpg_img = Image.open(postname + '.jpg').convert('RGB')
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
