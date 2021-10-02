@@ -140,6 +140,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
+            print(f,d,t,be,il,a,fl,ba,m)
+            exit(0)
             frame_idx.append(f)
             data.append(d)
             target.append(t)
@@ -170,6 +172,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+            # update meters
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -179,12 +182,14 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
         # loss.backward()
+        # the last frame in GOP does not retain graph
+        # and the minimum unit to update the model should be a GOP
         scaler.scale(loss).backward(retain_graph=True)
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             # optimizer.step()
-            #scaler.step(optimizer)
-            #scaler.update()
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad()
 
         # save result every 1000 batches
