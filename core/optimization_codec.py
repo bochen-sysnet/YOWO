@@ -133,14 +133,14 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        bpp_est_list = []; bpp_act_list = []; metrics_list = []; reg_loss_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
-            print(f,d,t,be,il,a,fl,ba,m)
+            print(f,d.size(),t.size(),be,il,a,fl,ba,m)
             exit(0)
             frame_idx.append(f)
             data.append(d)
