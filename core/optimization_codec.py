@@ -132,7 +132,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
-        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+        img_loss_list = []; aux_loss_list = []; flow_loss_list = []
         bpp_est_list = []; bpp_act_list = []; metrics_list = []; reg_loss_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
@@ -140,21 +140,18 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
-            print(f,d.size(),t.size(),be,il,a,fl,ba,m)
+            data = d.unsqueeze(0).cuda()
+            target = t.unsqueeze(0)
+            rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
             exit(0)
-            frame_idx.append(f)
-            data.append(d)
-            target.append(t)
+            reg_loss_list.append(rl)
             bpp_est_list.append(be)
             aux_loss_list.append(a)
             img_loss_list.append(il)
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             metrics_list.append(m)
-        data = torch.stack(data, dim=0)
-        target = torch.stack(target, dim=0)
         # end of compression
-        data = data.cuda() 
         with autocast():
             if epoch >= 2:
                 output = model(data)
