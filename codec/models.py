@@ -305,8 +305,7 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
         #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
-        bpp_est = torch.FloatTensor([0]).cuda(0)
-        loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     else:
         print('This image compression not implemented.')
         exit(0)
@@ -460,6 +459,7 @@ class ComprNet(nn.Module):
         # calculate bpp (estimated)
         log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        print(torch.sum(torch.log(likelihoods)))
         
         # calculate bpp (actual)
         if self.bottleneck_type == 'RPM':

@@ -140,9 +140,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             train_dataset.preprocess(data_idx, model_codec, epoch)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
-            data = d.unsqueeze(0).cuda()
-            target = t.unsqueeze(0)
-            rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
+            if epoch >= 2:
+                data = d.unsqueeze(0).cuda()
+                target = t.unsqueeze(0)
+                rl = loss_module(model(data), target, epoch, data_idx, len(train_dataset))
+            print(be,il,a,fl,ba,m)
             exit(0)
             reg_loss_list.append(rl)
             bpp_est_list.append(be)
