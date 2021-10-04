@@ -104,7 +104,7 @@ class EntropyBottleneck2(EntropyModel):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, state, force = False, stopGradient = False):
+    def update(self, state, force = False, stopGradient = True):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
@@ -232,7 +232,7 @@ class EntropyBottleneck2(EntropyModel):
         return likelihood
 
     def forward(
-        self, x, rpm_hidden, RPM_flag, training = None, stopGradient = False
+        self, x, rpm_hidden, RPM_flag, training = None, stopGradient = True
     ):
         rpm_hidden,_ = self.update(rpm_hidden, True)
         if self.use_RPM and RPM_flag:
