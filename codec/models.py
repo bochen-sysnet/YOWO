@@ -44,7 +44,9 @@ class LearnedVideoCodecs(nn.Module):
         elif 'BPG' in name:
             self.image_coder_name = 'bpg' 
         elif 'AE' in name:
-            self.image_coder_name == 'autoencoder'
+            self.image_coder_name = 'autoencoder'
+        elif 'RAW' in name:
+            self.image_coder_name = 'raw'
         else:
             print('I frame compression not implemented:',name)
             exit(1)
