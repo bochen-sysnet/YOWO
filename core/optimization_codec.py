@@ -149,7 +149,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 bpp_act_list.append(ba)
                 metrics_list.append(me)
                 # split the batch if they belong to two videos
-                if (j == batch_size-1) or train_dataset.last_frame:
+                if (j == batch_size-1):# or train_dataset.last_frame:
                     data_len = len(data)
                     data = torch.stack(data, dim=0).cuda() 
                     target = torch.stack(target, dim=0)
@@ -172,14 +172,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     ba_loss_module.update(ba_loss.cpu().data.item(), data_len)
                     all_loss_module.update(loss.cpu().data.item(), data_len)
                     metrics_module.update(metrics.cpu().data.item(), data_len)
-                    # is it necessary to stop retain at EOGOP?
-                    retain_graph = (not train_dataset.last_frame) or (not train_dataset.EOGOP)
-                    scaler.scale(loss).backward(retain_graph=retain_graph)
-                    if train_dataset.last_frame:
-                        scaler.step(optimizer)
-                        scaler.update()
-                        optimizer.zero_grad()
-                    data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        
+        scaler.scale(loss).backward()
+        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
+        if batch_idx % steps == 0:
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
