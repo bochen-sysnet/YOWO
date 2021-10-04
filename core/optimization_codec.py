@@ -131,61 +131,55 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model_codec.update(epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
-        # start compression
-        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
-        for j in range(batch_size):
-            data_idx = batch_idx*batch_size+j
-            # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, epoch)
-            # read one clip
-            f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
-            frame_idx.append(f)
-            data.append(d)
-            target.append(t)
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            flow_loss_list.append(fl)
-            bpp_act_list.append(ba)
-            metrics_list.append(m)
-        data = torch.stack(data, dim=0)
-        target = torch.stack(target, dim=0)
-        # end of compression
-        data = data.cuda() 
         with autocast():
-            if epoch >= 2:
-                output = model(data)
-                reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            else:
-                reg_loss = torch.FloatTensor([0]).cuda(0)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
-            ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
-            aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-
-        # loss.backward()
-        scaler.scale(loss).backward()
-        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-        if batch_idx % steps == 0:
-            # optimizer.step()
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
+            data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
+            for j in range(batch_size):
+                data_idx = batch_idx*batch_size+j
+                # compress one batch of the data
+                # every GOP will be compressed with one model
+                train_dataset.preprocess(data_idx, model_codec, epoch)
+                # read one clip
+                _,d,t,be,il,ax,fl,ba,me = train_dataset[data_idx]
+                data.append(d)
+                target.append(t)
+                bpp_est_list.append(be)
+                aux_loss_list.append(ax)
+                img_loss_list.append(il)
+                flow_loss_list.append(fl)
+                bpp_act_list.append(ba)
+                metrics_list.append(me)
+                # split the batch if they belong to two videos
+                if (j == batch_size-1) or train_dataset.last_frame:
+                    data_len = len(data)
+                    data = torch.stack(data, dim=0).cuda() 
+                    target = torch.stack(target, dim=0)
+                    if epoch >= 2:
+                        output = model(data)
+                        reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
+                    else:
+                        reg_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+                    be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
+                    aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
+                    img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
+                    flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
+                    loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+                    ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
+                    metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+                    aux_loss_module.update(aux_loss.cpu().data.item(), data_len)
+                    img_loss_module.update(img_loss.cpu().data.item(), data_len)
+                    flow_loss_module.update(flow_loss.cpu().data.item(), data_len)
+                    be_loss_module.update(be_loss.cpu().data.item(), data_len)
+                    ba_loss_module.update(ba_loss.cpu().data.item(), data_len)
+                    all_loss_module.update(loss.cpu().data.item(), data_len)
+                    metrics_module.update(metrics.cpu().data.item(), data_len)
+                    # is it necessary to stop retain at EOGOP?
+                    retain_graph = (not train_dataset.last_frame) or (not train_dataset.EOGOP)
+                    scaler.scale(loss).backward(retain_graph=retain_graph)
+                    if train_dataset.last_frame:
+                        scaler.step(optimizer)
+                        scaler.update()
+                        optimizer.zero_grad()
+                    data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []; bpp_est_list = []; bpp_act_list = []; metrics_list = []
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements

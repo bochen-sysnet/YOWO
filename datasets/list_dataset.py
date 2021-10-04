@@ -86,6 +86,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         self.cache = {} # cache for current video clip
         self.prev_video = '' # previous video name to determine whether its a whole new video
         self.last_frame = False
+        self.EOGOP = False
+        self.first_frame_idx = None
 
     def __len__(self):
         return self.nSamples
@@ -116,6 +118,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # x265/x264/MRLVC/RLVC/DVC
         # read whole video
         if startNewClip:
+            self.first_frame_idx = im_ind
             self.cache['clip'] = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
@@ -130,6 +133,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         self.prev_video = cur_video
+        # check if the end of GOP
+        self.EOGOP = ((im_ind+1-self.first_frame_idx)%GOP == 0)
         # check if the last frame of a clip
         if index == len(self)-1:
             self.last_frame = True

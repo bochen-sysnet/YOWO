@@ -82,7 +82,7 @@ class LearnedVideoCodecs(nn.Module):
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,1
 
-    def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
+    def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True, stopGradient=False):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
@@ -125,7 +125,10 @@ class LearnedVideoCodecs(nn.Module):
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
-        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        if stopGradient:
+            rae_mv_hidden = rae_mv_hidden.detach()
+            rae_res_hidden = rae_res_hidden.detach()
+        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
@@ -146,7 +149,7 @@ class LearnedVideoCodecs(nn.Module):
         else:
             self._process_single_frame(frame_idx-1, GOP, cache, False)
             
-    def _process_single_frame(self, i, GOP, cache, isNew):
+    def _process_single_frame(self, i, GOP, cache, isNew, stopGradient=False):
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
@@ -155,18 +158,19 @@ class LearnedVideoCodecs(nn.Module):
         # hidden variables
         RPM_flag = False
         hidden = cache['hidden']
-        if isNew:
+        if i%GOP == 0:
+            # force detach when a new GOP starts
+            # another option is to detach it instead of initializing a new one
             rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
             rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
             hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        if i%GOP == 0:
             Y0_com = None
         elif i%GOP >= 2:
             RPM_flag = True
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         # we can also not detach here
-        cache['clip'][i] = Y1_com.detach().squeeze(0)
+        cache['clip'][i] = Y1_com.detach().squeeze(0) if stopGradient else Y1_com.squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
         cache['aux'][i] = aux_loss
