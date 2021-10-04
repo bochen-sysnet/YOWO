@@ -82,7 +82,7 @@ class LearnedVideoCodecs(nn.Module):
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 10,10,.01,.01,1
 
-    def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True, stopGradient=True):
+    def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True, stopGradient=False):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
@@ -158,13 +158,12 @@ class LearnedVideoCodecs(nn.Module):
         # hidden variables
         RPM_flag = False
         hidden = cache['hidden']
-        if isNew:
-            rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
-            rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
-            hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         if i%GOP == 0:
             # force detach when a new GOP starts
             # another option is to detach it instead of initializing a new one
+            rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
+            rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
+            hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
             Y0_com = None
         elif i%GOP >= 2:
             RPM_flag = True
