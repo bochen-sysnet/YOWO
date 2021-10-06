@@ -532,7 +532,7 @@ class AutoEncoder(nn.Module):
         latent_hat, likelihoods, _ = self.entropy_bottleneck(latent, None, False, training=self.training)
         
         # calculate bpp (estimated)
-        log2 = torch.log(torch.FloatTensor([2])).to(likelihoods.device)
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # calculate bpp (actual)

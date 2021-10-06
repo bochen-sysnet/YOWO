@@ -86,7 +86,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'MRLVC-RHP-128','RLVC','DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG','RLVC','DVC']:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
