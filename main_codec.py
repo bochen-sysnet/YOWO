@@ -91,7 +91,7 @@ if cfg.TRAIN.RESUME_PATH:
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
-        cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
+        cfg.TRAIN.BEGIN_EPOCH = -3 #checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_my_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
