@@ -104,7 +104,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
 
         return (frame_idx, clip, label, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
             
-    def preprocess(self, index, model_codec, epoch):
+    def preprocess(self, index, model_codec, GOP=10):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
@@ -121,10 +121,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        GOP = 10
-        if epoch < 1:
-            # epoch >=0 means pretraining on I-frame compression
-            GOP = 1
         model_codec.update_cache(im_ind, GOP, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
         if startNewClip:
             if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):

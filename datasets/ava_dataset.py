@@ -667,7 +667,7 @@ class Ava_codec(torch.utils.data.Dataset):
         return ret, cache['bpp_est'][frame_idx-1], cache['img_loss'][frame_idx-1], cache['aux'][frame_idx-1], \
                 cache['flow_loss'][frame_idx-1], cache['bpp_act'][frame_idx-1], cache['metrics'][frame_idx-1]
         
-    def preprocess(self, index, model_codec, epoch):
+    def preprocess(self, index, model_codec, GOP=10):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         # use codec to process the video first
@@ -680,9 +680,6 @@ class Ava_codec(torch.utils.data.Dataset):
             self.cache['clip'] = self._read_video_clip(index)
             if model_codec.name not in ['x265', 'x264']:
                 self.cache['clip'] = self._images_preprocessing_cv2(self.cache['clip'])
-        GOP = 10
-        if epoch == 1:
-            GOP = 1
         model_codec.update_cache(frame_idx, GOP, seq_len, sample_rate, self.cache, startNewClip, (self._crop_size,self._crop_size))
         if startNewClip:
             if model_codec.name in ['x265', 'x264']:

@@ -22,7 +22,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
     model.eval()
     model_codec.train()
-    model_codec.update(epoch)
+    GOP, doAD = model_codec.update_training(epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
@@ -31,7 +31,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec)
+            train_dataset.preprocess(data_idx, model_codec, GOP)
             # read one clip
             batch,be,il,a,fl,ba,m = train_dataset[data_idx]
             data.append(batch['clip'])
@@ -51,19 +51,11 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
         target = {'cls': cls, 'boxes': boxes}
         
         with autocast():
-            if epoch >= 2:
-                output = model(data)
-                reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            else:
-                reg_loss = torch.FloatTensor([0]).cuda(0)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
+            reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
+            be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
+            aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
+            img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
+            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
@@ -128,7 +120,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
 
     model.eval()
     model_codec.train()
-    model_codec.update(epoch)
+    # get instructions on training
+    GOP, doAD = model_codec.update_training(epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
@@ -137,7 +130,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, epoch)
+            train_dataset.preprocess(data_idx, model_codec, GOP)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
             frame_idx.append(f)
@@ -154,19 +147,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         # end of compression
         data = data.cuda() 
         with autocast():
-            if epoch >= 2:
-                output = model(data)
-                reg_loss = loss_module(output, target, epoch, batch_idx, l_loader)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            else:
-                reg_loss = torch.FloatTensor([0]).cuda(0)
-                be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-                aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-                img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
+            reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
+            be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
+            aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
+            img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
+            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
@@ -178,11 +163,9 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        # loss.backward()
         scaler.scale(loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
-            # optimizer.step()
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
@@ -249,7 +232,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, epoch)
+            train_dataset.preprocess(data_idx, model_codec)
             # read one clip
             batch,be,il,a,fl,ba,m = train_dataset[data_idx]
             data.append(batch['clip'])
@@ -371,7 +354,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            test_dataset.preprocess(data_idx, model_codec, epoch)
+            test_dataset.preprocess(data_idx, model_codec)
             # read one clip
             f,d,t,be,il,a,fl,ba,m = test_dataset[data_idx]
             frame_idx.append(f)

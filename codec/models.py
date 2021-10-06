@@ -65,7 +65,7 @@ class LearnedVideoCodecs(nn.Module):
         # gamma_2: the weight of auxilary loss (affecting bits estimation)
         # gamma_3: the weight of flow loss (affecting flow estimation)
         # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
-        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,.01,.01,10
+        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         
         # split on multi-gpus
         self.split()
@@ -78,11 +78,26 @@ class LearnedVideoCodecs(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def update(self, epoch):
-        if epoch <= 1:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,10
+    def update_training(self, epoch):
+        # pretraining DeepCOD： -4,...,-2
+        # training flow estimation without AD: -1
+        # training focus on PSNR without AD:0
+        # training with AD: 1,2,3...
+        
+        # setup training weights
+        if epoch <= -1:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,1
+            
+        # set up GOP
+        # epoch >=1 means pretraining on I-frame compression
+        GOP = 10 if epoch >= -1 else 1
+        
+        # whether to compute action detection
+        doAD = True if epoch >= 1 else False
+        
+        return GOP, doAD
 
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame
