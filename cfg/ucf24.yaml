@@ -5,7 +5,7 @@ TRAIN:
   DATASET: ucf24  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 4
   TOTAL_BATCH_SIZE: 128
-  LEARNING_RATE: 1e-4
+  LEARNING_RATE: 1e-5
   EVALUATE: False
   FINE_TUNE: False
   BEGIN_EPOCH: -3
