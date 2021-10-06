@@ -193,7 +193,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        if self.name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
+        if self.name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
             return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
@@ -450,13 +450,14 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         self.bottleneck_type = 'BASE'
-        if codec_name in ['MRLVC-RPM', 'RLVC']:
+        if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
             self.bottleneck_type = 'RPM'
         elif 'RHP' in codec_name:
             self.bottleneck_type = 'RHP'
+        print('Bottleneck:',self.bottleneck_type)
         self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
         self.channels = channels
-        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC'])
+        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC'])
         if self.use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
