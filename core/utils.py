@@ -52,7 +52,7 @@ def adjust_learning_rate(optimizer, epoch, cfg):
     return lr_new
     
 def adjust_codec_learning_rate(optimizer, epoch, cfg):
-    steps = [s for s in cfg.SOLVER.STEPS if s<0] if epoch<0 else [s for s in steps if s>=0]
+    steps = [s for s in cfg.SOLVER.STEPS if s<0] if epoch<0 else [s for s in cfg.SOLVER.STEPS if s>=0]
     r = (cfg.SOLVER.LR_DECAY_RATE ** (sum(epoch >= np.array(steps))))
     for param_group in optimizer.param_groups:
         param_group['lr'] *= r
