@@ -83,7 +83,7 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
-        bppRefineEpoch = 6
+        bppRefineEpoch = 5
         
         # setup training weights
         if epoch <= -1:
