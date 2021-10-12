@@ -458,8 +458,6 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). "
-            f"P: {precision:.2f} ({precision:.2f}). "
-            f"R: {recall:.2f} ({recall:.2f}). "
             f"F: {fscore:.2f} ({fscore:.4f}). ")
 
     classification_accuracy = 1.0 * correct_classification / (total_detected + eps)
