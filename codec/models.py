@@ -64,8 +64,7 @@ class LearnedVideoCodecs(nn.Module):
         # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
         # gamma_2: the weight of auxilary loss (affecting bits estimation)
         # gamma_3: the weight of flow loss (affecting flow estimation)
-        # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
-        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
+        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
         
         # split on multi-gpus
         self.split()
@@ -84,18 +83,24 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
+        bppRefineEpoch = 5
+        
         # setup training weights
         if epoch <= -1:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
+        elif epoch < bppRefineEpoch:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
         else:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,1
+            # after convergence of image recon, refine bpp, can be set to epoch > 6
+            self.gamma_0 = 1
+            self.gamma_1 = self.gamma_2 = self.gamma_3 = 0
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
         GOP = 10 if epoch >= -1 else 1
         
         # whether to compute action detection
-        doAD = True if epoch >= 1 else False
+        doAD = True if epoch >= 1 and epoch < bppRefineEpoch else False
         
         return GOP, doAD
 
@@ -109,7 +114,7 @@ class LearnedVideoCodecs(nn.Module):
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*self.gamma_4*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
+            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
