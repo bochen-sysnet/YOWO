@@ -89,7 +89,7 @@ class LearnedVideoCodecs(nn.Module):
         if epoch <= -1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,1,1
         elif epoch < bppRefineEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,1,.01,.01
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3 = 1,10,.01,.01
         else:
             # after convergence of image recon, refine bpp, can be set to epoch > 6
             self.gamma_0 = 1
