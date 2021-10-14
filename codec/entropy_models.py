@@ -614,7 +614,7 @@ class RecGaussianConditional(CompressionModel):
         gaussian_params = self.h_s2(z_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
         x_hat, x_likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
-        hidden = torch.cat((state_enc, state_dec),dim=1)
+        hidden = torch.cat((state_enc, state_dec),dim=1).detach()
         return x_hat, (x_likelihoods,z_likelihoods), hidden
 
     def compress(self, x, hidden):
