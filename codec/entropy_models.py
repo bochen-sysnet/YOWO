@@ -613,7 +613,6 @@ class RecGaussianConditional(CompressionModel):
     def compress(self, x, hidden):
         state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
         z = self.h_a1(x)
-        print(z.size(),state_enc.size())
         z, state_enc = self.enc_lstm(z, state_enc)
         z = self.h_a2(z)
         z_hat, z_likelihoods = self.entropy_bottleneck(z)

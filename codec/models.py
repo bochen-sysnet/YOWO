@@ -495,7 +495,7 @@ class ComprNet(nn.Module):
         if self.use_RPM:
             bits_act = bits_est
         elif self.use_RGC:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent,hidden)
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent)
         
