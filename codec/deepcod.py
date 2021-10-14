@@ -136,7 +136,7 @@ class LightweightEncoder(nn.Module):
 		bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
 		# calculate bpp (actual)
 		string = self.entropy_bottleneck.compress(x)
-        bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+		bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
         # auxilary loss
 		aux_loss = self.entropy_bottleneck.loss()/self.channels + orthorgonal_regularizer(self.sample.weight,0.0001,True)
 		#print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(x),torch.min(x),bits_act,bits_est),x.shape)
