@@ -553,66 +553,76 @@ class RecProbModel(EntropyModel):
         return bits_est
         
 # Gaussian Conditional
-class MeanScaleHyperprior(CompressionModel):
-    r"""Scale Hyperprior with non zero-mean Gaussian conditionals from D.
-    Minnen, J. Balle, G.D. Toderici: `"Joint Autoregressive and Hierarchical
-    Priors for Learned Image Compression" <https://arxiv.org/abs/1809.02736>`_,
-    Adv. in Neural Information Processing Systems 31 (NeurIPS 2018).
-    """
+class RecGaussianConditional(CompressionModel):
 
     def __init__(self, channels=128):
         super().__init__()
 
-        self.h_a = nn.Sequential(
+        self.h_a1 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
+        )
+        
+        self.h_a2 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
         )
 
-        self.h_s = nn.Sequential(
+        self.h_s1 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
         )
         
-        self.lstm = ConvLSTM(channels)
+        self.h_s2 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        
+        self.enc_lstm = ConvLSTM(channels)
+        self.dec_lstm = ConvLSTM(channels)
         
         self.gaussian_conditional = GaussianConditional(None)
         
         self.channels = channels
         
         h = w = 224
-        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        self.model_states = torch.zeros(1,self.channels*4,h//16,w//16).cuda()
 
-    def forward(self, x, hidden):
-        x = self.h_a(x)
-        z, hidden = self.lstm(x, hidden.to(x.device))
-        z_hat, z_likelihoods = self.entropy_bottleneck(z, training=self.training)
-        gaussian_params = self.h_s(z_hat)
+    def forward(self, x, hidden, training):
+        state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
+        z = self.h_a1(x)
+        z, state_enc = self.enc_lstm(z, state_enc)
+        z = self.h_a2(z)
+        z_hat, z_likelihoods = self.entropy_bottleneck(z, training=training)
+        z_hat = self.h_s1(z_hat)
+        z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
+        gaussian_params = self.h_s2(z_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
-        x_hat, x_likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=self.training)
+        x_hat, x_likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
+        hidden = torch.cat((state_enc, state_dec),dim=1)
         return x_hat, (x_likelihoods,z_likelihoods), hidden
 
-    def compress(self, x):
-        # need to deal with hidden:1.in model+add function to reset 2.out model
-        x = self.h_a(x)
-        z, hidden = self.lstm(x, hidden.to(x.device))
-        z_hat, z_likelihoods = self.entropy_bottleneck(z, training=self.training)
-        z_string = self.entropy_bottleneck.compress(x)
-        x = self.h_s(x)
-        scales_hat, means_hat = torch.split(x, self.channels, dim=1)
+    def compress(self, x, hidden):
+        state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
+        z = self.h_a1(x)
+        z, state_enc = self.enc_lstm(z, state_enc)
+        z = self.h_a2(z)
+        z_hat, z_likelihoods = self.entropy_bottleneck(z)
+        z_string = self.entropy_bottleneck.compress(z)
+        z_hat = self.h_s1(z_hat)
+        z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
+        gaussian_params = self.h_s2(z_hat)
+        scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
         indexes = self.gaussian_conditional.build_indexes(scales_hat)
-        x_string = self.gaussian_conditional.compress(x, indexes, means=means_hat, training=self.training)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=means_hat)
         return (x_string,z_string)
         
     def init_state(self):
@@ -621,8 +631,8 @@ class MeanScaleHyperprior(CompressionModel):
     def loss(self):
         return torch.FloatTensor([0]).squeeze(0).cuda(0)
         
-    def get_actual_bits(self, x):
-        x_string,z_string = self.compress(x)
+    def get_actual_bits(self, x, hidden):
+        x_string,z_string = self.compress(x, hidden)
         x_bits_act = torch.FloatTensor([len(b''.join(x_string))*8]).squeeze(0)
         z_bits_act = torch.FloatTensor([len(b''.join(z_string))*8]).squeeze(0)
         bits_act = x_bits_act + z_bits_act

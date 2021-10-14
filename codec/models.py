@@ -21,7 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecEntropyBottleneck,RecProbModel
+from codec.entropy_models import RecEntropyBottleneck,RecProbModel,RecGaussianConditional
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -455,22 +455,25 @@ class ComprNet(nn.Module):
             self.entropy_bottleneck = RecProbModel(channels,data_name)
         elif 'RHP' in codec_name:
             self.entropy_bottleneck = RecEntropyBottleneck(channels,data_name)
+        elif 'RGC' in codec_name:
+            self.entropy_bottleneck = RecGaussianConditional(channels)
         else:
             print('Bottleneck not implemented for:',codec_name)
             exit(1)
         
         self.channels = channels
         # recurrent encoder or not
-        self.use_RAE = (codec_name in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC']) 
+        self.use_RAE = (codec_name in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG','MRLVC-RGC-BPG', 'RLVC']) 
         if self.use_RAE:
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         # recurrent hyperprior or not
-        self.use_RP = (codec_name in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC'])
+        self.use_RP = (codec_name in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG','MRLVC-RGC-BPG', 'RLVC'])
         # RPM or not
         self.use_RPM = (codec_name in ['MRLVC-RPM-BPG', 'RLVC'])
         # RHP or not
         self.use_RHP = ('RHP' in codec_name) 
+        self.use_RGC = ('RGC' in codec_name)
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
@@ -488,23 +491,27 @@ class ComprNet(nn.Module):
         else:
             self.entropy_bottleneck.update(True)
         
+        # calculate bpp (actual)
+        if self.use_RPM:
+            bits_act = bits_est
+        elif self.use_RGC:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent,hidden)
+        else:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+        
         # quantization + entropy coding
         if self.use_RP:
             if self.use_RPM:
                 latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
             elif self.use_RHP:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+            elif self.use_RGC:
+                latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
         else:
             latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         
         # calculate bpp (estimated)
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        
-        # calculate bpp (actual)
-        if self.use_RPM:
-            bits_act = bits_est
-        else:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
