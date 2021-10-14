@@ -22,6 +22,7 @@ sys.path.append('..')
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import RecEntropyBottleneck,RecProbModel,RecGaussianConditional
+from compressai.entropy_models import EntropyBottleneck
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -433,6 +434,19 @@ class ConvLSTM(nn.Module):
         h = o * self._activation(c)
 
         return h, torch.cat((c, h),dim=1)
+        
+def init_state(self):
+    return self.model_states
+    
+def get_actual_bits(self, x):
+    string = self.compress(x)
+    bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+    return bits_act
+        
+def get_estimate_bits(self, likelihoods):
+    log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
+    bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+    return bits_est
 
 class ComprNet(nn.Module):
     def __init__(self, device, data_name, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
@@ -457,6 +471,11 @@ class ComprNet(nn.Module):
             self.entropy_bottleneck = RecEntropyBottleneck(channels,data_name)
         elif 'RGC' in codec_name:
             self.entropy_bottleneck = RecGaussianConditional(channels)
+        elif 'DVC' == codec_name:
+            EntropyBottleneck.init_state = init_state
+            EntropyBottleneck.get_actual_bits = get_actual_bits
+            EntropyBottleneck.get_estimate_bits = get_estimate_bits
+            self.entropy_bottleneck = EntropyBottleneck(channels)
         else:
             print('Bottleneck not implemented for:',codec_name)
             exit(1)
