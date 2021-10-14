@@ -98,7 +98,7 @@ class LearnedVideoCodecs(nn.Module):
         GOP = 10 if epoch >= -1 else 1
         
         # whether to compute action detection
-        doAD = True if epoch >= 1 and epoch < bppRefineEpoch else False
+        doAD = True if epoch >= 1 and epoch < bppRefineEpoch and self.name in ['MRLVC-RPM-BPG','MRLVC-RHP-BPG','MRLVC-RGC-BPG'] else False
         
         return GOP, doAD
 
