@@ -524,6 +524,7 @@ class ComprNet(nn.Module):
         
         # calculate bpp (estimated)
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        print(bits_est,latent.size())
         
         # calculate bpp (actual)
         if self.use_RPM:
