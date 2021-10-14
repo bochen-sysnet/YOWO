@@ -21,7 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecEntropyBottleneck,RPM
+from codec.entropy_models import RecEntropyBottleneck,RecProbModel
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
