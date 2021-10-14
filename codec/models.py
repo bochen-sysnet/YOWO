@@ -472,6 +472,7 @@ class ComprNet(nn.Module):
         elif 'RGC' in codec_name:
             self.entropy_bottleneck = RecGaussianConditional(channels)
         elif 'DVC' == codec_name:
+            EntropyBottleneck.model_states = []
             EntropyBottleneck.init_state = init_state
             EntropyBottleneck.get_actual_bits = get_actual_bits
             EntropyBottleneck.get_estimate_bits = get_estimate_bits
