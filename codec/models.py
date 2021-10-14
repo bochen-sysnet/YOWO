@@ -487,17 +487,9 @@ class ComprNet(nn.Module):
 
         # update cdf
         if self.use_RHP:
-            rpm_hidden,_ = self.entropy_bottleneck.update(rpm_hidden, True)
+            rpm_hidden,_ = self.entropy_bottleneck.update(rpm_hidden, force=True)
         else:
-            self.entropy_bottleneck.update(True)
-        
-        # calculate bpp (actual)
-        if self.use_RPM:
-            bits_act = bits_est
-        elif self.use_RGC:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
-        else:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+            self.entropy_bottleneck.update(force=True)
         
         # quantization + entropy coding
         if self.use_RP:
@@ -512,6 +504,14 @@ class ComprNet(nn.Module):
         
         # calculate bpp (estimated)
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        
+        # calculate bpp (actual)
+        if self.use_RPM:
+            bits_act = bits_est
+        elif self.use_RGC:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
+        else:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))

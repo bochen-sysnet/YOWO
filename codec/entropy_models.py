@@ -8,7 +8,7 @@ from torch import Tensor
 
 from compressai.entropy_models import EntropyModel,GaussianConditional
 from compressai.models import CompressionModel
-import sys, os
+import sys, os, math
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 
@@ -552,6 +552,13 @@ class RecProbModel(EntropyModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
+SCALES_MIN = 0.11
+SCALES_MAX = 256
+SCALES_LEVELS = 64
+
+def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
+    return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
+    
 # Gaussian Conditional
 class RecGaussianConditional(CompressionModel):
 
@@ -624,6 +631,13 @@ class RecGaussianConditional(CompressionModel):
         indexes = self.gaussian_conditional.build_indexes(scales_hat)
         x_string = self.gaussian_conditional.compress(x, indexes, means=means_hat)
         return (x_string,z_string)
+        
+    def update(self, scale_table=None, force=False):
+        if scale_table is None:
+            scale_table = get_scale_table()
+        updated = self.gaussian_conditional.update_scale_table(scale_table, force=force)
+        updated |= super().update(force=force)
+        return updated
         
     def init_state(self):
         return self.model_states
