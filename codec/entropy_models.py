@@ -582,7 +582,7 @@ class RecGaussianConditional(CompressionModel):
         self.h_s2 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
         )
         
