@@ -41,7 +41,7 @@ class LearnedVideoCodecs(nn.Module):
         self.MC_network = MCNet()
         if 'COD' in name:
             self.image_coder_name = 'deepcod'
-        elif 'BPG' in name:
+        elif name in ['MRLVC-RPM-BPG','MRLVC-RHP-BPG','MRLVC-RGC-BPG','RLVC','DVC']:
             self.image_coder_name = 'bpg' 
         elif 'RAW' in name:
             self.image_coder_name = 'raw'
