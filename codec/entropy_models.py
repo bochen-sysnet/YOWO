@@ -556,7 +556,7 @@ class RecProbModel(EntropyModel):
 class RecGaussianConditional(CompressionModel):
 
     def __init__(self, channels=128):
-        super().__init__()
+        super().__init__(channels)
 
         self.h_a1 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
