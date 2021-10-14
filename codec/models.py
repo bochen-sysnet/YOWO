@@ -80,12 +80,13 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
-        bppRefineEpoch = 6
+        bppRefineEpoch = 10
         
         # setup training weights
         if epoch <= -1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         elif epoch < bppRefineEpoch:
+            print('sss')
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,1
         else:
             # after convergence of image recon, refine bpp, can be set to epoch > 6

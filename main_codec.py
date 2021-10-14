@@ -97,6 +97,8 @@ if cfg.TRAIN.RESUME_PATH:
         model_codec.load_my_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
+        if 'misc' in checkpoint:
+            print('Other metrics:',misc)
         del checkpoint
     else:
         print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
@@ -156,14 +158,14 @@ else:
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
-            score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
+            score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
             score = 0
 
         # Save the model to backup directory
         is_best = score > best_codec_score
         if is_best:
-            print("New best score is achieved: ", score)
+            print("New best score is achieved: ", score, misc)
             print("Previous score was: ", best_codec_score)
             best_codec_score = score
 
@@ -171,7 +173,8 @@ else:
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'score': score
+            'score': score,
+            'misc': misc
             }
         save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))

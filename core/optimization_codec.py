@@ -466,4 +466,4 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     print("Classification accuracy: %.3f" % classification_accuracy)
     print("Locolization recall: %.3f" % locolization_recall)
 
-    return fscore
+    return fscore,(ba_loss_module.avg，metrics_module.avg，loss_module.l_total.avg)
