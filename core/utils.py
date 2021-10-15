@@ -56,7 +56,6 @@ def adjust_codec_learning_rate(optimizer, epoch, cfg):
     r = (cfg.SOLVER.LR_DECAY_RATE ** (sum(epoch >= np.array(steps))))
     for param_group in optimizer.param_groups:
         param_group['lr'] *= r
-        print(param_group['lr'])
     return r
 
 def sigmoid(x):
