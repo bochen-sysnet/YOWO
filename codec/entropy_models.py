@@ -764,11 +764,12 @@ def test_RPM():
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     parameters = set(p for n, p in net.named_parameters())
-    optimizer = optim.Adam(parameters, lr=1e-4)
+    optimizer = optim.Adam(parameters, lr=1e-2)
     rpm_hidden = net.init_state()
     rpm_flag = True
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
-    for i in range(100):
+    train_iter = tqdm(range(0,1000))
+    for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
         x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
@@ -779,7 +780,10 @@ def test_RPM():
         loss.backward()
         optimizer.step()
         
-        print(i,float(loss),float(mse))
+        train_iter.set_description(
+            f"Batch: {i:4}. "
+            f"loss: {float(loss):.2f}. "
+            f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
     test_RPM()
