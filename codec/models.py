@@ -465,9 +465,9 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbModel(channels,data_name)
+            self.entropy_bottleneck = RecProbabilityModel(channels)
         elif 'RHP' in codec_name:
-            self.entropy_bottleneck = RecEntropyBottleneck(channels,data_name)
+            self.entropy_bottleneck = RecEntropyBottleneck(channels)
         elif 'RGC' in codec_name:
             self.entropy_bottleneck = RecGaussianConditional(channels)
         elif 'DVC' == codec_name:
@@ -507,18 +507,18 @@ class ComprNet(nn.Module):
 
         # update cdf
         if self.use_RHP:
-            rpm_hidden,_ = self.entropy_bottleneck.update(rpm_hidden, force=True)
+            rpm_hidden2,_ = self.entropy_bottleneck.update(rpm_hidden, force=True)
         else:
             self.entropy_bottleneck.update(force=True)
         
         # quantization + entropy coding
         if self.use_RP:
             if self.use_RPM:
-                latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
+                latent_hat, likelihoods, rpm_hidden2 = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
             elif self.use_RHP:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
             elif self.use_RGC:
-                latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
+                latent_hat, likelihoods, rpm_hidden2 = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
         else:
             latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         
@@ -527,13 +527,17 @@ class ComprNet(nn.Module):
         
         # calculate bpp (actual)
         if self.use_RPM:
-            bits_act = bits_est
-            #bits_act = self.entropy_bottleneck.get_actual_bits(latent,RPM_flag)
+            #bits_act = bits_est
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         elif self.use_RGC:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent)
         #print(self.name,float(bits_act),float(bits_est),likelihoods.size(),float(torch.mean(likelihoods)))
+            
+        # update prior latent
+        if self.use_RPM:
+            self.entropy_bottleneck.memorize(latent_hat)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
@@ -552,7 +556,7 @@ class ComprNet(nn.Module):
         if self.use_RAE:
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
+        return hat, hidden, rpm_hidden2, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):
