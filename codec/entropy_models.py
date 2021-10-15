@@ -682,7 +682,7 @@ class RPM(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        x, hidden = self.lstm(x, hidden.to(x.device))
+        #x, hidden = self.lstm(x, hidden.to(x.device))
         x = F.relu(self.conv5(x))
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
@@ -891,4 +891,4 @@ def test_RGC():
             f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_RGC()
+    test_RPM()
