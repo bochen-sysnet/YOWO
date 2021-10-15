@@ -163,7 +163,7 @@ else:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score = 0
+            score,misc = 0,()
 
         # Save the model to backup directory
         is_best = score > best_codec_score
