@@ -979,4 +979,4 @@ def test_RGC():
             f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_RPM()
+    test_REB()
