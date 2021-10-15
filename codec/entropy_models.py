@@ -850,7 +850,7 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
     
 def test_RPM():
     channels = 128
-    net = RecProbabilityModel(channels,'test')
+    net = RecProbabilityModel(channels)
     #for n, p in net.named_parameters():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)
