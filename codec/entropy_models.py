@@ -536,7 +536,7 @@ def test_RPM():
     rpm_hidden = net.init_state()
     rpm_flag = True
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
-    train_iter = tqdm(range(0,10000))
+    train_iter = tqdm(range(0,20000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
@@ -658,4 +658,4 @@ def test_RGC():
             f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_REB()
+    test_RPM()
