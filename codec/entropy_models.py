@@ -548,6 +548,8 @@ def test_RPM():
         loss.backward()
         optimizer.step()
         
+        net.memorize(x_hat)
+        
         train_iter.set_description(
             f"Batch: {i:4}. "
             f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
