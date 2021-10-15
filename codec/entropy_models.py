@@ -763,6 +763,7 @@ def test_RPM():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
+    from tqdm import tqdm
     parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-2)
     rpm_hidden = net.init_state()
