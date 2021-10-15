@@ -758,7 +758,7 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
     
 def test_RPM():
     channels = 128
-    net = RecEntropyBottleneck(channels,'test')
+    net = RecProbModel(channels,'test')
     latent = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     parameters = set(p for n, p in net.named_parameters() if not n.endswith(".quantiles"))
