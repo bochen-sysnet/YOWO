@@ -76,22 +76,21 @@ class LearnedVideoCodecs(nn.Module):
         self.res_codec.cuda(1)
         
     def update_training(self, epoch):
-        # pretraining DeepCOD： -4,...,-2
         # training flow estimation without AD: -1
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
-        bppRefineEpoch = 10
+        noADEndingEpoch, bppRefineEpoch = 3,8
         
         # setup training weights
         if epoch <= -1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
-        elif epoch < bppRefineEpoch:
+        elif epoch <= noADEndingEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0.01,0,0
+        elif epoch <= bppRefineEpoch:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0.01,0,1
         else:
-            # after convergence of image recon, refine bpp, can be set to epoch > 6
-            self.gamma_0 = 1
-            self.gamma_1 = self.gamma_2 = self.gamma_3 = self.gamma_4 = 0
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,0,0,0,0
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
@@ -532,6 +531,7 @@ class ComprNet(nn.Module):
             bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+        print(bits_act,latent.size(),torch.max(latent),torch.mean(latent),torch.min(latent))
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
