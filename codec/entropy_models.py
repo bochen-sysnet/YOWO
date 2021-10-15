@@ -797,6 +797,7 @@ def test_EB():
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
+    from compressai.entropy_models import EntropyBottleneck
     parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
     optimizer = optim.Adam(parameters, lr=1e-4)
     aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
