@@ -553,6 +553,127 @@ class RecProbModel(EntropyModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
+# conditional probability
+# predict y_t based on parameters computed from y_t-1
+class RPM(nn.Module):
+    def __init__(self, channels=128, act=torch.tanh):
+        super(RPM, self).__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.lstm = ConvLSTM(channels)
+        self.conv5 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv6 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
+        self.channels = channels
+
+    def forward(self, x, x_target, hidden):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        #x, hidden = self.lstm(x, hidden.to(x.device))
+        x = F.relu(self.conv5(x))
+        x = F.relu(self.conv6(x))
+        x = F.relu(self.conv7(x))
+        sigma_mu = F.relu(self.conv8(x))
+        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, self.channels)
+        return likelihood, hidden, sigma, mu
+        
+class RecProbabilityModel(CompressionModel):
+
+    def __init__(self, channels=128):
+        super().__init__(channels)
+
+        self.h1 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        
+        self.h2 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        
+        self.lstm = ConvLSTM(channels)
+        
+        self.gaussian_conditional = GaussianConditional(None)
+        
+        self.channels = channels
+        
+        h = w = 224
+        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        
+        self.prior_latent = None
+
+    def forward(self, x, hidden, RPM_flag, training):
+        if not RPM_flag:
+            x_hat,likelihoods = self.entropy_bottleneck(x,training=training)
+            self.prior_latent = x_hat
+            return x_hat,likelihoods,hidden
+        assert self.prior_latent is not None, 'prior latent is none!'
+        self.prior_latent = self.h1(self.prior_latent)
+        self.prior_latent, hidden = self.lstm(self.prior_latent, hidden)
+        gaussian_params = self.h2(self.prior_latent)
+        scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
+        x_hat, likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
+        return x_hat, likelihoods, hidden.detach()
+
+    def compress(self, x, hidden):
+        if not RPM_flag:
+            x_string = self.entropy_bottleneck.compress(x)
+            return x_string
+        assert self.prior_latent is not None, 'prior latent is none!'
+        self.prior_latent = self.h1(self.prior_latent)
+        self.prior_latent, hidden = self.lstm(self.prior_latent, hidden)
+        gaussian_params = self.h2(self.prior_latent)
+        scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
+        indexes = self.gaussian_conditional.build_indexes(scales_hat)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=means_hat)
+        return x_string
+        
+    def update(self, scale_table=None, force=False):
+        if scale_table is None:
+            scale_table = get_scale_table()
+        updated = self.gaussian_conditional.update_scale_table(scale_table, force=force)
+        updated |= super().update(force=force)
+        return updated
+        
+    def init_state(self):
+        return self.model_states
+        
+    def loss(self):
+        return torch.FloatTensor([0]).squeeze(0).cuda(0)
+        
+    def get_actual_bits(self, x, hidden):
+        x_string,z_string = self.compress(x, hidden)
+        x_bits_act = torch.FloatTensor([len(b''.join(x_string))*8]).squeeze(0)
+        z_bits_act = torch.FloatTensor([len(b''.join(z_string))*8]).squeeze(0)
+        bits_act = x_bits_act + z_bits_act
+        return bits_act
+        
+    def get_estimate_bits(self, likelihoods):
+        x_likelihoods,z_likelihoods = likelihoods
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihoods.device)
+        x_bits_est = torch.sum(torch.log(x_likelihoods)) / (-log2)
+        z_bits_est = torch.sum(torch.log(z_likelihoods)) / (-log2)
+        bits_est = x_bits_est + z_bits_est
+        return bits_est
+        
 SCALES_MIN = 0.11
 SCALES_MAX = 256
 SCALES_LEVELS = 64
@@ -661,35 +782,6 @@ class RecGaussianConditional(CompressionModel):
         bits_est = x_bits_est + z_bits_est
         return bits_est
         
-# conditional probability
-# predict y_t based on parameters computed from y_t-1
-class RPM(nn.Module):
-    def __init__(self, channels=128, act=torch.tanh):
-        super(RPM, self).__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.lstm = ConvLSTM(channels)
-        self.conv5 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv6 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
-        self.channels = channels
-
-    def forward(self, x, x_target, hidden):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        #x, hidden = self.lstm(x, hidden.to(x.device))
-        x = F.relu(self.conv5(x))
-        x = F.relu(self.conv6(x))
-        x = F.relu(self.conv7(x))
-        sigma_mu = F.relu(self.conv8(x))
-        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, self.channels)
-        return likelihood, hidden, sigma, mu
-        
 class ConvLSTM(nn.Module):
     def __init__(self, channels=128, forget_bias=1.0, activation=F.relu):
         super(ConvLSTM, self).__init__()
@@ -758,7 +850,7 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
     
 def test_RPM():
     channels = 128
-    net = RecProbModel(channels,'test')
+    net = RecProbabilityModel(channels,'test')
     #for n, p in net.named_parameters():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)
