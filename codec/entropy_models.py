@@ -755,3 +755,33 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
     bits_value = os.path.getsize(path_bin + bin_name) * 8
 
     return bits_value
+    
+def test_RPM():
+    channels = 128
+    net = RecEntropyBottleneck(channels,'test')
+    latent = torch.rand(1, channels, 14, 14)
+    import torch.optim as optim
+    parameters = set(p for n, p in net.named_parameters() if not n.endswith(".quantiles"))
+    aux_parameters = set(p for n, p in net.named_parameters() if n.endswith(".quantiles"))
+    optimizer = optim.Adam(parameters, lr=1e-4)
+    aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
+    for i in range(100):
+        optimizer.zero_grad()
+        aux_optimizer.zero_grad()
+
+        x_hat, likelihoods = net(x)
+        
+        loss = net.get_estimate_bits(likelihoods)
+        mse = torch.mean(torch.pow(x-x_hat,2))
+
+        loss.backward()
+        optimizer.step()
+
+        aux_loss = net.aux_loss()
+        aux_loss.backward()
+        aux_optimizer.step()
+        
+        print(i,float(loss),float(mse))
+        
+if name == '__main__':
+    test_RPM()

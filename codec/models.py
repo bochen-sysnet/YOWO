@@ -80,7 +80,7 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
-        flowEstEpoch, mseEpoch, adEpoch = 0,3,4
+        flowEstEpoch, mseEpoch, adEpoch = 0,3,8
         
         # setup training weights
         if epoch <= flowEstEpoch:
