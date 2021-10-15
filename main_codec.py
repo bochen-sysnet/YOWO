@@ -67,9 +67,10 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
+parameters = [p for n, p in model_codec.named_parameters() if not (n.endswith(".quantiles") or 'RPM' in n)]
 aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}],
+rpm_parameters = [p for n, p in model_codec.named_parameters() if 'RPM' in n]
+optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1},{'params':rpm_parameters,'lr':1}],
             lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
@@ -96,6 +97,8 @@ if cfg.TRAIN.RESUME_PATH:
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_my_state_dict(checkpoint['state_dict'])
+        print(checkpoint['optimizer'])
+        exit(0)
         optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
