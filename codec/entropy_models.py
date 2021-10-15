@@ -783,5 +783,5 @@ def test_RPM():
         
         print(i,float(loss),float(mse))
         
-if name == '__main__':
+if __name__ == '__main__':
     test_RPM()
