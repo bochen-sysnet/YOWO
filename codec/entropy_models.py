@@ -761,7 +761,7 @@ def test_RPM():
     net = RecProbModel(channels,'test')
     #for n, p in net.named_parameters():
     #    print(n,p.size())
-    latent = torch.rand(1, channels, 14, 14)
+    x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
     aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
