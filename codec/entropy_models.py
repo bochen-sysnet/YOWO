@@ -767,7 +767,7 @@ def test_RPM():
     parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     rpm_hidden = net.init_state()
-    rpm_flag = True
+    rpm_flag = False
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
