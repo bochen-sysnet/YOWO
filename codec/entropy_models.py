@@ -660,18 +660,13 @@ class RecProbabilityModel(CompressionModel):
         return torch.FloatTensor([0]).squeeze(0).cuda(0)
         
     def get_actual_bits(self, x, hidden):
-        x_string,z_string = self.compress(x, hidden)
-        x_bits_act = torch.FloatTensor([len(b''.join(x_string))*8]).squeeze(0)
-        z_bits_act = torch.FloatTensor([len(b''.join(z_string))*8]).squeeze(0)
-        bits_act = x_bits_act + z_bits_act
+        x_string = self.compress(x, hidden)
+        bits_act = torch.FloatTensor([len(b''.join(x_string))*8]).squeeze(0)
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
-        x_likelihoods,z_likelihoods = likelihoods
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihoods.device)
-        x_bits_est = torch.sum(torch.log(x_likelihoods)) / (-log2)
-        z_bits_est = torch.sum(torch.log(z_likelihoods)) / (-log2)
-        bits_est = x_bits_est + z_bits_est
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
 SCALES_MIN = 0.11
