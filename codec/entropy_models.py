@@ -607,11 +607,11 @@ class RecGaussianConditional(CompressionModel):
     def forward(self, x, hidden, training):
         state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
         z = self.h_a1(x)
-        #z, state_enc = self.enc_lstm(z, state_enc)
+        z, state_enc = self.enc_lstm(z, state_enc)
         z = self.h_a2(z)
         z_hat, z_likelihoods = self.entropy_bottleneck(z, training=training)
         z_hat = self.h_s1(z_hat)
-        #z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
+        z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
         gaussian_params = self.h_s2(z_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
         x_hat, x_likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
@@ -682,7 +682,7 @@ class RPM(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        #x, hidden = self.lstm(x, hidden.to(x.device))
+        x, hidden = self.lstm(x, hidden.to(x.device))
         x = F.relu(self.conv5(x))
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
@@ -891,4 +891,4 @@ def test_RGC():
             f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_RPM()
+    test_RGC()
