@@ -759,12 +759,12 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
 def test_RPM():
     channels = 128
     net = RecProbModel(channels,'test')
-    for n, p in net.named_parameters():
-        print(n,p.size())
+    #for n, p in net.named_parameters():
+    #    print(n,p.size())
     latent = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
-    parameters = set(p for n, p in net.named_parameters() if not n.endswith(".quantiles"))
-    aux_parameters = set(p for n, p in net.named_parameters() if n.endswith(".quantiles"))
+    parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
+    aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
     optimizer = optim.Adam(parameters, lr=1e-4)
     aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
     for i in range(100):
