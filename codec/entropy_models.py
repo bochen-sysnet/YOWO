@@ -623,7 +623,7 @@ class RecProbabilityModel(CompressionModel):
     def forward(self, x, hidden, RPM_flag, training):
         if not RPM_flag:
             x_hat,likelihoods = self.entropy_bottleneck(x,training=training)
-            self.prior_latent = x_hat
+            self.prior_latent = x_hat.detach()
             return x_hat,likelihoods,hidden
         assert self.prior_latent is not None, 'prior latent is none!'
         self.prior_latent = self.h1(self.prior_latent)
