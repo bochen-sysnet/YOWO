@@ -767,11 +767,13 @@ def test_RPM():
     aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
     optimizer = optim.Adam(parameters, lr=1e-4)
     aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
+    rpm_hidden = net.init_state()
+    rpm_flag = True
     for i in range(100):
         optimizer.zero_grad()
         aux_optimizer.zero_grad()
 
-        x_hat, likelihoods = net(x)
+        x_hat, likelihoods = net(x,rpm_hidden,rpm_flag,training=True)
         
         loss = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
