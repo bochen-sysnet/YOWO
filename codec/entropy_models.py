@@ -821,7 +821,7 @@ def test_EB():
             f"Batch: {i:4}. "
             f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
             f"loss: {float(loss):.2f}. "
-            f"aux_loss: {float(aux_loss):.2f}. 
+            f"aux_loss: {float(aux_loss):.2f}. "
             f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
