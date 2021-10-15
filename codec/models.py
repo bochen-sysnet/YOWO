@@ -481,6 +481,7 @@ class ComprNet(nn.Module):
             print('Bottleneck not implemented for:',codec_name)
             exit(1)
         
+        self.name = data_name
         self.channels = channels
         # recurrent encoder or not
         self.use_RAE = (codec_name in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG','MRLVC-RGC-BPG', 'RLVC']) 
@@ -532,7 +533,7 @@ class ComprNet(nn.Module):
             bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent)
-        print(float(bits_act),latent.size(),float(torch.max(latent)),float(torch.mean(latent)),float(torch.min(latent)))
+        print(self.name,float(bits_act),latent.size(),float(torch.max(latent)),float(torch.mean(latent)),float(torch.min(latent)))
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
