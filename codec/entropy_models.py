@@ -763,16 +763,13 @@ def test_RPM():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
-    parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
-    aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
+    parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
-    aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
     rpm_hidden = net.init_state()
     rpm_flag = True
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
     for i in range(100):
         optimizer.zero_grad()
-        aux_optimizer.zero_grad()
 
         x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
         
@@ -781,10 +778,6 @@ def test_RPM():
 
         loss.backward()
         optimizer.step()
-
-        aux_loss = net.loss(rpm_flag)
-        aux_loss.backward()
-        aux_optimizer.step()
         
         print(i,float(loss),float(mse))
         
