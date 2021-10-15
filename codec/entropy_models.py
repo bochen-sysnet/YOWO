@@ -607,11 +607,11 @@ class RecGaussianConditional(CompressionModel):
     def forward(self, x, hidden, training):
         state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
         z = self.h_a1(x)
-        z, state_enc = self.enc_lstm(z, state_enc)
+        #z, state_enc = self.enc_lstm(z, state_enc)
         z = self.h_a2(z)
         z_hat, z_likelihoods = self.entropy_bottleneck(z, training=training)
         z_hat = self.h_s1(z_hat)
-        z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
+        #z_hat, state_dec = self.dec_lstm(z_hat, state_dec)
         gaussian_params = self.h_s2(z_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
         x_hat, x_likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
