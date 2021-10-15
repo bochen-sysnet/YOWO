@@ -97,7 +97,7 @@ if cfg.TRAIN.RESUME_PATH:
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_my_state_dict(checkpoint['state_dict'])
-        #optimizer.load_state_dict(checkpoint['optimizer'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
             print('Other metrics:',misc)
