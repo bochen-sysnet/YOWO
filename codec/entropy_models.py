@@ -782,7 +782,7 @@ def test_RPM():
         loss.backward()
         optimizer.step()
 
-        aux_loss = net.loss()
+        aux_loss = net.loss(rpm_flag)
         aux_loss.backward()
         aux_optimizer.step()
         
