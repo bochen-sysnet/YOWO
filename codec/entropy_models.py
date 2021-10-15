@@ -786,6 +786,43 @@ def test_RPM():
             f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
             f"loss: {float(loss):.2f}. "
             f"MSE: {float(mse):.2f}. ")
+            
+def test_EB():
+    channels = 128
+    EntropyBottleneck.model_states = []
+    EntropyBottleneck.init_state = init_state
+    EntropyBottleneck.get_actual_bits = get_actual_bits
+    EntropyBottleneck.get_estimate_bits = get_estimate_bits
+    net = EntropyBottleneck(channels)
+    x = torch.rand(1, channels, 14, 14)
+    import torch.optim as optim
+    from tqdm import tqdm
+    parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
+    optimizer = optim.Adam(parameters, lr=1e-4)
+    aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
+    aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
+    train_iter = tqdm(range(0,10000))
+    for i,_ in enumerate(train_iter):
+        optimizer.zero_grad()
+
+        x_hat, likelihoods = net(x,training=True)
+        
+        loss = net.get_estimate_bits(likelihoods)
+        mse = torch.mean(torch.pow(x-x_hat,2))
+
+        loss.backward()
+        optimizer.step()
+        
+        aux_loss = net.loss()
+        aux_loss.backward()
+        aux_optimizer.step()
+        
+        train_iter.set_description(
+            f"Batch: {i:4}. "
+            f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
+            f"loss: {float(loss):.2f}. "
+            f"aux_loss: {float(aux_loss):.2f}. 
+            f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_RPM()
+    test_EB()
