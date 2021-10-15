@@ -765,7 +765,7 @@ def test_RPM():
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in net.named_parameters())
-    optimizer = optim.Adam(parameters, lr=1e-2)
+    optimizer = optim.Adam(parameters, lr=1e-3)
     rpm_hidden = net.init_state()
     rpm_flag = True
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
