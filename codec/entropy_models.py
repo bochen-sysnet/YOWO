@@ -714,7 +714,7 @@ class ConvLSTM(nn.Module):
 def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
 
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
-    print(torch.mean(sigma),torch.mean(mu))
+    print('sigma',torch.max(sigma),torch.min(sigma),'mu',torch.max(mu),torch.min(mu))
 
     half = torch.FloatTensor([0.5]).to(x_target.device)
 

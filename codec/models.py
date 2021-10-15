@@ -80,15 +80,15 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
-        noADEndingEpoch, bppRefineEpoch = 3,8
+        flowEstEpoch, mseEpoch, adEpoch = 0,3,9
         
         # setup training weights
-        if epoch <= -1:
+        if epoch <= flowEstEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
-        elif epoch <= noADEndingEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0.01,0,0
-        elif epoch <= bppRefineEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0.01,0,1
+        elif epoch <= mseEpoch:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0,0,0
+        elif epoch <= adEpoch:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0,0,1
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,0,0,0,0
             
