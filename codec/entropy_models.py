@@ -825,6 +825,42 @@ def test_EB():
             f"loss: {float(loss):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"MSE: {float(mse):.2f}. ")
+            
+def test_REB():
+    channels = 128
+    net = RecEntropyBottleneck(channels,'test')
+    x = torch.rand(1, channels, 14, 14)
+    import torch.optim as optim
+    from tqdm import tqdm
+    parameters = set(p for n, p in net.named_parameters() if "quantiles" not in n)
+    optimizer = optim.Adam(parameters, lr=1e-4)
+    aux_parameters = set(p for n, p in net.named_parameters() if "quantiles" in n)
+    aux_optimizer = optim.Adam(aux_parameters, lr=1e-3)
+    rpm_hidden = net.init_state()
+    train_iter = tqdm(range(0,10000))
+    for i,_ in enumerate(train_iter):
+        optimizer.zero_grad()
+        
+        rpm_hidden,_ = net.update(rpm_hidden, force=True)
+
+        x_hat, likelihoods = net(x,training=True)
+        
+        loss = net.get_estimate_bits(likelihoods)
+        mse = torch.mean(torch.pow(x-x_hat,2))
+
+        loss.backward()
+        optimizer.step()
+        
+        aux_loss = net.loss()
+        aux_loss.backward()
+        aux_optimizer.step()
+        
+        train_iter.set_description(
+            f"Batch: {i:4}. "
+            f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
+            f"loss: {float(loss):.2f}. "
+            f"aux_loss: {float(aux_loss):.2f}. "
+            f"MSE: {float(mse):.2f}. ")
         
 if __name__ == '__main__':
-    test_EB()
+    test_REB()
