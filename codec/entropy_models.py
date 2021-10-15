@@ -790,9 +790,10 @@ def test_RPM():
 def test_EB():
     channels = 128
     from compressai.entropy_models import EntropyBottleneck
-    EntropyBottleneck.model_states = []
-    EntropyBottleneck.init_state = init_state
-    EntropyBottleneck.get_actual_bits = get_actual_bits
+    def get_estimate_bits(self, likelihoods):
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        return bits_est
     EntropyBottleneck.get_estimate_bits = get_estimate_bits
     net = EntropyBottleneck(channels)
     x = torch.rand(1, channels, 14, 14)
