@@ -67,7 +67,7 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-for n, p in model_codec.named_parameters()：
+for n, p in model_codec.named_parameters():
     print(n,p.size())
     exit(0)
 parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
