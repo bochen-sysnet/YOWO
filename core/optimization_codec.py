@@ -166,7 +166,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         scaler.scale(loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
-            #torch.nn.utils.clip_grad_norm_(model_codec.parameters(),1)
+            torch.nn.utils.clip_grad_norm_(model_codec.parameters(),1)
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
