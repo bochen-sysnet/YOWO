@@ -206,8 +206,8 @@ class LearnedVideoCodecs(nn.Module):
     def load_whatever(self, state_dict):
         own_state = self.state_dict()
         for name, param in state_dict.items():
+            print(name)
             if name in own_state:
-                print(name)
                 own_state[name].copy_(param)
         
     def load_my_state_dict(self, state_dict):
