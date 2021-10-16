@@ -808,7 +808,7 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
 
 def test_RPM():
     channels = 128
-    net = RecProbModel2(channels)
+    net = RecProbModel(channels)
     #for n, p in net.named_parameters():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)
