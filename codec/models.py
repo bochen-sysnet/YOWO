@@ -202,6 +202,12 @@ class LearnedVideoCodecs(nn.Module):
         else:
             print('Loss not implemented')
             exit(1)
+            
+    def load_whatever(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name in own_state:
+                own_state[name].copy_(param)
         
     def load_my_state_dict(self, state_dict):
         own_state = self.state_dict()
