@@ -666,16 +666,12 @@ class RecProbModel2(EntropyModel):
         return likelihood
 
     def forward(
-        self, x, rpm_hidden, RPM_flag, training = None, stopGradient = True
+        self, x, rpm_hidden, RPM_flag, training = None
     ):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
-            if stopGradient:
-                rpm_hidden = rpm_hidden.detach()
-            return torch.round(x).detach(), likelihood, rpm_hidden
-        if stopGradient:
-            self.prior_latent = self.prior_latent.detach()
+            return torch.round(x).detach(), likelihood, rpm_hidden.detach()
             
         if training is None:
             training = self.training
