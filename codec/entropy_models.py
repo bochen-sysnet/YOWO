@@ -527,6 +527,7 @@ class ConvLSTM(nn.Module):
 
 def test_RPM():
     channels = 128
+    torch.manual_seed(0)
     net = RecProbabilityModel(channels)
     #for n, p in net.named_parameters():
     #    print(n,p.size())
