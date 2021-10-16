@@ -57,11 +57,6 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
-        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
-        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
-        # gamma_2: the weight of auxilary loss (affecting bits estimation)
-        # gamma_3: the weight of flow loss (affecting flow estimation)
-        # gamma_4: the weight of action detection loss
         self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         
         # split on multi-gpus
@@ -80,13 +75,19 @@ class LearnedVideoCodecs(nn.Module):
         # training focus on PSNR without AD:0
         # training with AD: 1,2,3...
         
+        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
+        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
+        # gamma_2: the weight of auxilary loss (affecting bits estimation)
+        # gamma_3: the weight of flow loss (affecting flow estimation)
+        # gamma_4: the weight of action detection loss
+        
         flowEstEpoch, mseEpoch, adEpoch = 0,3,8
         
         # setup training weights
         if epoch <= flowEstEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
         elif epoch <= mseEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,1,1,0
         elif epoch <= adEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0,0,1
         else:
