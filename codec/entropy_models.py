@@ -550,6 +550,7 @@ def test_RPM():
         mse = torch.mean(torch.pow(x-x_hat,2))
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(net.parameters())
         optimizer.step()
         
         train_iter.set_description(
