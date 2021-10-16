@@ -21,7 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecEntropyBottleneck,RecProbModel,RecGaussianConditional
+from codec.entropy_models import RecEntropyBottleneck,RecProbModel,RecGaussianConditional,RecProbModel2
 from compressai.entropy_models import EntropyBottleneck
 from datasets.clip import *
 
@@ -471,7 +471,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbModel(channels)
+            self.entropy_bottleneck = RecProbModel2(channels)
         elif 'RHP' in codec_name:
             self.entropy_bottleneck = RecEntropyBottleneck(channels)
         elif 'RGC' in codec_name:
