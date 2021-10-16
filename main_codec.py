@@ -88,7 +88,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load pretrained model
-    if True:
+    if False:
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/ucf_MRLVC_pretrained.pth"
         pre_checkpoint = torch.load(pretrained_model_path)
         model_codec.load_whatever(pre_checkpoint['state_dict'])
