@@ -303,7 +303,7 @@ class RecEntropyBottleneck(EntropyModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
-class RecProbabilityModel(CompressionModel):
+class RecProbModel(CompressionModel):
 
     def __init__(self, channels=128):
         super().__init__(channels)
@@ -527,7 +527,7 @@ class ConvLSTM(nn.Module):
 
 def test_RPM():
     channels = 128
-    net = RecProbabilityModel(channels)
+    net = RecProbModel(channels)
     #for n, p in net.named_parameters():
     #    print(n,p.size())
     x = torch.rand(1, channels, 14, 14)

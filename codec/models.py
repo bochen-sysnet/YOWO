@@ -465,7 +465,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbabilityModel(channels)
+            self.entropy_bottleneck = RecProbModel(channels)
         elif 'RHP' in codec_name:
             self.entropy_bottleneck = RecEntropyBottleneck(channels)
         elif 'RGC' in codec_name:
