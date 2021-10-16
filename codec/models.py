@@ -528,7 +528,7 @@ class ComprNet(nn.Module):
         # calculate bpp (actual)
         if self.use_RPM:
             #bits_act = bits_est
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent,RPM_flag)
         elif self.use_RGC:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent,rpm_hidden)
         else:

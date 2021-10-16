@@ -350,22 +350,19 @@ class RecProbModel(CompressionModel):
         x_hat, hidden = self.lstm(x_hat, hidden.to(x.device))
         gaussian_params = self.h2(x_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
+        self.scales_hat,self.means_hat = scales_hat, means_hat
         x, likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
         tiny = 1e-10
         likelihoods = torch.clip(likelihoods, min=tiny, max=1 - tiny)
         return x, likelihoods, hidden.detach()
 
-    def compress(self, x, hidden):
+    def compress(self, x, RPM_flag):
         if not RPM_flag:
             x_string = self.entropy_bottleneck.compress(x)
             return x_string
         assert self.prior_latent is not None, 'prior latent is none!'
-        x_hat = self.h1(self.prior_latent)
-        x_hat, hidden = self.lstm(x_hat, hidden.to(x.device))
-        gaussian_params = self.h2(x_hat)
-        scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
-        indexes = self.gaussian_conditional.build_indexes(scales_hat)
-        x_string = self.gaussian_conditional.compress(x, indexes, means=means_hat)
+        indexes = self.gaussian_conditional.build_indexes(self.scales_hat)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=self.means_hat)
         return x_string
         
     def update(self, scale_table=None, force=False):
@@ -386,8 +383,8 @@ class RecProbModel(CompressionModel):
     def memorize(self, x_hat):
         self.prior_latent = x_hat.detach()
         
-    def get_actual_bits(self, x, hidden):
-        x_string = self.compress(x, hidden)
+    def get_actual_bits(self, x, RPM_flag):
+        x_string = self.compress(x, RPM_flag)
         bits_act = torch.FloatTensor([len(b''.join(x_string))*8]).squeeze(0)
         return bits_act
         
