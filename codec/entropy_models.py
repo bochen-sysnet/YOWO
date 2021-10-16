@@ -347,7 +347,7 @@ class RecProbabilityModel(CompressionModel):
             return x_hat,likelihoods,hidden.detach()
         assert self.prior_latent is not None, 'prior latent is none!'
         x_hat = self.h1(self.prior_latent)
-        #x_hat, hidden = self.lstm(x_hat, hidden.to(x.device))
+        x_hat, hidden = self.lstm(x_hat, hidden.to(x.device))
         gaussian_params = self.h2(x_hat)
         scales_hat, means_hat = torch.split(gaussian_params, self.channels, dim=1)
         x, likelihoods = self.gaussian_conditional(x, scales_hat, means=means_hat, training=training)
