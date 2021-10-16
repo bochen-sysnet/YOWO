@@ -671,12 +671,9 @@ class RecProbModel2(EntropyModel):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
-            self.prior_latent = torch.round(x)
             if stopGradient:
-                self.prior_latent = self.prior_latent.detach()
                 rpm_hidden = rpm_hidden.detach()
-            return self.prior_latent, likelihood, rpm_hidden
-        self.prior_latent = torch.round(x)
+            return torch.round(x).detach(), likelihood, rpm_hidden
         if stopGradient:
             self.prior_latent = self.prior_latent.detach()
             
@@ -763,6 +760,9 @@ class RecProbModel2(EntropyModel):
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
+        
+    def memorize(self, x_hat):
+        self.prior_latent = x_hat.detach()
         
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
