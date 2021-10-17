@@ -543,10 +543,6 @@ class ComprNet(nn.Module):
         else:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent)
         #print(self.name,float(bits_act),float(bits_est),likelihoods.size(),float(torch.mean(likelihoods)))
-            
-        # update prior latent
-        if self.use_RPM:
-            self.entropy_bottleneck.memorize(latent_hat)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))

@@ -671,7 +671,19 @@ class RecProbModel2(EntropyModel):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
-            return torch.round(x).detach(), likelihood, rpm_hidden.detach()
+            self.prior_latent = torch.round(x)
+            if stopGradient:
+                self.prior_latent = self.prior_latent.detach()
+                rpm_hidden = rpm_hidden.detach()
+            return self.prior_latent, likelihood, rpm_hidden
+        self.prior_latent = torch.round(x)
+        if stopGradient:
+            self.prior_latent = self.prior_latent.detach()
+            
+        #if RPM_flag:
+        #    assert self.prior_latent is not None, 'prior latent is none!'
+        #    likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
+        #    return torch.round(x).detach(), likelihood, rpm_hidden.detach()
             
         if training is None:
             training = self.training
@@ -757,9 +769,6 @@ class RecProbModel2(EntropyModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
-    def memorize(self, x_hat):
-        self.prior_latent = x_hat.detach()
-        
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
@@ -799,8 +808,8 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
     lower = x_target - half
 
     sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x_target.device))
-    upper_l = torch.sigmoid((upper - mu) / ((sig) + tiny))
-    lower_l = torch.sigmoid((lower - mu) / ((sig) + tiny))
+    upper_l = torch.sigmoid((upper - mu) * (torch.exp(-sig) + tiny))
+    lower_l = torch.sigmoid((lower - mu) * (torch.exp(-sig) + tiny))
     p_element = upper_l - lower_l
     p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
 
