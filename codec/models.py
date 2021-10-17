@@ -87,7 +87,7 @@ class LearnedVideoCodecs(nn.Module):
         if epoch <= flowEstEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
         elif epoch <= mseEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 0,1,0,0,0
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 0,1,0,0.01,0
         elif epoch <= adEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0,0,1
         else:
