@@ -52,8 +52,7 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-assert cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','MRLVC-RHP-BPG','MRLVC-RGC-BPG','RLVC','DVC','RAW','x264','x265']
-if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG','MRLVC-RGC-BPG','RLVC','DVC','RAW']:
+if cfg.TRAIN.CODEC_NAME in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
@@ -67,10 +66,9 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-parameters = [p for n, p in model_codec.named_parameters() if (not n.endswith(".quantiles"))]
+parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
 aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}],
-            lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
 best_codec_score = 0
@@ -87,13 +85,8 @@ if cfg.TRAIN.RESUME_PATH:
     print("Loaded model score: ", checkpoint['score'])
     print("===================================================================")
     del checkpoint
-    # try to load pretrained model
-    #if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC']:
-    #    pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/ucf_MRLVC_pretrained.pth"
-    #    pre_checkpoint = torch.load(pretrained_model_path)
-    #    model_codec.load_whatever(pre_checkpoint['state_dict'])
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC', 'DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC', 'DVC']:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
@@ -101,10 +94,8 @@ if cfg.TRAIN.RESUME_PATH:
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score']
         model_codec.load_my_state_dict(checkpoint['state_dict'])
-        #optimizer.load_state_dict(checkpoint['optimizer'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
-        if 'misc' in checkpoint:
-            print('Other metrics:',misc)
         del checkpoint
     else:
         print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
@@ -153,7 +144,7 @@ elif dataset in ['ucf24', 'jhmdb21']:
 # ---------------------------------------------------------------
 if cfg.TRAIN.EVALUATE:
     logging('evaluating ...')
-    test(cfg, 100, model, model_codec, test_dataset, loss_module)
+    test(cfg, 0, model, model_codec, test_dataset, loss_module)
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
@@ -164,14 +155,14 @@ else:
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
-            score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
+            score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score,misc = 0,()
+            score = 0
 
         # Save the model to backup directory
         is_best = score > best_codec_score
         if is_best:
-            print("New best score is achieved: ", score, misc)
+            print("New best score is achieved: ", score)
             print("Previous score was: ", best_codec_score)
             best_codec_score = score
 
@@ -179,8 +170,7 @@ else:
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'score': score,
-            'misc': misc
+            'score': score
             }
         save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))
