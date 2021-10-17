@@ -81,13 +81,13 @@ class LearnedVideoCodecs(nn.Module):
         # gamma_3: the weight of flow loss (affecting flow estimation)
         # gamma_4: the weight of action detection loss
         
-        flowEstEpoch, mseEpoch, adEpoch = 0,3,8
+        flowEstEpoch, mseEpoch, adEpoch = 0,5,8
         
         # setup training weights
         if epoch <= flowEstEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
         elif epoch <= mseEpoch:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,1,1,0
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
         elif epoch <= adEpoch:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,0,0,1
         else:
