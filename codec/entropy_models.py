@@ -824,7 +824,6 @@ def test_RPM():
     rpm_hidden = net.init_state()
     rpm_flag = True
     x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
-    net.memorize(x_hat)
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
