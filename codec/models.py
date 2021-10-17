@@ -95,7 +95,7 @@ class LearnedVideoCodecs(nn.Module):
         GOP = 10 if epoch >= -1 else 1
         
         # whether to compute action detection
-        doAD = True if epoch >= 1 else False
+        doAD = True if self.gamma_4 > 0 else False
         
         return GOP, doAD
 
