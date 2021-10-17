@@ -88,10 +88,10 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load pretrained model
-    if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC']:
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/ucf_MRLVC_pretrained.pth"
-        pre_checkpoint = torch.load(pretrained_model_path)
-        model_codec.load_whatever(pre_checkpoint['state_dict'])
+    #if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC']:
+    #    pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/ucf_MRLVC_pretrained.pth"
+    #    pre_checkpoint = torch.load(pretrained_model_path)
+    #    model_codec.load_whatever(pre_checkpoint['state_dict'])
     # try to load codec model 
     if cfg.TRAIN.CODEC_NAME not in ['MRLVC-RPM-BPG', 'MRLVC-RHP-BPG', 'RLVC', 'DVC']:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
