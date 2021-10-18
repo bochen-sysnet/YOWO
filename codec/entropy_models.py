@@ -114,7 +114,6 @@ class EntropyBottleneck2(EntropyModel):
         if self.use_RHP:
             filters = (1,) + self.filters + (1,)
             for i in range(len(self.filters) + 1):
-                continue
                 m_state,b_state,f_state = state[i]
                 matrix = getattr(self, f"_matrix{i:d}")
                 matrix = matrix.view(1,self.channels,-1)
