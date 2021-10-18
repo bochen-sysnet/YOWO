@@ -121,7 +121,7 @@ class EntropyBottleneck2(EntropyModel):
                     matrix = matrix.detach()
                 matrix, m_state = self.lstm_matrix[i](matrix, torch.split(m_state.to(matrix.device),self.channels,dim=1)) 
                 matrix = matrix.view(self.channels, filters[i + 1], filters[i])
-                setattr(self, f"_matrix{i:d}", nn.Parameter(matrix))
+                #setattr(self, f"_matrix{i:d}", nn.Parameter(matrix))
                 m_state = torch.cat(m_state,dim=1)
                 if stopGradient:
                     m_state = m_state.detach()
@@ -132,7 +132,7 @@ class EntropyBottleneck2(EntropyModel):
                     bias = bias.detach()
                 bias, b_state = self.lstm_bias[i](bias, torch.split(b_state.to(bias.device),self.channels,dim=1))
                 bias = bias.view(self.channels, filters[i + 1], 1)
-                setattr(self, f"_bias{i:d}", nn.Parameter(bias))
+                #setattr(self, f"_bias{i:d}", nn.Parameter(bias))
                 b_state = torch.cat(b_state,dim=1)
                 if stopGradient:
                     b_state = b_state.detach()
@@ -144,7 +144,7 @@ class EntropyBottleneck2(EntropyModel):
                         factor = factor.detach()
                     factor, f_state = self.lstm_factor[i](factor, torch.split(f_state.to(factor.device),self.channels,dim=1)) 
                     factor = factor.view(self.channels, filters[i + 1], 1)
-                    setattr(self, f"_factor{i:d}", nn.Parameter(factor))
+                    #setattr(self, f"_factor{i:d}", nn.Parameter(factor))
                     f_state = torch.cat(f_state,dim=1)
                     if stopGradient:
                         f_state = f_state.detach()
