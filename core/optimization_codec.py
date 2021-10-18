@@ -456,14 +456,8 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             f"Batch: {batch_idx:6}. "
             f"RL: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
-            f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
-            f"AX: {aux_loss_module.val:.2f} ({aux_loss_module.avg:.2f}). "
-            f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
-            f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). "
-            f"P: {precision:.2f} ({precision:.2f}). "
-            f"R: {recall:.2f} ({recall:.2f}). "
             f"F: {fscore:.2f} ({fscore:.4f}). ")
 
     classification_accuracy = 1.0 * correct_classification / (total_detected + eps)
@@ -472,4 +466,4 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     print("Classification accuracy: %.3f" % classification_accuracy)
     print("Locolization recall: %.3f" % locolization_recall)
 
-    return fscore
+    return fscore,(ba_loss_module.avg,metrics_module.avg,loss_module.l_total.avg)

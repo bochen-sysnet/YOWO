@@ -85,6 +85,11 @@ if cfg.TRAIN.RESUME_PATH:
     print("Loaded model score: ", checkpoint['score'])
     print("===================================================================")
     del checkpoint
+    # try to load pretrained model
+    if cfg.TRAIN.CODEC_NAME in ['RLVC']:
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_best.pth"
+        pre_checkpoint = torch.load(pretrained_model_path)
+        model_codec.load_whatever(pre_checkpoint['state_dict'])
     # try to load codec model 
     if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC', 'DVC']:
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
@@ -96,6 +101,8 @@ if cfg.TRAIN.RESUME_PATH:
         model_codec.load_my_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
+        if 'misc' in checkpoint:
+            print('Other metrics:',misc)
         del checkpoint
     else:
         print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
@@ -155,9 +162,9 @@ else:
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
-            score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
+            score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score = 0
+            score,misc = 0,()
 
         # Save the model to backup directory
         is_best = score > best_codec_score
@@ -170,7 +177,8 @@ else:
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'score': score
+            'score': score,
+            'misc': misc
             }
         save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))
