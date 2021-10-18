@@ -425,10 +425,10 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
 
     return bits_value
     
-def test_RPM():
+def test():
     channels = 128
     data_name = 'test'
-    bottleneck_type = 'RPM'
+    bottleneck_type = 'RHP'
     net = EntropyBottleneck2(channels,data_name,bottleneck_type)
     #for n, p in net.named_parameters():
     #    print(n,p.size())
@@ -461,4 +461,4 @@ def test_RPM():
             f"MSE: {float(mse):.2f}. ")
     
 if __name__ == '__main__':
-    test_RPM()
+    test()
