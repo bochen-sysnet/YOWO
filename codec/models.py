@@ -87,8 +87,10 @@ class LearnedVideoCodecs(nn.Module):
         # setup training weights
         if epoch <= -1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
-        else:
+        elif epoch <= 5:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,0
+        else:
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,1
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
