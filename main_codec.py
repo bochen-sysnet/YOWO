@@ -66,12 +66,14 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
-aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+#parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
+#aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
+#optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
+optimizer = torch.optim.Adam([{'params': parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
-best_codec_score = 0
+best_codec_score = [0,0]
 
 ####### Load yowo model
 # ---------------------------------------------------------------
@@ -97,7 +99,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
-        best_codec_score = checkpoint['score']
+        best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
         model_codec.load_my_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded model codec score: ", checkpoint['score'])
@@ -164,10 +166,10 @@ else:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score,misc = 0,()
+            score,misc = [0,0],[]
 
         # Save the model to backup directory
-        is_best = score > best_codec_score
+        is_best = np.all(np.greater_equal(score, best_codec_score))
         if is_best:
             print("New best score is achieved: ", score)
             print("Previous score was: ", best_codec_score)
