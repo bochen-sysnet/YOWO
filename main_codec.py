@@ -168,7 +168,7 @@ else:
             score,misc = [0,0],[]
 
         # Save the model to backup directory
-        is_best = np.all(np.greater_equal(score, best_codec_score))
+        is_best = (score[0] >= best_codec_score[0]) and (score[1] <= best_codec_score[1])
         if is_best:
             print("New best score is achieved: ", score)
             print("Previous score was: ", best_codec_score)
