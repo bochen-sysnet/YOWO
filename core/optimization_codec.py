@@ -69,7 +69,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
         n_optimizers = len(optimizers)
         for i in range(n_optimizers):
-            if i != n-1:
+            if i != n_optimizers-1:
                 scalers[i].scale(loss).backward(retain_graph=True)
             else:
                 scalers[i].scale(loss).backward()
@@ -170,7 +170,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
 
         n_optimizers = len(optimizers)
         for i in range(n_optimizers):
-            if i != n-1:
+            if i != n_optimizers-1:
                 scalers[i].scale(loss).backward(retain_graph=True)
             else:
                 scalers[i].scale(loss).backward()
