@@ -157,7 +157,6 @@ else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
         r = adjust_codec_learning_rate(ent_optimizer, epoch, cfg)
-        r = adjust_codec_learning_rate(nonent_optimizer, epoch, cfg)
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
