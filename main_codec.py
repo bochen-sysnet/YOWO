@@ -65,16 +65,24 @@ logging('Total number of trainable codec parameters: {}'.format(pytorch_total_pa
 
 ####### Create optimizer
 # ---------------------------------------------------------------
+optimizers = []
 if cfg.TRAIN.CODEC_NAME in ['DVC']:
-    enc_parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
-    prob_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-    enc_optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-    prob_optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
+    optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    optimizers += [optimizer]
+    parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
+    optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    optimizers += [optimizer]
 elif cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC']:
-    enc_parameters = [p for n, p in model_codec.named_parameters() if 'RPM' not in n]
-    enc_optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-    prob_parameters = [p for n, p in model_codec.named_parameters() if 'RPM' in n]
-    prob_optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
+    #optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    #optimizers += [optimizer]
+    parameters = [p for n, p in model_codec.named_parameters() if 'RPM' in n]
+    optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    optimizers += [optimizer]
+    #parameters = [p for n, p in model_codec.named_parameters() if 'RPM' not in n and not n.endswith(".quantiles")]
+    #optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    #optimizers += [optimizer]
 # initialize best score
 best_score = 0 
 best_codec_score = [0,0]
@@ -160,12 +168,12 @@ if cfg.TRAIN.EVALUATE:
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
-        r = adjust_codec_learning_rate(enc_optimizer, epoch, cfg)
-        r = adjust_codec_learning_rate(prob_optimizer, epoch, cfg)
+        for optimizer in optimizers:
+            r = adjust_codec_learning_rate(optimizer, epoch, cfg)
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, enc_optimizer, prob_optimizer)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)

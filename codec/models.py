@@ -90,7 +90,7 @@ class LearnedVideoCodecs(nn.Module):
         elif epoch <= 5:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,0
         else:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,.01,.01,0
+            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,0,.01,.01,0
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
@@ -196,11 +196,9 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
-            loss1 = app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
-            return loss1,bpp_loss
+            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
-            loss1 = pix_loss + bpp_loss + aux_loss + flow_loss
-            return loss1,bpp_loss
+            return pix_loss + bpp_loss + aux_loss + flow_loss
         else:
             print('Loss not implemented')
             exit(1)
