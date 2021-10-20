@@ -105,7 +105,7 @@ if cfg.TRAIN.RESUME_PATH:
         model_codec.load_my_state_dict(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
-            print('Other metrics:',misc)
+            print('Other metrics:',checkpoint['misc'])
         del checkpoint
     else:
         print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
