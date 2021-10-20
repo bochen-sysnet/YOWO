@@ -68,8 +68,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             all_loss_module.update(enc_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        enc_scaler.scale(loss).backward(retain_graph=True)
-        prob_scaler.scale(loss).backward()
+        enc_scaler.scale(enc_loss).backward(retain_graph=True)
+        prob_scaler.scale(prob_loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             enc_scaler.step(enc_optimizer)
@@ -168,8 +168,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             all_loss_module.update(enc_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        enc_scaler.scale(loss).backward(retain_graph=True)
-        prob_scaler.scale(loss).backward()
+        enc_scaler.scale(enc_loss).backward(retain_graph=True)
+        prob_scaler.scale(prob_loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             enc_scaler.step(enc_optimizer)
