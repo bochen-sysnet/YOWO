@@ -52,25 +52,29 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-if cfg.TRAIN.CODEC_NAME in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG','RLVC','DVC','RAW']:
+if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
+else:
+    print('Cannot recognize codec:', cfg.TRAIN.CODEC_NAME)
+    exit(1)
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable codec parameters: {}'.format(pytorch_total_params))
-pytorch_nonaux_params = sum(p.numel() for n,p in model_codec.named_parameters() if (not n.endswith(".quantiles")) and p.requires_grad)
-logging('Total number of trainable non-aux parameters: {}'.format(pytorch_nonaux_params))
-pytorch_aux_params = sum(p.numel() for n,p in model_codec.named_parameters() if n.endswith(".quantiles") and p.requires_grad)
-logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params))
 
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-#parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
-#aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-#optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-ent_parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
-ent_optimizer = torch.optim.Adam([{'params': ent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+if cfg.TRAIN.CODEC_NAME in ['DVC']:
+    enc_parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
+    prob_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
+    enc_optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    prob_optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+elif cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC']:
+    enc_parameters = [p for n, p in model_codec.named_parameters() if 'RPM' not in n]
+    enc_optimizer = torch.optim.Adam([{'params': enc_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    prob_parameters = [p for n, p in model_codec.named_parameters() if 'RPM' in n]
+    prob_optimizer = torch.optim.Adam([{'params': prob_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
 best_codec_score = [0,0]
@@ -156,11 +160,12 @@ if cfg.TRAIN.EVALUATE:
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
-        r = adjust_codec_learning_rate(ent_optimizer, epoch, cfg)
+        r = adjust_codec_learning_rate(enc_optimizer, epoch, cfg)
+        r = adjust_codec_learning_rate(prob_optimizer, epoch, cfg)
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, ent_optimizer)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, enc_optimizer, prob_optimizer)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
