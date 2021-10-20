@@ -16,7 +16,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     ba_loss_module = AverageMeter()
     metrics_module = AverageMeter()
     all_loss_module = AverageMeter()
-    scaler = torch.cuda.amp.GradScaler(enabled=True)
+    scaler1 = torch.cuda.amp.GradScaler(enabled=True)
+    scaler2 = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
     l_loader = len(train_dataset)//batch_size
 
@@ -56,7 +57,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss1,loss2 = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -67,13 +68,16 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        scaler.scale(loss).backward()
+        scaler1.scale(loss1).backward()
+        scaler2.scale(loss2).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
-            # optimizer.step()
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
+            scaler1.step(optimizer1)
+            scaler1.update()
+            optimizer1.zero_grad()
+            scaler2.step(optimizer2)
+            scaler2.update()
+            optimizer2.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
@@ -104,7 +108,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
 
 
-def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer):
+def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer1, optimizer2):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -114,7 +118,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     ba_loss_module = AverageMeter()
     metrics_module = AverageMeter()
     all_loss_module = AverageMeter()
-    scaler = torch.cuda.amp.GradScaler(enabled=True)
+    scaler1 = torch.cuda.amp.GradScaler(enabled=True)
+    scaler2 = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
     l_loader = len(train_dataset)//batch_size
 
@@ -152,7 +157,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss1,loss2 = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -160,15 +165,19 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            all_loss_module.update(loss1.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        scaler.scale(loss).backward()
+        scaler1.scale(loss1).backward()
+        scaler2.scale(loss2).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
+            scaler1.step(optimizer1)
+            scaler1.update()
+            optimizer1.zero_grad()
+            scaler2.step(optimizer2)
+            scaler2.update()
+            optimizer2.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
@@ -275,7 +284,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss,_ = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -441,7 +450,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
             flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss,_ = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)

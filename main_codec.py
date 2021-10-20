@@ -69,8 +69,10 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 #parameters = [p for n, p in model_codec.named_parameters() if not n.endswith(".quantiles")]
 #aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
 #optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
-optimizer = torch.optim.Adam([{'params': parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+ent_parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
+nonent_parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' not in n]
+entoptimizer = torch.optim.Adam([{'params': ent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+nonent_optimizer = torch.optim.Adam([{'params': nonent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
 best_codec_score = [0,0]
@@ -156,11 +158,12 @@ if cfg.TRAIN.EVALUATE:
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
-        r = adjust_codec_learning_rate(optimizer, epoch, cfg)
+        r = adjust_codec_learning_rate(ent_optimizer, epoch, cfg)
+        r = adjust_codec_learning_rate(nonent_optimizer, epoch, cfg)
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, ent_optimizer, nonent_optimizer)
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
@@ -177,7 +180,6 @@ else:
         state = {
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
-            'optimizer': optimizer.state_dict(),
             'score': score,
             'misc': misc
             }

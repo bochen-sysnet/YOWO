@@ -196,9 +196,13 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
-            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
+            loss1 = app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
+            loss2 = bpp_loss
+            return loss1,loss2
         elif self.name == 'RLVC' or self.name == 'DVC':
-            return pix_loss + bpp_loss + aux_loss + flow_loss
+            loss1 = pix_loss + bpp_loss + aux_loss + flow_loss
+            loss2 = bpp_loss
+            return loss1,loss2
         else:
             print('Loss not implemented')
             exit(1)
