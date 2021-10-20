@@ -71,7 +71,7 @@ logging('Total number of trainable aux parameters: {}'.format(pytorch_aux_params
 #optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 ent_parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
 nonent_parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' not in n]
-entoptimizer = torch.optim.Adam([{'params': ent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+ent_optimizer = torch.optim.Adam([{'params': ent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 nonent_optimizer = torch.optim.Adam([{'params': nonent_parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
