@@ -75,7 +75,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             enc_scaler.step(enc_optimizer)
             enc_scaler.update()
             enc_optimizer.zero_grad()
-            prob_scaler.step(optimizer)
+            prob_scaler.step(prob_optimizer)
             prob_scaler.update()
             prob_optimizer.zero_grad()
 
@@ -175,7 +175,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             enc_scaler.step(enc_optimizer)
             enc_scaler.update()
             enc_optimizer.zero_grad()
-            prob_scaler.step(optimizer)
+            prob_scaler.step(prob_optimizer)
             prob_scaler.update()
             prob_optimizer.zero_grad()
 
