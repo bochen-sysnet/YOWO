@@ -170,7 +170,7 @@ class RecProbModel(EntropyModel):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
-            likelihood = rpm_likelihood(torch.round(x), elf.sigma, self.mu)
+            likelihood = rpm_likelihood(torch.round(x), self.sigma, self.mu)
             self.prior_latent = torch.round(x)
             if stopGradient:
                 self.prior_latent = self.prior_latent.detach()
