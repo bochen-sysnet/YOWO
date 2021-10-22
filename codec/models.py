@@ -87,7 +87,7 @@ class LearnedVideoCodecs(nn.Module):
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
-        GOP = 10 if epoch >= -1 else 1
+        GOP = 1#0 if epoch >= -1 else 1
         
         # whether to compute action detection
         doAD = True if self.gamma_4 > 0 else False
