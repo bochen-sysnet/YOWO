@@ -634,7 +634,7 @@ def test():
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         mse = torch.mean(torch.pow(x-x_hat,2))
         
-        bits_act = net.get_actual_bits(x)
+        bits_act = net.get_actual_bits(x, rpm_flag)
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
