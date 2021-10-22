@@ -169,7 +169,8 @@ class RecProbModel(EntropyModel):
     ):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
-            likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
+            self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
+            likelihood = rpm_likelihood(torch.round(x), elf.sigma, self.mu)
             self.prior_latent = torch.round(x)
             if stopGradient:
                 self.prior_latent = self.prior_latent.detach()
@@ -278,7 +279,7 @@ class RPM(nn.Module):
         self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
         self.channels = channels
 
-    def forward(self, x, x_target, hidden):
+    def forward(self, x, hidden):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
@@ -288,8 +289,8 @@ class RPM(nn.Module):
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
         sigma_mu = F.relu(self.conv8(x))
-        likelihood, sigma, mu = rpm_likelihood(x_target, sigma_mu, self.channels)
-        return likelihood, hidden, sigma, mu
+        sigma, mu = torch.split(sigma_mu, channels, dim=1)
+        return sigma, mu, hidden
         
 class ConvLSTM(nn.Module):
     def __init__(self, channels=128, forget_bias=1.0, activation=F.relu):
@@ -312,9 +313,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
 
-def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
-
-    sigma, mu = torch.split(sigma_mu, channels, dim=1)
+def rpm_likelihood(x_target, sigma, mu, channels=128, tiny=1e-10):
 
     half = torch.FloatTensor([0.5]).to(x_target.device)
 
@@ -326,7 +325,7 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
     p_element = upper_l - lower_l
     p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
 
-    return p_element, sigma, mu
+    return p_element
     
 def cdf(x, mu, sigma, tiny=1e-10):
     sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device)) # 0.001
