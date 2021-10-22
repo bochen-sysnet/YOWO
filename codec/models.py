@@ -20,7 +20,7 @@ from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecProbModel
+from codec.entropy_models import RecProbModel_v2
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
