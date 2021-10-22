@@ -289,7 +289,7 @@ class RPM(nn.Module):
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
         sigma_mu = F.relu(self.conv8(x))
-        sigma, mu = torch.split(sigma_mu, channels, dim=1)
+        sigma, mu = torch.split(sigma_mu, self.channels, dim=1)
         return sigma, mu, hidden
         
 class ConvLSTM(nn.Module):
