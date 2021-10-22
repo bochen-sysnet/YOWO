@@ -105,7 +105,7 @@ class LearnedVideoCodecs(nn.Module):
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
             Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
-            return Y1_com, hidden_states, self.gamma_0*bpp_est, self.gamma_1*self.gamma_4*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
+            return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
@@ -139,7 +139,7 @@ class LearnedVideoCodecs(nn.Module):
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), hidden_states, self.gamma_0*bpp_est, self.gamma_1*img_loss, self.gamma_2*aux_loss, self.gamma_3*flow_loss, bpp_act, metrics
+        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
         if startNewClip:
@@ -190,9 +190,9 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-RPM-BPG','RAW']:
-            return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
+            return self.gamma_4*app_loss + self.gamma_1*pix_loss + self.gamma_0*bpp_loss + self.gamma_2*aux_loss + self.gamma_3*flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
-            return pix_loss + bpp_loss + aux_loss + flow_loss
+            return self.gamma_1*pix_loss + self.gamma_0*bpp_loss + self.gamma_2*aux_loss + self.gamma_3*flow_loss
         else:
             print('Loss not implemented')
             exit(1)

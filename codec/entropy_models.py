@@ -96,7 +96,6 @@ class EntropyBottleneck2(EntropyModel):
         else:
             self.model_states = None
              
-        
     def init_state(self):
         return self.model_states
 
