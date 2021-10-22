@@ -21,7 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from codec.deepcod import DeepCOD
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import EntropyBottleneck2
+from codec.entropy_models import RecProbModel
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -467,7 +467,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.entropy_type)
+            self.entropy_bottleneck = RecProbModel(channels,data_name)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
             from compressai.entropy_models import EntropyBottleneck
@@ -497,9 +497,11 @@ class ComprNet(nn.Module):
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
 
+        # update CDF
+        self.entropy_bottleneck.update(force=True)
+        
         # quantization + entropy coding
         if self.entropy_type == 'non-rec':
-            self.entropy_bottleneck.update(force=True)
             latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         else:
             latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)

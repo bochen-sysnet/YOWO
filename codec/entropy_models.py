@@ -11,7 +11,7 @@ import sys, os
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 
-class EntropyBottleneck2(EntropyModel):
+class RecProbModel(EntropyModel):
     r"""Entropy bottleneck layer, introduced by J. Ballé, D. Minnen, S. Singh,
     S. J. Hwang, N. Johnston, in `"Variational image compression with a scale
     hyperprior" <https://arxiv.org/abs/1802.01436>`_.
@@ -28,7 +28,6 @@ class EntropyBottleneck2(EntropyModel):
         self,
         channels,
         name,
-        model_type = 'BASE',
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -67,34 +66,10 @@ class EntropyBottleneck2(EntropyModel):
         target = np.log(2 / self.tail_mass - 1)
         self.register_buffer("target", torch.Tensor([-target, 0, target]))
         
-        self.use_RHP = model_type == 'RHP'
-        self.use_RPM = model_type == 'RPM'
-        self.name = name
-        if self.use_RHP:
-            self.lstm_matrix = nn.ModuleList() 
-            self.lstm_bias = nn.ModuleList() 
-            self.lstm_factor = nn.ModuleList() 
-            self.model_states = []
-            for i in range(len(self.filters) + 1):
-                # build rnn
-                kernel = filters[i + 1] * filters[i]
-                self.lstm_matrix.append(nn.LSTM(kernel,kernel,1))
-                kernel = filters[i + 1]
-                self.lstm_bias.append(nn.LSTM(kernel,kernel,1))
-                self.lstm_factor.append(nn.LSTM(kernel,kernel,1))
-                # initial states
-                m_state = torch.zeros(1,channels*2,filters[i + 1] * filters[i]).cuda()
-                b_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
-                f_state = torch.zeros(1,channels*2,filters[i + 1]).cuda()
-                layer_states = [m_state,b_state,f_state]
-                self.model_states.append(layer_states)
-        elif self.use_RPM:
-            self.sigma = self.mu = self.prior_latent = None
-            self.RPM = RecProbModel(channels)
-            h = w = 224
-            self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        else:
-            self.model_states = None
+        self.sigma = self.mu = self.prior_latent = None
+        self.RPM = RPM(channels)
+        h = w = 224
+        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
              
     def init_state(self):
         return self.model_states
@@ -103,52 +78,11 @@ class EntropyBottleneck2(EntropyModel):
         medians = self.quantiles[:, :, 1:2]
         return medians
 
-    def update(self, state, force = False, stopGradient = True):
+    def update(self, force = False):
         # Check if we need to update the bottleneck parameters, the offsets are
         # only computed and stored when the conditonal model is update()'d.
         if self._offset.numel() > 0 and not force:
             return False
-            
-        # update matrix, bias and factor with RNN
-        if self.use_RHP:
-            filters = (1,) + self.filters + (1,)
-            for i in range(len(self.filters) + 1):
-                m_state,b_state,f_state = state[i]
-                matrix = getattr(self, f"_matrix{i:d}")
-                matrix = matrix.view(1,self.channels,-1)
-                if stopGradient:
-                    matrix = matrix.detach()
-                matrix, m_state = self.lstm_matrix[i](matrix, torch.split(m_state.to(matrix.device),self.channels,dim=1)) 
-                matrix = matrix.view(self.channels, filters[i + 1], filters[i])
-                setattr(self, f"_matrix{i:d}", nn.Parameter(matrix))
-                m_state = torch.cat(m_state,dim=1)
-                if stopGradient:
-                    m_state = m_state.detach()
-
-                bias = getattr(self, f"_bias{i:d}")
-                bias = bias.view(1,self.channels,-1)
-                if stopGradient:
-                    bias = bias.detach()
-                bias, b_state = self.lstm_bias[i](bias, torch.split(b_state.to(bias.device),self.channels,dim=1))
-                bias = bias.view(self.channels, filters[i + 1], 1)
-                setattr(self, f"_bias{i:d}", nn.Parameter(bias))
-                b_state = torch.cat(b_state,dim=1)
-                if stopGradient:
-                    b_state = b_state.detach()
-
-                if i < len(self.filters):
-                    factor = getattr(self, f"_factor{i:d}")
-                    factor = factor.view(1,self.channels,-1)
-                    if stopGradient:
-                        factor = factor.detach()
-                    factor, f_state = self.lstm_factor[i](factor, torch.split(f_state.to(factor.device),self.channels,dim=1)) 
-                    factor = factor.view(self.channels, filters[i + 1], 1)
-                    setattr(self, f"_factor{i:d}", nn.Parameter(factor))
-                    f_state = torch.cat(f_state,dim=1)
-                    if stopGradient:
-                        f_state = f_state.detach()
-                    
-                state[i] = [m_state,b_state,f_state]
 
         medians = self.quantiles[:, 0, 1]
 
@@ -184,10 +118,10 @@ class EntropyBottleneck2(EntropyModel):
         quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
         self._quantized_cdf = quantized_cdf
         self._cdf_length = pmf_length + 2
-        return state, True
+        return True
 
     def loss(self, RPM_flag):
-        if self.use_RPM and RPM_flag:
+        if RPM_flag:
             return torch.FloatTensor([0]).squeeze(0).cuda(0)
         logits = self._logits_cumulative(self.quantiles, stop_gradient=True)
         loss = torch.abs(logits - self.target).sum()
@@ -233,8 +167,7 @@ class EntropyBottleneck2(EntropyModel):
     def forward(
         self, x, rpm_hidden, RPM_flag, training = None, stopGradient = True
     ):
-        rpm_hidden,_ = self.update(rpm_hidden, True)
-        if self.use_RPM and RPM_flag:
+        if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             likelihood, rpm_hidden, self.sigma, self.mu = self.RPM(self.prior_latent, torch.round(x), rpm_hidden)
             self.prior_latent = torch.round(x)
@@ -321,7 +254,7 @@ class EntropyBottleneck2(EntropyModel):
         return super().decompress(strings, indexes, medians.dtype, medians)
         
     def get_actual_bits(self, x, RPM_flag):
-        if self.use_RPM and RPM_flag:
+        if RPM_flag:
             bits_act = entropy_coding(self.name, 'tmp/bitstreams', torch.round(x).detach().cpu().numpy(), self.sigma.detach().cpu().numpy(), self.mu.detach().cpu().numpy())
             bits_act = torch.FloatTensor([bits_act]).squeeze(0)
         else:
@@ -331,7 +264,7 @@ class EntropyBottleneck2(EntropyModel):
         
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
-class RecProbModel(nn.Module):
+class RPM(nn.Module):
     def __init__(self, channels=128, act=torch.tanh):
         super(RecProbModel, self).__init__()
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
@@ -379,7 +312,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
 
-def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
+def rpm_likelihood(x_target, sigma_mu, channels=128):
 
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
 
@@ -389,12 +322,15 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
     lower = x_target - half
 
     sig = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x_target.device))
-    upper_l = torch.sigmoid((upper - mu) * 10 * (torch.exp(-sig) + tiny))
-    lower_l = torch.sigmoid((lower - mu) * 10 * (torch.exp(-sig) + tiny))
+    upper_l = cdf(upper, mu, sig)
+    lower_l = cdf(lower, mu, sig)
     p_element = upper_l - lower_l
     p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
 
     return p_element, sigma, mu
+    
+def cdf(x, mu, sig, tiny=1e-10):
+    return torch.sigmoid((x - mu) * 10 * (torch.exp(-sig) + tiny))
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
@@ -428,9 +364,7 @@ def test():
     channels = 128
     data_name = 'test'
     bottleneck_type = 'RHP'
-    net = EntropyBottleneck2(channels,data_name,bottleneck_type)
-    #for n, p in net.named_parameters():
-    #    print(n,p.size())
+    net = RecProbModel(channels,data_name,bottleneck_type)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
