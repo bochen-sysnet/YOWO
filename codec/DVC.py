@@ -296,7 +296,7 @@ def get_grid_locations(b, h, w):
 if __name__ == '__main__':
     Y0_raw = torch.randn(1,3,224,224).cuda(0)
     Y1_raw = torch.randn(1,3,224,224).cuda(0)
-    net = DVC()
+    net = DVC().cuda()
     # compress the I frame
     Y0_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = net(None, Y0_raw)
     # compress the P frame
