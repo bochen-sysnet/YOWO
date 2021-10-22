@@ -71,6 +71,7 @@ class RecProbModel(EntropyModel):
         self.RPM = RPM(channels)
         h = w = 224
         self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        self.name = name
              
     def init_state(self):
         return self.model_states
