@@ -448,7 +448,7 @@ def test():
         
         bits_act = net.get_actual_bits(x, rpm_flag)
 
-        loss.backward()
+        bits_est.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
         optimizer.step()
         
