@@ -28,7 +28,7 @@ class RecProbModel(EntropyModel):
     def __init__(
         self,
         channels,
-        name,
+        name = 'none',
         tail_mass = 1e-9,
         init_scale = 10,
         filters = (3, 3, 3, 3),
@@ -425,7 +425,6 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
     
 def test():
     channels = 128
-    data_name = 'test'
     net = RecProbModel(channels)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
