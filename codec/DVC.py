@@ -45,7 +45,7 @@ class DVC(nn.Module):
         # compress optical flow
         mv_hat,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor)
         # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
+        loc = get_grid_locations(batch_size, Height, Width).cuda()
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
@@ -100,11 +100,12 @@ def I_compression(Y1_raw, use_psnr):
     bpg_img = Image.open(postname + '.jpg').convert('RGB')
     Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
     metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
-    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda()
     return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics
     
 def PSNR(Y1_raw, Y1_com):
     train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
+    print(train_mse)
     log10 = torch.log(torch.FloatTensor([10])).squeeze(0).cuda()
     quality = 10.0*torch.log(1/train_mse)/log10
     return quality
