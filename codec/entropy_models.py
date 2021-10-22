@@ -264,6 +264,13 @@ class RecProbModel(EntropyModel):
             bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
         return bits_act
         
+SCALES_MIN = 0.11
+SCALES_MAX = 256
+SCALES_LEVELS = 64
+
+def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
+    return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
+    
 class RecProbModel_v2(CompressionModel):
 
     def __init__(
