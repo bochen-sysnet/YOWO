@@ -77,12 +77,9 @@ elif cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
-    parameters = [p for n, p in model_codec.named_parameters()]
+    parameters = [p for n, p in model_codec.named_parameters() if 'entropy_bottleneck' in n]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-    #parameters = [p for n, p in model_codec.named_parameters() if 'RPM' not in n and not n.endswith(".quantiles")]
-    #optimizer = torch.optim.Adam([{'params': parameters}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-    #optimizers += [optimizer]
 # initialize best score
 best_score = 0 
 best_codec_score = [0,0]
