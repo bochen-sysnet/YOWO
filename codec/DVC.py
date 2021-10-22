@@ -19,6 +19,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Function
 from torchvision import transforms
 from compressai.layers import GDN,ResidualBlock
+from PIL import Image
 
 class DVC(nn.Module):
     def __init__(self, channels=128):
