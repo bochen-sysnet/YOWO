@@ -35,13 +35,11 @@ from datasets.clip import *
 class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=128):
         super(LearnedVideoCodecs, self).__init__()
-        self.name = name # 'MRLVC-BASE', 'MRLVC-RPM', 'MRLVC-RHP',RLVC,DVC,RAW
+        self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if 'COD' in name:
-            self.image_coder_name = 'deepcod'
-        elif 'BPG' in name:
+        if name in ['MRLVC-RPM-BPG','RLVC','DVC']:
             self.image_coder_name = 'bpg' 
         elif 'RAW' in name:
             self.image_coder_name = 'raw'
@@ -191,7 +189,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['max_idx'] = i
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        if self.name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RAW']:
+        if self.name in ['MRLVC-RPM-BPG','RAW']:
             return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return pix_loss + bpp_loss + aux_loss + flow_loss
@@ -437,6 +435,19 @@ class ConvLSTM(nn.Module):
         h = o * self._activation(c)
 
         return h, torch.cat((c, h),dim=1)
+        
+def init_state(self):
+    return self.model_states
+    
+def get_actual_bits(self, x):
+    string = self.compress(x)
+    bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+    return bits_act
+        
+def get_estimate_bits(self, likelihoods):
+    log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
+    bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+    return bits_est
 
 class ComprNet(nn.Module):
     def __init__(self, device, data_name, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
@@ -455,16 +466,24 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        self.bottleneck_type = 'BASE'
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.bottleneck_type = 'RPM'
-        elif 'RHP' in codec_name:
-            self.bottleneck_type = 'RHP'
-        print('Bottleneck:',self.bottleneck_type)
-        self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.bottleneck_type)
+            self.entropy_bottleneck = EntropyBottleneck2(channels,data_name,self.entropy_type)
+            self.entropy_type = 'rec'
+        elif 'DVC' == codec_name:
+            from compressai.entropy_models import EntropyBottleneck
+            EntropyBottleneck.model_states = []
+            EntropyBottleneck.init_state = init_state
+            EntropyBottleneck.get_actual_bits = get_actual_bits
+            EntropyBottleneck.get_estimate_bits = get_estimate_bits
+            self.entropy_bottleneck = EntropyBottleneck(channels)
+            self.entropy_type = 'non-rec'
+        else:
+            print('Bottleneck not implemented for:',codec_name)
+            exit(1)
+        print('Bottleneck:',self.entropy_type)
         self.channels = channels
-        self.use_RAE = (codec_name in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC'])
-        if self.use_RAE:
+        self.encoder_type = 'rec' if codec_name in ['MRLVC-RPM-BPG', 'RLVC'] else 'non-rec'
+        if self.encoder_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         
@@ -473,39 +492,45 @@ class ComprNet(nn.Module):
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
-        if self.use_RAE:
+        if self.encoder_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
 
         # quantization + entropy coding
-        latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
+        if self.entropy_type == 'non-rec':
+            self.entropy_bottleneck.update(force=True)
+            latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+        else:
+            latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, RPM_flag, training=self.training)
         
         # calculate bpp (estimated)
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # calculate bpp (actual)
-        if self.bottleneck_type == 'RPM':
+        if self.entropy_type == 'rec':
             bits_act = bits_est
         else:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
-        if self.use_RAE:
+        if self.encoder_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
         x = self.igdn3(self.dec_conv3(x))
-        hat = self.dec_conv4(x) # compressed optical flow (less accurate)
+        hat = self.dec_conv4(x)
         
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
+        if self.entropy_type == 'rec':
+            aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
+        else:
+            aux_loss = self.entropy_bottleneck.loss()/self.channels
         
-        if self.use_RAE:
+        if self.encoder_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        #print("max: %.3f, min %.3f, act %.3f, est %.3f" % (torch.max(latent),torch.min(latent),bits_act,bits_est),latent.shape)
         return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
