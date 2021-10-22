@@ -84,7 +84,7 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
         loss = 32*(1-metrics)
     return loss
         
-def I_compression(Y1_raw, , use_psnr):
+def I_compression(Y1_raw, use_psnr):
     prename = "../tmp/frames/prebpg"
     binname = "../tmp/frames/bpg"
     postname = "../tmp/frames/postbpg"
