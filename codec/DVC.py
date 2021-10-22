@@ -299,6 +299,7 @@ if __name__ == '__main__':
     net = DVC().cuda()
     # compress the I frame
     Y0_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = net(None, Y0_raw)
+    print(Y0_com.size(),bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
     # compress the P frame
     Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = net(Y0_com, Y1_raw)
-    print(bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
+    print(Y1_com.size(),bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
