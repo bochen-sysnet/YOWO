@@ -333,7 +333,7 @@ def cdf(x, mu, sigma, tiny=1e-10):
         sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device)) # 0.001
         return torch.sigmoid((x - mu) * (torch.exp(-sigma) + tiny))
     else:
-        return torch.sigmoid((x - mu) * 20 * (torch.exp(-sigma) + tiny))
+        return torch.sigmoid((x - mu) * 30 * (torch.exp(-sigma) + tiny))
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
