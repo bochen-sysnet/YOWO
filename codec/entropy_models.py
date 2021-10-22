@@ -266,7 +266,7 @@ class RecProbModel(EntropyModel):
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
     def __init__(self, channels=128, act=torch.tanh):
-        super(RecProbModel, self).__init__()
+        super(RPM, self).__init__()
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
