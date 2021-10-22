@@ -321,16 +321,16 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
     upper = x_target + half
     lower = x_target - half
 
-    upper_l = cdf(upper, mu, sig)
-    lower_l = cdf(lower, mu, sig)
+    upper_l = cdf(upper, mu, sigma)
+    lower_l = cdf(lower, mu, sigma)
     p_element = upper_l - lower_l
     p_element = torch.clip(p_element, min=tiny, max=1 - tiny)
 
     return p_element, sigma, mu
     
-def cdf(x, mu, sig, tiny=1e-10):
-    sig = torch.maximum(sig, torch.FloatTensor([-7.0]).to(x.device))
-    return torch.sigmoid((x - mu) * (torch.exp(-sig) + tiny))
+def cdf(x, mu, sigma, tiny=1e-10):
+    sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
+    return torch.sigmoid((x - mu) * (torch.exp(-sigma) + tiny))
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
