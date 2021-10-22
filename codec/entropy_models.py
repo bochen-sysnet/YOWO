@@ -257,7 +257,7 @@ class RecProbModel(EntropyModel):
         
     def get_actual_bits(self, x, RPM_flag):
         if RPM_flag:
-            bits_act = entropy_coding(self.name, 'tmp/bitstreams', torch.round(x).detach().cpu().numpy(), self.sigma.detach().cpu().numpy(), self.mu.detach().cpu().numpy())
+            bits_act = entropy_coding(self.name, '../tmp/bitstreams', torch.round(x).detach().cpu().numpy(), self.sigma.detach().cpu().numpy(), self.mu.detach().cpu().numpy())
             bits_act = torch.FloatTensor([bits_act]).squeeze(0)
         else:
             string = self.compress(x)
@@ -303,16 +303,15 @@ class RecProbModel_v2(CompressionModel):
         return self.aux_loss()
 
     def forward(
-        self, x, rpm_hidden, RPM_flag, training = None, stopGradient = True
+        self, x, rpm_hidden, RPM_flag, training = None
     ):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             self.sigma = torch.exp(self.sigma)/20
             self.prior_latent, likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
-            if stopGradient:
-                self.prior_latent = self.prior_latent.detach()
-                rpm_hidden = rpm_hidden.detach()
+            self.prior_latent = self.prior_latent.detach()
+            rpm_hidden = rpm_hidden.detach()
             return self.prior_latent, likelihood, rpm_hidden
             
         outputs,likelihood = self.entropy_bottleneck(x,training=training)
@@ -427,7 +426,7 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
 def test():
     channels = 128
     data_name = 'test'
-    net = RecProbModel_v2(channels)
+    net = RecProbModel(channels)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm

@@ -99,20 +99,22 @@ if cfg.TRAIN.RESUME_PATH:
     print("Loaded model score: ", checkpoint['score'])
     print("===================================================================")
     del checkpoint
-    # try to load pretrained model
-    if cfg.TRAIN.CODEC_NAME in ['RLVC']:
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_best.pth"
-        pre_checkpoint = torch.load(pretrained_model_path)
-        model_codec.load_whatever(pre_checkpoint['state_dict'])
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-BASE', 'MRLVC-RPM-BPG', 'MRLVC-RHP-AE', 'MRLVC-RHP-COD', 'MRLVC-RHP-BPG', 'RLVC', 'DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-RPM-BPG', 'RLVC', 'DVC']:
+        # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
+    elif cfg.TRAIN.CODEC_NAME in ['RLVC','MRLVC-RPM-BPG']:
+        # load what exists
+        print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_best.pth"
+        checkpoint = torch.load(pretrained_model_path)
+        model_codec.load_state_dict_whatever(checkpoint['state_dict'])
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
-        model_codec.load_my_state_dict(checkpoint['state_dict'])
+        model_codec.load_state_dict_all(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
             print('Other metrics:',checkpoint['misc'])
