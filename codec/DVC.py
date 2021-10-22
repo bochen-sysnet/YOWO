@@ -239,7 +239,7 @@ class ComprNet(nn.Module):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         
         # calculate bpp (actual)
-        string = self.compress(latent_hat)
+        string = self.entropy_bottleneck.compress(latent_hat)
         bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
 
         # decompress
