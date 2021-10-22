@@ -85,6 +85,7 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
     return loss
         
 def I_compression(Y1_raw, use_psnr):
+    batch_size, _, Height, Width = Y1_raw.shape
     prename = "../tmp/frames/prebpg"
     binname = "../tmp/frames/bpg"
     postname = "../tmp/frames/postbpg"
