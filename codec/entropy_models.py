@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from torch import Tensor
 
-from compressai.entropy_models import EntropyModel
+from compressai.entropy_models import EntropyModel,GaussianConditional
 import sys, os
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
