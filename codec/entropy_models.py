@@ -309,7 +309,7 @@ class RecProbModel_v2(CompressionModel):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
-            sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
+            self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
             self.sigma = torch.exp(self.sigma)/20
             self.prior_latent, likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             self.prior_latent = self.prior_latent.detach()
