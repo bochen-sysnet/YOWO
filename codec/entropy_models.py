@@ -363,8 +363,7 @@ def entropy_coding(lat, path_bin, latent, sigma, mu):
 def test():
     channels = 128
     data_name = 'test'
-    bottleneck_type = 'RHP'
-    net = RecProbModel(channels,data_name,bottleneck_type)
+    net = RecProbModel(channels,data_name)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
@@ -377,6 +376,7 @@ def test():
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
+        net.update(force=True)
         x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
         
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
