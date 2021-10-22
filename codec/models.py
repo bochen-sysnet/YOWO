@@ -50,8 +50,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = ComprNet(device, 'mv', self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, 'res', self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
         # gamma_0: the weight of bpp_loss (affecting application-specific loss)
         # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
@@ -449,7 +449,7 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class ComprNet(nn.Module):
-    def __init__(self, device, data_name, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+    def __init__(self, device, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
         super(ComprNet, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -466,7 +466,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbModel_v2(channels,data_name)
+            self.entropy_bottleneck = RecProbModel_v2(channels)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
             from compressai.entropy_models import EntropyBottleneck
