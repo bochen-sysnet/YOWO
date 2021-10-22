@@ -29,19 +29,14 @@ class DVC(nn.Module):
         self.mv_codec = ComprNet(device, 'mv', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'res', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
-        self.image_coder_name = 'bpg'
 
     def forward(self, Y0_com, Y1_raw, use_psnr=True):
         # Y0_com: compressed previous frame
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
         # deal with I frame
-        if self.name == 'RAW':
-            bpp_est = bpp_act = metrics = torch.FloatTensor([0]).cuda(0)
-            aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-            return Y1_raw, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
-            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,use_psnr)
+            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,use_psnr)
             return Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # estimate optical flow
@@ -89,25 +84,21 @@ def calc_loss(Y1_raw, Y1_com, use_psnr):
         loss = 32*(1-metrics)
     return loss
         
-def I_compression(Y1_raw, image_coder_name, use_psnr):
-    if image_coder_name == 'bpg':
-        prename = "../tmp/frames/prebpg"
-        binname = "../tmp/frames/bpg"
-        postname = "../tmp/frames/postbpg"
-        raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
-        raw_img.save(prename + '.jpg')
-        pre_bits = os.path.getsize(prename + '.jpg')*8
-        os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
-        os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
-        post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
-        bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
-        bpg_img = Image.open(postname + '.jpg').convert('RGB')
-        Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
-        metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
-        bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-    else:
-        print('This image compression not implemented.')
-        exit(0)
+def I_compression(Y1_raw, , use_psnr):
+    prename = "../tmp/frames/prebpg"
+    binname = "../tmp/frames/bpg"
+    postname = "../tmp/frames/postbpg"
+    raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
+    raw_img.save(prename + '.jpg')
+    pre_bits = os.path.getsize(prename + '.jpg')*8
+    os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
+    os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
+    post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
+    bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
+    bpg_img = Image.open(postname + '.jpg').convert('RGB')
+    Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+    metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
+    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics
     
 def PSNR(Y1_raw, Y1_com):
