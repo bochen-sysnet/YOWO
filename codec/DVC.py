@@ -49,16 +49,16 @@ class DVC(nn.Module):
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
+        Y1_MC = self.MC_network(MC_input)
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
         # compress residual
-        res_tensor = Y1_raw.cuda(1) - Y1_MC
+        res_tensor = Y1_raw - Y1_MC
         res_hat,res_act,res_est,res_aux = self.res_codec(res_tensor)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
         # estimated bits
-        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
+        bpp_est = (mv_est + res_est)/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
         # auxilary loss
@@ -68,7 +68,7 @@ class DVC(nn.Module):
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
-        return Y1_com.cuda(0), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
 def calc_metrics(Y1_raw, Y1_com, use_psnr):
     if use_psnr:
