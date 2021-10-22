@@ -312,7 +312,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
 
-def rpm_likelihood(x_target, sigma_mu, channels=128):
+def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
 
     sigma, mu = torch.split(sigma_mu, channels, dim=1)
 
