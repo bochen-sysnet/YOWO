@@ -87,7 +87,7 @@ class LearnedVideoCodecs(nn.Module):
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
-        GOP = 1#0 if epoch >= -1 else 1
+        GOP = 10 if epoch >= -1 else 1
         
         # whether to compute action detection
         doAD = True if self.gamma_4 > 0 else False
@@ -174,7 +174,7 @@ class LearnedVideoCodecs(nn.Module):
         if i%GOP == 0:
             Y0_com = None
         elif i%GOP >= 2:
-            RPM_flag = True
+            RPM_flag = False
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         # we can also not detach here
