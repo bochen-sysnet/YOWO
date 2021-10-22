@@ -8,7 +8,7 @@ from torch import Tensor
 
 from compressai.entropy_models import EntropyModel,GaussianConditional
 from compressai.models import CompressionModel
-import sys, os
+import sys, os, math
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
 
