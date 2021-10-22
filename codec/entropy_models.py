@@ -329,8 +329,12 @@ def rpm_likelihood(x_target, sigma_mu, channels=128, tiny=1e-10):
     return p_element, sigma, mu
     
 def cdf(x, mu, sigma, tiny=1e-10):
-    sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
-    return torch.sigmoid((x - mu) * (torch.exp(-sigma) + tiny))
+    if False:
+        sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
+        return torch.sigmoid((x - mu) * (torch.exp(-sigma) + tiny))
+    else:
+        sigma = torch.maximum(sigma, torch.FloatTensor([0.0]).to(x.device))
+        return torch.sigmoid((x - mu) / (sigma + tiny))
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
 
