@@ -309,6 +309,7 @@ class RecProbModel_v2(CompressionModel):
         if RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
+            sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
             self.sigma = torch.exp(self.sigma)/20
             self.prior_latent, likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             self.prior_latent = self.prior_latent.detach()
@@ -393,7 +394,7 @@ def rpm_likelihood(x_target, sigma, mu, channels=128, tiny=1e-10):
     return p_element
     
 def cdf(x, mu, sigma, tiny=1e-10):
-    sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device)) # 0.001
+    sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device)) # 0.001
     return torch.sigmoid((x - mu) * 20 * (torch.exp(-sigma) + tiny))
 
 def entropy_coding(lat, path_bin, latent, sigma, mu):
