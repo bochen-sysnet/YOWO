@@ -311,14 +311,13 @@ class RecProbModel_v2(CompressionModel):
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
             self.sigma = torch.exp(self.sigma)/10
-            self.prior_latent, likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
-            self.prior_latent = self.prior_latent.detach()
-            rpm_hidden = rpm_hidden.detach()
-            return self.prior_latent, likelihood, rpm_hidden
+            x_hat, likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
+            self.prior_latent = torch.round(x).detach()
+            return x_hat, likelihood, rpm_hidden.detach()
             
-        outputs,likelihood = self.entropy_bottleneck(x,training=training)
-        self.prior_latent = outputs
-        return outputs, likelihood, rpm_hidden
+        x_hat,likelihood = self.entropy_bottleneck(x,training=training)
+        self.prior_latent = x_hat
+        return x_hat, likelihood, rpm_hidden
         
     def get_actual_bits(self, x, RPM_flag):
         if RPM_flag:
