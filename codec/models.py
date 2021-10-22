@@ -467,7 +467,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbModel(channels,data_name)
+            self.entropy_bottleneck = RecProbModel_v2(channels,data_name)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
             from compressai.entropy_models import EntropyBottleneck

@@ -106,7 +106,7 @@ if cfg.TRAIN.RESUME_PATH:
     elif cfg.TRAIN.CODEC_NAME in ['RLVC','MRLVC-RPM-BPG']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_best.pth"
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_ckpt.pth"
         checkpoint = torch.load(pretrained_model_path)
         model_codec.load_state_dict_whatever(checkpoint['state_dict'])
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
