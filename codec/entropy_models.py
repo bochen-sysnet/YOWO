@@ -417,7 +417,10 @@ class ConvLSTM(nn.Module):
         
 def test(name = 'RHP'):
     channels = 128
-    net = RecProbModel(channels)
+    if name == 'RPM':
+        net = RecProbModel(channels)
+    else:
+        net = RecEntropyBottleneck(channels)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
