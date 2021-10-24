@@ -101,10 +101,10 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME not in ['MRLVC-RPM-BPG', 'RLVC', 'DVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['RLVC','MRLVC-RPM-BPG']:
+    elif cfg.TRAIN.CODEC_NAME in ['RLVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_ckpt.pth"
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_MRLVC-RPM-BPG_best.pth"
         checkpoint = torch.load(pretrained_model_path)
         model_codec.load_state_dict_whatever(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
@@ -178,7 +178,7 @@ else:
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers)
-        if epoch >= 3:
+        if epoch >= 5:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
