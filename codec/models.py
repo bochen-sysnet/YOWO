@@ -207,9 +207,8 @@ class LearnedVideoCodecs(nn.Module):
     def load_state_dict_all(self, state_dict):
         own_state = self.state_dict()
         for name, param in state_dict.items():
-            if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
+            if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
                  continue
-            print(name,own_state[name].size(),param.size())
             own_state[name].copy_(param)
         
 class StandardVideoCodecs(nn.Module):
