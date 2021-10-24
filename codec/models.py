@@ -20,7 +20,7 @@ from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecProbModel_v2
+from codec.entropy_models import RecProbModel
 from datasets.clip import *
 
 # compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
@@ -466,7 +466,7 @@ class ComprNet(nn.Module):
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
         if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
-            self.entropy_bottleneck = RecProbModel_v2(channels)
+            self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
             from compressai.entropy_models import EntropyBottleneck
