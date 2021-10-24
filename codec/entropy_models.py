@@ -436,7 +436,7 @@ def test(name = 'RHP'):
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
             bits_act = net.get_actual_bits(x, rpm_flag)
         else:
-            rpm_hidden,_ = net.update(hidden,force=True)
+            rpm_hidden,_ = net.update(rpm_hidden,force=True)
             x_hat, likelihoods = net(x,training=True)
             bits_act = net.get_actual_bits(x)
         
