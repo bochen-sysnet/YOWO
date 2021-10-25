@@ -60,6 +60,8 @@ class LearnedVideoCodecs(nn.Module):
         # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
         self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         
+        # need to add position encoding for PRLVC
+        
         # split on multi-gpus
         self.split()
 
@@ -574,26 +576,28 @@ def get_grid_locations(b, h, w):
     grid  = grid.unsqueeze(0)
     grid = grid.repeat(b,1,1,1)
     return grid
+    
+class PositionalEncoding(nn.Module):
+    # max_len: longest sequence
+    # d_model: dimension for positional encoding
+
+    def __init__(self, d_model, max_len=100):
+        super(PositionalEncoding, self).__init__()       
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        #pe.requires_grad = False
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        return x + self.pe[:x.size(0), :]
 
 if __name__ == '__main__':
-    # Adam, lr=1e-4,1e-6
-    Y0_com = torch.randn(1,3,224,224).cuda(0)
-    Y1_raw = torch.randn(1,3,224,224).cuda(0)
-    Y2_raw = torch.randn(1,3,224,224).cuda(0)
-    # init hidden states
-    h = w = 224
-    rae_hidden = torch.zeros(1,128*8,h//4,w//4).cuda(0)
-    rpm_hidden = torch.zeros(1,128*4,h//16,w//16).cuda(0)
-    model_codec = MRLVC(image_coder='deepcod')
-    model_codec.split()
-    latent = None
-    # Y1_com, rae_hidden, rpm_hidden, latent = \
-    #     model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, latent, False, False)
-    while True:
-        Y1_com, _, _, latent = \
-            model_codec(Y0_com, Y1_raw, rae_hidden, rpm_hidden, None, False, False)
-        print(Y0_com.shape)
-    # encode I frames with image compression
-    # encode I+1(P) frames and I-1(P) frames with the bottleneck
-    # we can test with Y0_com set to Y0_raw,
-    # later we can use DeepCOD to compress Y0_raw
+    PE = PositionalEncoding(10)
+    x = torch.randn(4,10)
+    y = PE(x)
+    print(x)
+    print(y)
