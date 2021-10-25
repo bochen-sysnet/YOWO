@@ -593,6 +593,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
+        print(self.pe)
         return x + self.pe[:x.size(0), :]
 
 if __name__ == '__main__':
