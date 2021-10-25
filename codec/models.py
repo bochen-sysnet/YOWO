@@ -594,11 +594,10 @@ class PositionalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(2)
-        #pe.requires_grad = False
+        pe.requires_grad = False
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        print(x.size(),self.pe.size(),self.pe[:x.size(0), :].size())
         return x + self.pe[:x.size(0), :]
 
 if __name__ == '__main__':
@@ -608,4 +607,4 @@ if __name__ == '__main__':
     PE = PositionalEncoding(d_model,max_len)
     x = torch.randn(batch_size,d_model,max_len)
     y = PE(x)
-    print(y.size())
+    print(x.size(),y.size())
