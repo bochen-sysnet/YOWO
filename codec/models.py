@@ -593,12 +593,11 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        print(self.pe)
+        print(self.pe.size())
         return x + self.pe[:x.size(0), :]
 
 if __name__ == '__main__':
     PE = PositionalEncoding(10)
     x = torch.randn(4,10)
     y = PE(x)
-    print(x)
-    print(y)
+    print(x.size(),y.size())
