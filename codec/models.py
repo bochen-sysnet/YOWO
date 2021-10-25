@@ -603,7 +603,7 @@ if __name__ == '__main__':
     batch_size = 4
     d_model = 128
     max_len = 10
-    PE = PositionalEncoding(max_len)
+    PE = PositionalEncoding(d_model,max_len)
     x = torch.randn(batch_size,d_model,max_len)
     y = PE(x)
     print(x.size(),y.size())
