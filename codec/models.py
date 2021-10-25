@@ -487,6 +487,8 @@ class ComprNet(nn.Module):
         if self.encoder_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
+            
+        # might need residual struct to avoid PE vanishing?
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag):
         state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
@@ -578,7 +580,7 @@ def get_grid_locations(b, h, w):
     return grid
     
 class PositionalEncoding(nn.Module):
-    # max_len: longest sequence
+    # max_len: longest sequence length
     # d_model: dimension for positional encoding
     # this encoding is not integrated into the model itself
     # enhance the model’s input to inject the order of words.
@@ -591,7 +593,7 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
+        #pe = pe.unsqueeze(0).transpose(0, 1)
         #pe.requires_grad = False
         self.register_buffer('pe', pe)
 
