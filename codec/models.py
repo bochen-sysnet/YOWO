@@ -588,7 +588,7 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, d_model, max_len=100):
         super(PositionalEncoding, self).__init__()       
-        pe = torch.zeros(max_len, d_model, 1)
+        pe = torch.zeros(max_len, d_model, 1, 1)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -596,14 +596,14 @@ class PositionalEncoding(nn.Module):
         pe.requires_grad = False
         self.register_buffer('pe', pe)
 
-    def forward(self, x):
-        return x + self.pe[:x.size(0), :]
+    def forward(self, x, start):
+        return x + self.pe[start:x.size(0)+start, :]
 
 if __name__ == '__main__':
     batch_size = 4
     d_model = 128
-    seq_len = 100
+    h,w = 14,14
     PE = PositionalEncoding(d_model)
-    x = torch.randn(batch_size,d_model,max_len)
-    y = PE(x)
+    x = torch.randn(batch_size,d_model,h,w)
+    y = PE(x,1)
     print(x.size(),y.size())
