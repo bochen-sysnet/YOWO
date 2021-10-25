@@ -580,6 +580,7 @@ def get_grid_locations(b, h, w):
 class PositionalEncoding(nn.Module):
     # max_len: longest sequence
     # d_model: dimension for positional encoding
+    # enhance the model’s input to inject the order of words.
 
     def __init__(self, d_model, max_len=100):
         super(PositionalEncoding, self).__init__()       
@@ -598,6 +599,9 @@ class PositionalEncoding(nn.Module):
 
 if __name__ == '__main__':
     PE = PositionalEncoding(10)
-    x = torch.randn(4,10)
+    batch_size = 4
+    d_model = 4
+    max_len = 10
+    x = torch.randn(batch_size,d_model,max_len)
     y = PE(x)
     print(x.size(),y.size())
