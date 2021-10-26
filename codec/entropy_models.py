@@ -447,8 +447,9 @@ def test(name = 'RHP'):
         mse = torch.mean(torch.pow(x-x_hat,2))
 
         bits_est.backward()
+        bits_est.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
-        #optimizer.step()
+        optimizer.step()
         
         # test
         optimizer.zero_grad()
