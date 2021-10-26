@@ -262,7 +262,7 @@ def evaluate(model):
     return losses / len(val_dataloader)
     
 from timeit import default_timer as timer
-NUM_EPOCHS = 18
+NUM_EPOCHS = 5
 
 for epoch in range(1, NUM_EPOCHS+1):
     start_time = timer()
