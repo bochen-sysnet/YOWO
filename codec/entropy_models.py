@@ -430,6 +430,7 @@ def test(name = 'RHP'):
     if name == 'RPM':
         x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
     train_iter = tqdm(range(0,10000))
+    loss_list = []
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
@@ -445,18 +446,18 @@ def test(name = 'RHP'):
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         mse = torch.mean(torch.pow(x-x_hat,2))
-
-        bits_est.backward()
-        bits_est.backward()
-        torch.nn.utils.clip_grad_norm_(net.parameters(),1)
-        optimizer.step()
         
-        # test
-        optimizer.zero_grad()
-        bits_est.backward()
-        torch.nn.utils.clip_grad_norm_(net.parameters(),1)
-        optimizer.step()
-        # test
+        loss_list.append(bits_est)
+        if len(loss_list)==10:
+            for loss in loss_list:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            exit(0)
+
+        #bits_est.backward()
+        #torch.nn.utils.clip_grad_norm_(net.parameters(),1)
+        #optimizer.step()
         
         train_iter.set_description(
             f"Batch: {i:4}. "

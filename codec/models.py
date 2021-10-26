@@ -183,7 +183,6 @@ class LearnedVideoCodecs(nn.Module):
             RPM_flag = True
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
-        # we can also not detach here
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
