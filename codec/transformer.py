@@ -121,7 +121,7 @@ class Seq2SeqTransformer(nn.Module):
         print(src_emb.size(),tgt_emb.size())
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-        print(out.size())
+        print(outs.size())
         
         exit(0)
         return self.generator(outs)
