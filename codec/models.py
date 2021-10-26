@@ -97,7 +97,7 @@ class LearnedVideoCodecs(nn.Module):
         return GOP, doAD
 
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
-        # Y0_com: compressed previous frame
+        # Y0_com: compressed previous frame, [1,c,h,w]
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
         if self.name == 'RAW':
@@ -357,6 +357,8 @@ class OpticalFlowNet(nn.Module):
         self.loss = LossNet()
 
     def forward(self, im1_4, im2_4, batch, h, w):
+        # im1_4,im2_4:[1,c,h,w]
+        # flow_4:[1,2,h,w]
         im1_3 = self.pool(im1_4)
         im1_2 = self.pool(im1_3)
         im1_1 = self.pool(im1_2)
