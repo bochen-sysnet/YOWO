@@ -142,7 +142,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
-    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
         # how to deal with backward P frames?
         # if process in order, some frames need later frames to compress
@@ -155,32 +155,63 @@ class LearnedVideoCodecs(nn.Module):
             cache['bpp_act'] = {}
             cache['metrics'] = {}
             cache['hidden'] = None
-            # compress from the first frame of the first clip to the current frame
-            Iframe_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)//GOP*GOP
-            Iframe_idx = max(0,Iframe_idx)
-            for i in range(Iframe_idx,frame_idx):
-                self._process_single_frame(i, GOP, cache, i==Iframe_idx)
+            # the first frame to be compressed in a video
+            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
+            start_idx = max(0,start_idx)
+            # search for the I frame in this GOP
+            # then compress all frames based on that
+            # GOP = 6+6+1 = 13
+            # I frames: 0, 13, ...
+            for i in range(start_idx,frame_idx):
+                self._compress_GOP(i, cache)
         else:
-            self._process_single_frame(frame_idx-1, GOP, cache, False)
+            self._compress_GOP(frame_idx-1, cache)
             
-    def _process_single_frame(self, i, GOP, cache, isNew):
-        # if bP, need to compress later I frames first
+    def _compress_GOP(self, i, cache, fP=6, bP=6):
+        print('attemp:',i)
+        if i<=cache['max_processed_idx']:return
+        GOP = fP + bP + 1
+        if i%GOP == 0:
+            # e.g.: i=0,left=0,right=6,mid=0
+            mid = i
+            left = max(mid-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        elif i%GOP <= fP:
+            # e.g.: i=4,left=0,right=6,mid=0
+            mid = i//GOP*GOP
+            left = max(mid-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        else:
+            # e.g.: i=8,left=7,right=19,mid=13
+            # in this case the last frame is always I frame
+            possible_I = (i//GOP+1)*GOP
+            mid = min(possible_I,len(cache['clip'])-1)
+            left = max(possible_I-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        cache['max_processed_idx'] = right
+        # process backward frames
+        for i in range(mid,left-1,-1):
+            prev = i+1 if i<mid else -1
+            self._process_single_frame(i, prev, cache, i<=mid-2)
+        # process forward frames
+        for i in range(mid,right+1):
+            prev = i-1 if i>mid else -1
+            self._process_single_frame(i, prev, cache, i>=mid+2)
+            
+    def _process_single_frame(self, i, prev, cache, RPM_flag):
+        print('processing:',i,prev,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
-        Y0_com = cache['clip'][i-1].unsqueeze(0) if i>0 else None
+        Y0_com = cache['clip'][prev].unsqueeze(0) if prev>=0 else None
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
-        RPM_flag = False
-        hidden = cache['hidden']
-        if isNew:
+        if Y0_com is None:
             rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
             rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
             hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        if i%GOP == 0:
-            Y0_com = None
-        elif i%GOP >= 2:
-            RPM_flag = True
+        else:
+            hidden = cache['hidden']
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         cache['clip'][i] = Y1_com.detach().squeeze(0)
@@ -222,13 +253,13 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         if startNewClip:
             imgByteArr = io.BytesIO()
             width,height = shape
             fps = 25
             Q = 27#15,19,23,27
-            GOP = 10
+            GOP = 13
             output_filename = 'tmp/videostreams/output.mp4'
             if self.name == 'x265':
                 cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx265 -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'

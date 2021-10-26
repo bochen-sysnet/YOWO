@@ -29,7 +29,7 @@ class UCF_JHMDB_Dataset(Dataset):
         self.target_transform = target_transform
         self.train = train
         self.shape = shape
-        self.clip_duration = clip_duration + 9 # for GOP=10
+        self.clip_duration = clip_duration + 9 
         self.sampling_rate = sampling_rate
 
     def __len__(self):
@@ -104,7 +104,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
 
         return (frame_idx, clip, label, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
             
-    def preprocess(self, index, model_codec, GOP=10):
+    def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
@@ -121,7 +121,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        model_codec.update_cache(im_ind, GOP, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
+        model_codec.update_cache(im_ind, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
         if startNewClip:
             if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
