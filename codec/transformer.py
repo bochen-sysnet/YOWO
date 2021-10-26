@@ -107,7 +107,7 @@ class Seq2SeqTransformer(nn.Module):
         self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        print(emb_size)
+        print(emb_size, tgt_vocab_size)
 
     def forward(self,
                 src: Tensor,
@@ -122,7 +122,7 @@ class Seq2SeqTransformer(nn.Module):
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         
-        print(src_emb.size(),tgt_emb.size(),outs.size(), tgt_vocab_size)
+        print(src_emb.size(),tgt_emb.size(),outs.size())
         return self.generator(outs)
 
     def encode(self, src: Tensor, src_mask: Tensor):
