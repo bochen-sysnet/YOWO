@@ -450,6 +450,13 @@ def test(name = 'RHP'):
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
         optimizer.step()
         
+        # test
+        optimizer.zero_grad()
+        bits_est.backward()
+        torch.nn.utils.clip_grad_norm_(net.parameters(),1)
+        optimizer.step()
+        # test
+        
         train_iter.set_description(
             f"Batch: {i:4}. "
             f"likelihood: {float(torch.mean(likelihoods)):.4f}. "

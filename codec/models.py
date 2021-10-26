@@ -144,6 +144,8 @@ class LearnedVideoCodecs(nn.Module):
         
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
+        # how to deal with backward P frames?
+        # if process in order, some frames need later frames to compress
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
@@ -162,6 +164,7 @@ class LearnedVideoCodecs(nn.Module):
             self._process_single_frame(frame_idx-1, GOP, cache, False)
             
     def _process_single_frame(self, i, GOP, cache, isNew):
+        # if bP, need to compress later I frames first
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed

@@ -115,7 +115,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
-        best_codec_score = [81.34,0.5331]#checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
+        best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
         model_codec.load_state_dict_all(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
