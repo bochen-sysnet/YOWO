@@ -448,7 +448,7 @@ def test(name = 'RHP'):
 
         bits_est.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
-        optimizer.step()
+        #optimizer.step()
         
         # test
         optimizer.zero_grad()
