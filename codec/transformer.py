@@ -118,6 +118,7 @@ class Seq2SeqTransformer(nn.Module):
                 memory_key_padding_mask: Tensor):
         src_emb = self.positional_encoding(self.src_tok_emb(src))
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg))
+        print(src_emb.size(),tgt_emb.size(),src_mask.size(),tgt_mask.size(),src_padding_mask.size(), tgt_padding_mask.size(), memory_key_padding_mask.size())
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         return self.generator(outs)
