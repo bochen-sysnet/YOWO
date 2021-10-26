@@ -143,6 +143,7 @@ class LearnedVideoCodecs(nn.Module):
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
     def update_cache(self, frame_idx, GOP, clip_duration, sampling_rate, cache, startNewClip, shape):
+        # process the involving GOP
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
