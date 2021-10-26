@@ -155,6 +155,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['bpp_act'] = {}
             cache['metrics'] = {}
             cache['hidden'] = None
+            cache['max_processed_idx'] = -1
             # the first frame to be compressed in a video
             start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
             start_idx = max(0,start_idx)
