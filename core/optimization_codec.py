@@ -170,6 +170,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 # backward prop
                 n_optimizers = len(optimizers)
                 for i in range(n_optimizers):
+                    if not loss.requires_grad:break
                     if i != n_optimizers-1:
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
