@@ -169,7 +169,7 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        print('attemp:',i)
+        print('attemp:',i,len(cache['clip']))
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
         if i%GOP <= fP:
