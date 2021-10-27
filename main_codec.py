@@ -114,7 +114,7 @@ if cfg.TRAIN.RESUME_PATH:
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
-        cfg.TRAIN.BEGIN_EPOCH = 1#checkpoint['epoch'] + 1
+        cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
         model_codec.load_state_dict_all(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
@@ -178,7 +178,7 @@ else:
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers)
-        if epoch >= 5:
+        if epoch >= 2:
             logging('testing at epoch %d' % (epoch))
             score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
