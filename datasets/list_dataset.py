@@ -115,6 +115,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
         # x265/x264/MRLVC/RLVC/DVC
         # read whole video
+        print('preprocess:',startNewClip,im_ind)
         if startNewClip:
             self.cache['clip'] = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):

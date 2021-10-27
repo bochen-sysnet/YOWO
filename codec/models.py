@@ -167,6 +167,7 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
+        print('attempting:',i)
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -193,6 +194,7 @@ class LearnedVideoCodecs(nn.Module):
             self._process_single_frame(i, prev, cache, i>=mid+2)
             
     def _process_single_frame(self, i, prev, cache, RPM_flag):
+        print('processing:',i,prev,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
