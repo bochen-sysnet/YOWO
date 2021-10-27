@@ -151,6 +151,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 # if is the end of a video
                 data = torch.stack(data, dim=0).cuda()
                 target = torch.stack(target, dim=0)
+                l = len(frame_idx)
                 with autocast():
                     reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
@@ -160,13 +161,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
                     ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
                     metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
-                    aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-                    metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    aux_loss_module.update(aux_loss.cpu().data.item(), l)
+                    img_loss_module.update(img_loss.cpu().data.item(), l)
+                    flow_loss_module.update(flow_loss.cpu().data.item(), l)
+                    be_loss_module.update(be_loss.cpu().data.item(), l)
+                    ba_loss_module.update(ba_loss.cpu().data.item(), l)
+                    all_loss_module.update(loss.cpu().data.item(), l)
+                    metrics_module.update(metrics.cpu().data.item(), l)
                 # backward prop
                 n_optimizers = len(optimizers)
                 for i in range(n_optimizers):
