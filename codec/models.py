@@ -191,17 +191,13 @@ class LearnedVideoCodecs(nn.Module):
             for i in range(mid,left-1,-1):
                 prev = i+1 if i<mid else -1
                 self._process_single_frame(i, prev, cache, i==mid-1, i<=mid-2)
-        # process forward frames
-        if mid >left:
-            # havent compress I frame
-            for i in range(mid,right+1):
-                prev = i-1 if i>mid else -1
-                self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
+            mid2 = mid+1
         else:
-            # already compressed I frame
-            for i in range(mid+1,right+1):
-                prev = i-1 
-                self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
+            mid2 = mid
+        # process forward frames
+        for i in range(mid2,right+1):
+            prev = i-1 if i>mid else -1
+            self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
         
             
     def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
