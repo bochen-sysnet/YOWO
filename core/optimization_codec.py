@@ -178,7 +178,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         if batch_idx % steps == 0:
             for i in range(n_optimizers):
                 #scalers[i].step(optimizers[i])
-                scalers[i].update()
+                #scalers[i].update()
                 optimizers[i].zero_grad()
 
         # save result every 1000 batches
