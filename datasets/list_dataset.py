@@ -135,7 +135,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             num_parts = len(im_split)
             nxt_im_ind = int(im_split[num_parts-1][0:5])
             nxt_video = im_split[1]
-            self.last_frame = (cur_video != nxt_video or im_ind != nxt_im_ind-1)
+            self.last_frame = (cur_video != nxt_video)
         
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
