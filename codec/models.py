@@ -82,8 +82,6 @@ class LearnedVideoCodecs(nn.Module):
         # setup training weights
         if epoch <= -1:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
-        elif epoch <= 4:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,0,1,0,0
         else:
             self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,10,1,1,0
             
@@ -169,7 +167,6 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        print('attemp:',i,len(cache['clip']))
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -196,7 +193,6 @@ class LearnedVideoCodecs(nn.Module):
             self._process_single_frame(i, prev, cache, i>=mid+2)
             
     def _process_single_frame(self, i, prev, cache, RPM_flag):
-        print('processing:',i,prev,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
