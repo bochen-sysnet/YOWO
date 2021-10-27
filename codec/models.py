@@ -172,15 +172,10 @@ class LearnedVideoCodecs(nn.Module):
         print('attemp:',i)
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
-        if i%GOP == 0:
-            # e.g.: i=0,left=0,right=6,mid=0
-            mid = i
-            left = max(mid-6,0)
-            right = min(mid+6,len(cache['clip'])-1)
-        elif i%GOP <= fP:
+        if i%GOP <= fP:
             # e.g.: i=4,left=0,right=6,mid=0
             mid = i//GOP*GOP
-            left = max(mid-6,0)
+            left = max(mid,0)
             right = min(mid+6,len(cache['clip'])-1)
         else:
             # e.g.: i=8,left=7,right=19,mid=13
@@ -191,9 +186,10 @@ class LearnedVideoCodecs(nn.Module):
             right = min(mid+6,len(cache['clip'])-1)
         cache['max_processed_idx'] = right
         # process backward frames
-        for i in range(mid,left-1,-1):
-            prev = i+1 if i<mid else -1
-            self._process_single_frame(i, prev, cache, i<=mid-2)
+        if mid > left:
+            for i in range(mid,left-1,-1):
+                prev = i+1 if i<mid else -1
+                self._process_single_frame(i, prev, cache, i<=mid-2)
         # process forward frames
         for i in range(mid,right+1):
             prev = i-1 if i>mid else -1
