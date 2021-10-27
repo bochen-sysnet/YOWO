@@ -183,6 +183,7 @@ class LearnedVideoCodecs(nn.Module):
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
         cache['max_processed_idx'] = right
+        print('update max proc idx:',cache['max_processed_idx'])
         # process backward frames
         if mid > left:
             for i in range(mid,left-1,-1):
@@ -217,6 +218,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act.cpu()
         cache['max_idx'] = i
+        print('update max idx:',cache['max_idx'])
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-RPM-BPG','RAW']:
