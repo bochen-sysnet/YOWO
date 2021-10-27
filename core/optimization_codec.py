@@ -76,7 +76,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             for i in range(n_optimizers):
-                #scalers[i].step(optimizers[i])
+                scalers[i].step(optimizers[i])
                 scalers[i].update()
                 optimizers[i].zero_grad()
 
@@ -177,7 +177,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             for i in range(n_optimizers):
-                scalers[i].step(optimizers[i])
+                #scalers[i].step(optimizers[i])
                 scalers[i].update()
                 optimizers[i].zero_grad()
 
