@@ -167,7 +167,6 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        print('attempting:',i)
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -183,7 +182,7 @@ class LearnedVideoCodecs(nn.Module):
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
         cache['max_processed_idx'] = right
-        print('update max proc idx:',cache['max_processed_idx'])
+        cache['max_idx'] = i
         # process backward frames
         if mid > left:
             for i in range(mid,left-1,-1):
@@ -193,9 +192,9 @@ class LearnedVideoCodecs(nn.Module):
         for i in range(mid,right+1):
             prev = i-1 if i>mid else -1
             self._process_single_frame(i, prev, cache, i>=mid+2)
+        
             
     def _process_single_frame(self, i, prev, cache, RPM_flag):
-        print('processing:',i,prev,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
@@ -217,8 +216,6 @@ class LearnedVideoCodecs(nn.Module):
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act.cpu()
-        cache['max_idx'] = i
-        print('update max idx:',cache['max_idx'])
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-RPM-BPG','RAW']:
