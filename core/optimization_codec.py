@@ -128,7 +128,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     # get instructions on training
     GOP, doAD = model_codec.update_training(epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
-    torch.autograd.set_detect_anomaly(True)
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
@@ -148,39 +147,42 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             metrics_list.append(m)
-        data = torch.stack(data, dim=0)
-        target = torch.stack(target, dim=0)
-        # end of compression
-        data = data.cuda() 
-        with autocast():
-            reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
-            be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
-            img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
-            ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
-            aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-
-        n_optimizers = len(optimizers)
-        for i in range(n_optimizers):
-            if i != n_optimizers-1:
-                scalers[i].scale(loss).backward(retain_graph=True)
-            else:
-                scalers[i].scale(loss).backward()
-        steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
-        if batch_idx % steps == 0:
-            for i in range(n_optimizers):
-                scalers[i].step(optimizers[i])
-                scalers[i].update()
-                optimizers[i].zero_grad()
+            if train_dataset.last_frame or j == batch_size-1:
+                # if is the end of a video
+                data = torch.stack(data, dim=0).cuda()
+                target = torch.stack(target, dim=0)
+                with autocast():
+                    reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
+                    be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
+                    aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
+                    img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
+                    flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
+                    loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+                    ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
+                    metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+                    aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                    metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+                # backward prop
+                n_optimizers = len(optimizers)
+                for i in range(n_optimizers):
+                    if i != n_optimizers-1:
+                        scalers[i].scale(loss).backward(retain_graph=True)
+                    else:
+                        scalers[i].scale(loss).backward()
+                # update model after compress each video
+                if train_dataset.last_frame:
+                    for i in range(n_optimizers):
+                        scalers[i].step(optimizers[i])
+                        scalers[i].update()
+                        optimizers[i].zero_grad()
+                # init batch
+                frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+                bpp_est_list = []; bpp_act_list = []; metrics_list = []
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
