@@ -167,6 +167,7 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
+        cache['max_idx'] = i
         if i<=cache['max_processed_idx']:return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -182,7 +183,6 @@ class LearnedVideoCodecs(nn.Module):
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
         cache['max_processed_idx'] = right
-        cache['max_idx'] = i
         # process backward frames
         if mid > left:
             for i in range(mid,left-1,-1):
