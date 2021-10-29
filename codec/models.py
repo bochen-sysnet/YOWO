@@ -639,7 +639,7 @@ class Attention(nn.Module):
     def __init__(self, channels, hidden_channels):
         super(Attention, self).__init__()
         from torch.nn.utils import spectral_norm
-		f_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
+        f_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
         self.f_conv = spectral_norm(f_conv)
         g_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
         self.g_conv = spectral_norm(g_conv)
@@ -651,7 +651,7 @@ class Attention(nn.Module):
         self.hidden_channels = hidden_channels
         self.channels = channels
 
-	def forward(self,x):
+    def forward(self,x):
         nb, nc, imgh, imgw = x.size() 
 
         f = (self.f_conv(x)).view(nb,self.hidden_channels,-1)
