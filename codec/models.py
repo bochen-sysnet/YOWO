@@ -272,8 +272,6 @@ class StandardVideoCodecs(nn.Module):
             raw_clip = cache['clip']
             for img in raw_clip:
                 process.stdin.write(np.array(img).tobytes())
-            if transform is not None:
-                raw_clip = [transform(img).cuda() for img in raw_clip]
             # Close and flush stdin
             process.stdin.close()
             # Wait for sub-process to finish
@@ -306,7 +304,7 @@ class StandardVideoCodecs(nn.Module):
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw = torch.FloatTensor(raw_clip[i]).cuda()
+                Y1_raw = transform(img).cuda(raw_clip[i])
                 Y1_com = torch.FloatTensor(clip[i]).cuda()
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
