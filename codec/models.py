@@ -634,6 +634,16 @@ class PositionalEncoding(nn.Module):
     def forward(self, x, start):
         return x + self.pe[start:x.size(0)+start, :]
         
+def test_PE():
+    batch_size = 4
+    d_model = 128
+    h,w = 14,14
+    PE = PositionalEncoding(d_model)
+    x = torch.randn(batch_size,d_model,h,w)
+    y = PE(x,1)
+    print(x.size(),y.size())
+
+        
 class Attention(nn.Module):
 
     def __init__(self, channels, hidden_channels):
@@ -665,12 +675,50 @@ class Attention(nn.Module):
         x = self.gamma * o + x
 
         return x
+        
+class SLVC(nn.Module):
+    def __init__(self, name, channels=128):
+        super(SLVC, self).__init__()
+        self.name = name 
+        device = torch.device('cuda')
+        self.optical_flow = OpticalFlowNet()
+        self.MC_network = MCNet()
+        self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.channels = channels
+        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
+        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
+        # gamma_2: the weight of auxilary loss (affecting bits estimation)
+        # gamma_3: the weight of flow loss (affecting flow estimation)
+        # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
+        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
+        # split on multi-gpus
+        self.split()
+
+    def split(self):
+        self.optical_flow.cuda(0)
+        self.mv_codec.cuda(0)
+        self.MC_network.cuda(1)
+        self.res_codec.cuda(1)
+    def forward(self, x):
+        # x=[B,C,H,W]: input batch of frames
+        
+        # need a sequence to one model to transform a sequence of frames to a key/meta frame
+        # 1. simply use BPG and use compressed frame as the key frame
+        # 2. add in a Learned Image Compression Network to generate a key frame from a sequence
+        # 3. use BPG, but enhance the generated model with sequence2one model, 
+        # e.g., encode all frames and decode the BPG compressed to generate the final key frame?
+        # just need to rectify the BPG compressed frame
+        # divide the image into patches before transformer
+        
+        # key frame will be compressed by BPG
+        
+        # use the derived key frame to compute optical flow
+        
+        # use optical flow to compute motion compensation
+        
+        # compute residual
+        
 
 if __name__ == '__main__':
-    batch_size = 4
-    d_model = 128
-    h,w = 14,14
-    PE = PositionalEncoding(d_model)
-    x = torch.randn(batch_size,d_model,h,w)
-    y = PE(x,1)
-    print(x.size(),y.size())
+    pass
