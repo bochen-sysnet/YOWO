@@ -718,6 +718,7 @@ class SLVC(nn.Module):
         # use optical flow to compute motion compensation
         
         # compute residual
+        return x
         
 
 if __name__ == '__main__':
