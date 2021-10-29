@@ -121,10 +121,10 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        model_codec.update_cache(im_ind, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
-        if startNewClip:
-            if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
-                self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
+        model_codec.update_cache(im_ind, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape, transform=self.transform)
+        #if startNewClip:
+        #    if (self.transform is not None) and (model_codec.name in ['x265', 'x264']):
+        #        self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         self.prev_video = cur_video
         # check if the last frame of a clip
         if index == len(self)-1:

@@ -140,7 +140,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape, transform=None):
         # process the involving GOP
         # how to deal with backward P frames?
         # if process in order, some frames need later frames to compress
@@ -251,7 +251,7 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape, transform=None):
         if startNewClip:
             imgByteArr = io.BytesIO()
             width,height = shape
@@ -272,6 +272,8 @@ class StandardVideoCodecs(nn.Module):
             raw_clip = cache['clip']
             for img in raw_clip:
                 process.stdin.write(np.array(img).tobytes())
+            if transform is not None:
+                raw_clip = [transform(img).cuda() for img in raw_clip]
             # Close and flush stdin
             process.stdin.close()
             # Wait for sub-process to finish
