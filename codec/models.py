@@ -636,7 +636,7 @@ class PositionalEncoding(nn.Module):
         
 class Attention(nn.Module):
 
-	def __init__(self, channels, hidden_channels):
+    def __init__(self, channels, hidden_channels):
         super(Attention, self).__init__()
         from torch.nn.utils import spectral_norm
 		f_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
