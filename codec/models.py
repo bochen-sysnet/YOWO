@@ -140,7 +140,7 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape, transform=None):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
         # how to deal with backward P frames?
         # if process in order, some frames need later frames to compress
@@ -251,7 +251,7 @@ class StandardVideoCodecs(nn.Module):
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
         
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape, transform=None):
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         if startNewClip:
             imgByteArr = io.BytesIO()
             width,height = shape
@@ -304,7 +304,7 @@ class StandardVideoCodecs(nn.Module):
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw = transform(raw_clip[i]).cuda()
+                Y1_raw = torch.FloatTensor(raw_clip[i]).cuda()
                 Y1_com = torch.FloatTensor(clip[i]).cuda()
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
