@@ -637,34 +637,34 @@ class PositionalEncoding(nn.Module):
 class Attention(nn.Module):
 
 	def __init__(self, channels, hidden_channels):
-		super(Attention, self).__init__()
+        super(Attention, self).__init__()
         from torch.nn.utils import spectral_norm
 		f_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-		self.f_conv = spectral_norm(f_conv)
-		g_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-		self.g_conv = spectral_norm(g_conv)
-		h_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-		self.h_conv = spectral_norm(h_conv)
-		v_conv = nn.Conv2d(hidden_channels, channels, kernel_size=1, stride=1, padding=0, bias=True)
-		self.v_conv = spectral_norm(v_conv)
-		self.gamma = torch.nn.Parameter(torch.FloatTensor([0.0]))
-		self.hidden_channels = hidden_channels
-		self.channels = channels
+        self.f_conv = spectral_norm(f_conv)
+        g_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
+        self.g_conv = spectral_norm(g_conv)
+        h_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
+        self.h_conv = spectral_norm(h_conv)
+        v_conv = nn.Conv2d(hidden_channels, channels, kernel_size=1, stride=1, padding=0, bias=True)
+        self.v_conv = spectral_norm(v_conv)
+        self.gamma = torch.nn.Parameter(torch.FloatTensor([0.0]))
+        self.hidden_channels = hidden_channels
+        self.channels = channels
 
 	def forward(self,x):
-		nb, nc, imgh, imgw = x.size() 
+        nb, nc, imgh, imgw = x.size() 
 
-		f = (self.f_conv(x)).view(nb,self.hidden_channels,-1)
-		g = (self.g_conv(x)).view(nb,self.hidden_channels,-1)
-		h = (self.h_conv(x)).view(nb,self.hidden_channels,-1)
+        f = (self.f_conv(x)).view(nb,self.hidden_channels,-1)
+        g = (self.g_conv(x)).view(nb,self.hidden_channels,-1)
+        h = (self.h_conv(x)).view(nb,self.hidden_channels,-1)
 
-		s = torch.matmul(f.transpose(1,2),g)
-		beta = F.softmax(s, dim=-1)
-		o = torch.matmul(beta,h.transpose(1,2))
-		o = self.v_conv(o.transpose(1,2).view(nb,self.hidden_channels,imgh,imgw))
-		x = self.gamma * o + x
+        s = torch.matmul(f.transpose(1,2),g)
+        beta = F.softmax(s, dim=-1)
+        o = torch.matmul(beta,h.transpose(1,2))
+        o = self.v_conv(o.transpose(1,2).view(nb,self.hidden_channels,imgh,imgw))
+        x = self.gamma * o + x
 
-		return x
+        return x
 
 if __name__ == '__main__':
     batch_size = 4
