@@ -304,7 +304,7 @@ class StandardVideoCodecs(nn.Module):
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw = transform(img).cuda(raw_clip[i])
+                Y1_raw = transform(raw_clip[i]).cuda()
                 Y1_com = torch.FloatTensor(clip[i]).cuda()
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
