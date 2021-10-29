@@ -291,7 +291,7 @@ class StandardVideoCodecs(nn.Module):
                 # Capture frame-by-frame
                 ret, img = cap.read()
                 if ret != True:break
-                clip.append(img)
+                clip.append(transforms.ToTensor()(img).cuda())
             # When everything done, release the video capture object
             cap.release()
             assert len(clip) == len(raw_clip), 'Clip size mismatch'
@@ -304,8 +304,8 @@ class StandardVideoCodecs(nn.Module):
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
             for i in range(len(clip)):
-                Y1_raw = torch.FloatTensor(np.array(raw_clip[i])).cuda()
-                Y1_com = torch.FloatTensor(clip[i]).cuda()
+                Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda()
+                Y1_com = clip[i]
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
