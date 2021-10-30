@@ -713,8 +713,7 @@ class AVGNet(nn.Module):
         # qkv:[B,SL,D]
         # weights:[B,SL]
         # out:[B,1,D]
-        print(weights.size(),v.size())
-        output = torch.matmul(weights, v)
+        output = torch.matmul(weights, v.transpose(-2, -1))
         
         output = self.out(output.view(bs, self.d_model)) # bs * d_model
     
