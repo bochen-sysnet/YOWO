@@ -651,7 +651,7 @@ def attention(q, k, v, d_model, dropout=None):
     
     if dropout is not None:
         scores = dropout(scores)
-    print(scores.size(),v.size())
+        
     output = torch.matmul(scores, v)
     return output
         
@@ -677,15 +677,8 @@ class Attention(nn.Module):
         q = self.q_linear(q)
         v = self.v_linear(v)
         
-        # transpose to get dimensions bs * sl * d_model
-       
-        k = k.transpose(1,2)
-        q = q.transpose(1,2)
-        v = v.transpose(1,2)
-        
         # calculate attention using function we will define next
         scores = attention(q, k, v, self.d_model, self.dropout)
-        print('score:',scores.size())
         
         output = self.out(scores) # bs * sl * d_model
     
