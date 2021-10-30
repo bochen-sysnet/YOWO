@@ -708,7 +708,7 @@ class AVGNet(nn.Module):
         # calculate attention using function we will define next
         scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(self.d_model)
         weights = torch.sum(scores,dim=-1)
-        weights = F.softmax(weights,dim=-1)
+        weights = F.softmax(weights,dim=-1).unsqueeze(1)
         
         # qkv:[B,SL,D]
         # weights:[B,SL]
