@@ -501,7 +501,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if codec_name in ['MRLVC-RPM-BPG', 'RLVC']:
+        if codec_name in ['MRLVC-RPM-BPG', 'RLVC', 'SLVC']:
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
@@ -867,7 +867,7 @@ if __name__ == '__main__':
     h = w = 224
     channels = 128
     x = torch.randn(batch_size,3,h,w).cuda()
-    model = SLVC(channels)
+    model = SLVC('SLVC', channels)
     rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
     hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
