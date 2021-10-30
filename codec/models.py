@@ -714,7 +714,6 @@ class AVGNet(nn.Module):
         # weights:[B,SL]
         # out:[B,1,D]
         output = torch.matmul(weights, v)
-        print(weights.size(),v.size(),output.size())
         
         output = self.out(output.view(bs, self.d_model)) # bs * d_model
     
@@ -763,8 +762,6 @@ class KFNet(nn.Module):
 
         # decode features to original size [1,3,H,W]
         x_hat = self.dec(features)
-        print(x_hat.size())
-        exit(0)
         
         return x_hat
     
@@ -795,7 +792,6 @@ class SLVC(nn.Module):
         batch_size, _, Height, Width = raw_frames.shape
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
-        # h,w = H//4,W//4; channels=128
         # key frame will be compressed by BPG
         #I frame = raw_frames[0,:,:,:].unsqueeze(0)
         I_frame = self.kfnet(raw_frames)
@@ -861,3 +857,4 @@ if __name__ == '__main__':
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
     hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
     com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
+    print(com_frames, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
