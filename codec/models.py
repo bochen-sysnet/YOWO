@@ -870,5 +870,5 @@ if __name__ == '__main__':
     model = SLVC('SLVC', channels)
     rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
-    hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+    hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
     com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
