@@ -651,7 +651,7 @@ def attention(q, k, v, d_model, dropout=None):
     
     if dropout is not None:
         scores = dropout(scores)
-        
+    print(scores.size(),v.size())
     output = torch.matmul(scores, v)
     return output
         
