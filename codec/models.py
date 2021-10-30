@@ -803,7 +803,7 @@ class SLVC(nn.Module):
         self.kfnet.cuda(1)
     def forward(self, raw_frames, hidden_states, use_psnr=True):
         # raw_frames=[B,C,H,W]: input sequence of frames
-        batch_size, _, Height, Width = Y1_raw.shape
+        batch_size, _, Height, Width = raw_frames.shape
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
         # h,w = H//4,W//4; channels=128
