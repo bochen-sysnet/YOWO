@@ -809,7 +809,7 @@ class SLVC(nn.Module):
         # [raw frame sequence]+compressed I frame->rectified I frame
         # or just attention?
         # we can compute mv and res for the key frame
-        key_frames = I_frame_hat.repeat(batch_size,1,1,1) # todo
+        key_frames = I_frame.repeat(batch_size,1,1,1) # todo
         
         # use the derived key frame to compute optical flow
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
