@@ -795,7 +795,7 @@ class SLVC(nn.Module):
         # key frame will be compressed by BPG
         #I frame = raw_frames[0,:,:,:].unsqueeze(0)
         I_frame = self.kfnet(raw_frames)
-        I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None,use_psnr)
+        #I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None,use_psnr)
         
         
         # need a sequence to one model to transform a sequence of frames to a key/meta frame
