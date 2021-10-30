@@ -685,6 +685,7 @@ class Attention(nn.Module):
         
         # calculate attention using function we will define next
         scores = attention(q, k, v, self.d_model, self.dropout)
+        print('score:',scores.size())
         
         output = self.out(scores) # bs * sl * d_model
     
