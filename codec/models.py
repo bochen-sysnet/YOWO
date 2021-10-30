@@ -643,38 +643,142 @@ def test_PE():
     y = PE(x,1)
     print(x.size(),y.size())
 
+def attention(q, k, v, d_model, dropout=None):
+    
+    scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_model)
+        
+    scores = F.softmax(scores, dim=-1)
+    
+    if dropout is not None:
+        scores = dropout(scores)
+        
+    output = torch.matmul(scores, v)
+    return output
         
 class Attention(nn.Module):
-
-    def __init__(self, channels, hidden_channels):
-        super(Attention, self).__init__()
-        from torch.nn.utils import spectral_norm
-        f_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-        self.f_conv = spectral_norm(f_conv)
-        g_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-        self.g_conv = spectral_norm(g_conv)
-        h_conv = nn.Conv2d(channels, hidden_channels, kernel_size=1, stride=1, padding=0, bias=True)
-        self.h_conv = spectral_norm(h_conv)
-        v_conv = nn.Conv2d(hidden_channels, channels, kernel_size=1, stride=1, padding=0, bias=True)
-        self.v_conv = spectral_norm(v_conv)
-        self.gamma = torch.nn.Parameter(torch.FloatTensor([0.0]))
-        self.hidden_channels = hidden_channels
+    def __init__(self, d_model, dropout = 0.1):
+        super().__init__()
+        
+        self.d_model = d_model
+        
+        self.q_linear = nn.Linear(d_model, d_model)
+        self.v_linear = nn.Linear(d_model, d_model)
+        self.k_linear = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(d_model, d_model)
+    
+    def forward(self, q, k, v):
+        
+        bs = q.size(0)
+        
+        # perform linear operation
+        
+        k = self.k_linear(k)
+        q = self.q_linear(q)
+        v = self.v_linear(v)
+        
+        # transpose to get dimensions bs * sl * d_model
+       
+        k = k.transpose(1,2)
+        q = q.transpose(1,2)
+        v = v.transpose(1,2)
+        
+        # calculate attention using function we will define next
+        scores = attention(q, k, v, self.d_model, self.dropout)
+        
+        output = self.out(scores) # bs * sl * d_model
+    
+        return output
+        
+class AVGNet(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+        
+        self.d_model = d_model
+        
+        self.q_linear = nn.Linear(d_model, d_model)
+        self.v_linear = nn.Linear(d_model, d_model)
+        self.k_linear = nn.Linear(d_model, d_model)
+        self.out = nn.Linear(d_model, d_model)
+    
+    def forward(self, q, k, v):
+        
+        bs = q.size(0)
+        
+        # perform linear operation
+        
+        k = self.k_linear(k)
+        q = self.q_linear(q)
+        v = self.v_linear(v)
+        
+        # transpose to get dimensions bs * sl * d_model
+       
+        k = k.transpose(1,2)
+        q = q.transpose(1,2)
+        v = v.transpose(1,2)
+        
+        # calculate attention using function we will define next
+        scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_model)
+        weights = torch.sum(scores,dim=-1)
+        weights = F.softmax(weights,dim=-1)
+        
+        # qkv:[B,SL,D]
+        # weights:[B,SL]
+        # out:[B,1,D]
+        output = torch.matmul(weights, v)
+        
+        output = self.out(output.view(bs, self.d_model)) # bs * d_model
+    
+        return output
+        
+class KFNet(nn.Module):
+    def __init__(self, channels=128, in_channels=3):
+        super(KFNet, self).__init__()
+        self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1),
+                                GDN(channels),
+                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                GDN(channels),
+                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                GDN(channels),
+                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
+                                )
+        self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+                                GDN(channels, inverse=True),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+                                GDN(channels, inverse=True),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+                                GDN(channels, inverse=True),
+                                nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
+                                )
+        self.s_attn = Attention(channels)
+        self.t_avg = AVGNet(channels)
         self.channels = channels
+        
+    def forward(self, raw_frames):
+        # input: sequence of frames=[B,3,H,W]
+        # output: key frame=[1,C,H,W]
+        B,_,H,W = raw_frames.size()
+        
+        # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
+        features = self.enc(x)
+        _,_,fH,fW = features.size()
+        
+        # spatial attention
+        features = features.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
+        features = self.s_attn(features,features,features) # B,fH*fW,128
+        
+        # temporal attention average
+        features = features.transpose(0,1).contiguous() # fH*fW,B,128
+        features = self.t_avg(features,features,features) # fH*fW,128
+        features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
-    def forward(self,x):
-        nb, nc, imgh, imgw = x.size() 
-
-        f = (self.f_conv(x)).view(nb,self.hidden_channels,-1)
-        g = (self.g_conv(x)).view(nb,self.hidden_channels,-1)
-        h = (self.h_conv(x)).view(nb,self.hidden_channels,-1)
-
-        s = torch.matmul(f.transpose(1,2),g)
-        beta = F.softmax(s, dim=-1)
-        o = torch.matmul(beta,h.transpose(1,2))
-        o = self.v_conv(o.transpose(1,2).view(nb,self.hidden_channels,imgh,imgw))
-        x = self.gamma * o + x
-
-        return x
+        # decode features to original size [1,3,H,W]
+        x_hat = self.dec(features)
+        print(x_hat.size())
+        exit(0)
+        
+        return x_hat
+    
         
 class SLVC(nn.Module):
     def __init__(self, name, channels=128):
@@ -685,12 +789,8 @@ class SLVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.kfnet = KFNet(channels)
         self.channels = channels
-        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
-        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
-        # gamma_2: the weight of auxilary loss (affecting bits estimation)
-        # gamma_3: the weight of flow loss (affecting flow estimation)
-        # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
         self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
         # split on multi-gpus
         self.split()
@@ -700,8 +800,18 @@ class SLVC(nn.Module):
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
-    def forward(self, x):
-        # x=[B,C,H,W]: input batch of frames
+        self.kfnet(1)
+    def forward(self, raw_frames, hidden_states, use_psnr=True):
+        # raw_frames=[B,C,H,W]: input sequence of frames
+        batch_size, _, Height, Width = Y1_raw.shape
+        # hidden states
+        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
+        # h,w = H//4,W//4; channels=128
+        # key frame will be compressed by BPG
+        #I frame = raw_frames[0,:,:,:].unsqueeze(0)
+        I_frame = self.kfnet(raw_frames)
+        I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None,use_psnr)
+        
         
         # need a sequence to one model to transform a sequence of frames to a key/meta frame
         # 1. simply use BPG and use compressed frame as the key frame
@@ -709,17 +819,56 @@ class SLVC(nn.Module):
         # 3. use BPG, but enhance the generated model with sequence2one model, 
         # e.g., encode all frames and decode the BPG compressed to generate the final key frame?
         # just need to rectify the BPG compressed frame
-        # divide the image into patches before transformer
-        
-        # key frame will be compressed by BPG
+        # apply a few CNN before transformer to reduce dimension
+        # divide the image into patches before transformer： attend to patches and time-domain
+        # [raw frame sequence]+compressed I frame->rectified I frame
+        # or just attention?
+        # we can compute mv and res for the key frame
+        key_frames = I_frame_hat.repeat(batch_size,1,1,1) # todo
         
         # use the derived key frame to compute optical flow
+        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
         
-        # use optical flow to compute motion compensation
+        # compress optical flow
+        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         
-        # compute residual
-        return x
+        # motion compensation
+        loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
+        warped_frames = F.grid_sample(key_frames, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), use_psnr)
+        MC_input = torch.cat((mv_hat, key_frames, warped_frames), axis=1)
+        MC_frames = self.MC_network(MC_input.cuda(1))
+        mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), use_psnr)
         
-
+        # compress residual
+        res_tensor = raw_frames.cuda(1) - MC_frames
+        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        
+        # reconstruction
+        com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
+        ##### compute bits
+        # estimated bits
+        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
+        # actual bits
+        bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
+        # auxilary loss
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        # calculate metrics/loss
+        metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
+        rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), use_psnr)
+        img_loss = (rec_loss + warp_loss + mc_loss)/3
+        flow_loss = (l0+l1+l2+l3+l4)/5*1024
+        # hidden states
+        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        
 if __name__ == '__main__':
-    test_PE()
+    batch_size = 8
+    h = w = 224
+    channels = 128
+    x = torch.randn(batch_size,3,h,w).cuda()
+    model = SLVC(channels)
+    rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
+    rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
+    hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+    com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
