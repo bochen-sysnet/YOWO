@@ -705,14 +705,8 @@ class AVGNet(nn.Module):
         q = self.q_linear(q)
         v = self.v_linear(v)
         
-        # transpose to get dimensions bs * sl * d_model
-       
-        k = k.transpose(1,2)
-        q = q.transpose(1,2)
-        v = v.transpose(1,2)
-        
         # calculate attention using function we will define next
-        scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_model)
+        scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(self.d_model)
         weights = torch.sum(scores,dim=-1)
         weights = F.softmax(weights,dim=-1)
         
