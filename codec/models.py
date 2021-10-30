@@ -800,7 +800,7 @@ class SLVC(nn.Module):
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
-        self.kfnet(1)
+        self.kfnet.cuda(1)
     def forward(self, raw_frames, hidden_states, use_psnr=True):
         # raw_frames=[B,C,H,W]: input sequence of frames
         batch_size, _, Height, Width = Y1_raw.shape
