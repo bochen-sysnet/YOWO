@@ -830,6 +830,7 @@ class SLVC(nn.Module):
         
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
+        print(mv_hat.size(),loc.size())
         warped_frames = F.grid_sample(key_frames, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), use_psnr)
         MC_input = torch.cat((mv_hat, key_frames, warped_frames), axis=1)
