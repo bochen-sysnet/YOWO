@@ -885,7 +885,6 @@ def test_SLVC():
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        model.update(force=True)
         com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
