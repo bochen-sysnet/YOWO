@@ -787,7 +787,7 @@ class SLVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         self.kfnet.cuda(0)
-    def forward(self, raw_frames, ref_frame, hidden_states, use_psnr=True):
+    def forward(self, raw_frames, hidden_states, use_psnr=True):
         # raw_frames=[B,C,H,W]: input sequence of frames
         # 1. BPG compress the first frame
         # 2. compress motion/residual of the rectified frame
