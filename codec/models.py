@@ -821,8 +821,8 @@ class SLVC(nn.Module):
         # it is better to utilize redundancy among frames
         mv_hat_list = [];mv_act_list = [];mv_est_list = [];mv_aux_list = []
         for i in range(batch_size):
-            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors[i,:,:,:], rae_mv_hidden, rpm_mv_hidden, i>0)
-            mv_hat_list.append(mv_hat)
+            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors[i,:,:,:].unsqueeze(0), rae_mv_hidden, rpm_mv_hidden, i>0)
+            mv_hat_list.append(mv_hat.squeeze(0))
             mv_act_list.append(mv_act)
             mv_est_list.append(mv_est)
             mv_aux_list.append(mv_aux)
@@ -840,8 +840,8 @@ class SLVC(nn.Module):
         res_tensors = raw_frames.cuda(1) - MC_frames
         res_hat_list = [];res_act_list = [];res_est_list = [];res_aux_list = []
         for i in range(batch_size):
-            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor[i,:,:,:], rae_res_hidden, rpm_res_hidden, i>0)
-            res_hat_list.append(res_hat)
+            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor[i,:,:,:].unsqueeze(0), rae_res_hidden, rpm_res_hidden, i>0)
+            res_hat_list.append(res_hat.squeeze(0))
             res_act_list.append(res_act)
             res_est_list.append(res_est)
             res_aux_list.append(res_aux)
