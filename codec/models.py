@@ -830,7 +830,6 @@ class SLVC(nn.Module):
         
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
-        print(mv_hat.size(),loc.size())
         warped_frames = F.grid_sample(key_frames, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), use_psnr)
         MC_input = torch.cat((mv_hat, key_frames, warped_frames), axis=1)
@@ -841,7 +840,7 @@ class SLVC(nn.Module):
         res_tensors = raw_frames.cuda(1) - MC_frames
         res_hat_list = [];res_act_list = [];res_est_list = [];res_aux_list = []
         for i in range(batch_size):
-            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor[i,:,:,:].unsqueeze(0), rae_res_hidden, rpm_res_hidden, i>0)
+            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors[i,:,:,:].unsqueeze(0), rae_res_hidden, rpm_res_hidden, i>0)
             res_hat_list.append(res_hat)
             res_act_list.append(res_act)
             res_est_list.append(res_est)
@@ -867,7 +866,7 @@ class SLVC(nn.Module):
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
 if __name__ == '__main__':
-    batch_size = 2
+    batch_size = 3
     h = w = 224
     channels = 32
     x = torch.randn(batch_size,3,h,w).cuda()
