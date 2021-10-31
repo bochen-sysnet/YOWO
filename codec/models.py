@@ -796,22 +796,18 @@ class SLVC(nn.Module):
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
         # key frame will be compressed by BPG
+        # one option to compare is to just use the original I frame as key frame
         #I frame = raw_frames[0,:,:,:].unsqueeze(0)
         I_frame = self.kfnet(raw_frames)
+        
+        # get mv of key frame
+        # compress mv of key frame
+        # get compensated key frame
+        # compress res of key frame
+        # get compressed key frame, which will be used as the base for later compression
         #I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None,use_psnr)
         
         
-        # need a sequence to one model to transform a sequence of frames to a key/meta frame
-        # 1. simply use BPG and use compressed frame as the key frame
-        # 2. add in a Learned Image Compression Network to generate a key frame from a sequence
-        # 3. use BPG, but enhance the generated model with sequence2one model, 
-        # e.g., encode all frames and decode the BPG compressed to generate the final key frame?
-        # just need to rectify the BPG compressed frame
-        # apply a few CNN before transformer to reduce dimension
-        # divide the image into patches before transformer： attend to patches and time-domain
-        # [raw frame sequence]+compressed I frame->rectified I frame
-        # or just attention?
-        # we can compute mv and res for the key frame
         key_frames = I_frame.repeat(batch_size,1,1,1) # todo
         
         # use the derived key frame to compute optical flow
