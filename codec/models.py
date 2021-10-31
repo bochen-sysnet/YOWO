@@ -842,22 +842,20 @@ class SLVC(nn.Module):
         for i in range(batch_size):
             res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors[i,:,:,:].unsqueeze(0), rae_res_hidden, rpm_res_hidden, i>0)
             res_hat_list.append(res_hat)
-            res_act_list.append(res_act)
-            res_est_list.append(res_est)
-            res_aux_list.append(res_aux)
+            res_act_list.append(res_act.cuda(0))
+            res_est_list.append(res_est.cuda(0))
+            res_aux_list.append(res_aux.cuda(0))
         res_hat = torch.cat(res_hat_list)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
         ##### compute bits
         # estimated bits
-        bpp_est = (torch.stack(mv_est_list,dim=0).mean(dim=0) + torch.stack(res_est_list,dim=0).mean(dim=0).cuda(0))/(Height * Width * batch_size)
+        bpp_est = (torch.stack(mv_est_list,dim=0).mean(dim=0) + torch.stack(res_est_list,dim=0).mean(dim=0))/(Height * Width * batch_size)
         # actual bits
-        bpp_act = (torch.stack(mv_act_list,dim=0).mean(dim=0) + torch.stack(res_act_list,dim=0).mean(dim=0).to(raw_frames.device))/(Height * Width * batch_size)
+        bpp_act = (torch.stack(mv_act_list,dim=0).mean(dim=0) + torch.stack(res_act_list,dim=0).mean(dim=0))/(Height * Width * batch_size)
         # auxilary loss
-        print(mv_aux_list)
-        print(res_aux_list)
-        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0).cuda(0))/2
+        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0))/2
         # calculate metrics/loss
         metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
         rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), use_psnr)
