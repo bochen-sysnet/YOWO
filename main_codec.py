@@ -83,7 +83,7 @@ elif cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC']:
     optimizers += [optimizer]
 # initialize best score
 best_score = 0 
-best_codec_score = [0,0]
+best_codec_score = [0,1]
 
 ####### Load yowo model
 # ---------------------------------------------------------------
