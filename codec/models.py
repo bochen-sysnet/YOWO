@@ -855,7 +855,7 @@ class SLVC(nn.Module):
         # actual bits
         bpp_act = (torch.stack(mv_act_list,dim=0).mean(dim=0) + torch.stack(res_act_list,dim=0).mean(dim=0).to(raw_frames.device))/(Height * Width * batch_size)
         # auxilary loss
-        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0).cuda(1))/2
+        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0).cuda(0))/2
         # calculate metrics/loss
         metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
         rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), use_psnr)
