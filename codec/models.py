@@ -777,7 +777,7 @@ class SLVC(nn.Module):
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.kfnet = KFNet(channels)
         self.channels = channels
-        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,0
         # split on multi-gpus
         self.split()
 
@@ -864,15 +864,42 @@ class SLVC(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+    
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
+        return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         
-if __name__ == '__main__':
-    batch_size = 3
+def test_SLVC():
+    batch_size = 4
     h = w = 224
     channels = 32
     x = torch.randn(batch_size,3,h,w).cuda()
     model = SLVC('SLVC', channels)
+    import torch.optim as optim
+    from tqdm import tqdm
+    parameters = set(p for n, p in net.named_parameters())
+    optimizer = optim.Adam(parameters, lr=1e-4)
     rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
     hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-    com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
-    print(com_frames.size(), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
+    train_iter = tqdm(range(0,10000))
+    for i,_ in enumerate(train_iter):
+        optimizer.zero_grad()
+        
+        model.update(force=True)
+        com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
+        
+        loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
+        loss.backward()
+        optimizer.step()
+        
+        train_iter.set_description(
+            f"Batch: {i:4}. "
+            f"loss: {float(loss):.2f}. "
+            f"img_loss: {float(img_loss):.2f}. "
+            f"bits_est: {float(bits_est):.2f}. "
+            f"bits_act: {float(bits_act):.2f}. "
+            f"aux_loss: {float(aux_loss):.2f}. "
+            f"flow_loss: {float(flow_loss):.2f}. ")
+        
+if __name__ == '__main__':
+    test_SLVC()
