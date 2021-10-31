@@ -876,7 +876,7 @@ def test_SLVC():
     model = SLVC('SLVC', channels)
     import torch.optim as optim
     from tqdm import tqdm
-    parameters = set(p for n, p in net.named_parameters())
+    parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
