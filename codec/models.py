@@ -748,7 +748,7 @@ class KFNet(nn.Module):
         B,_,H,W = raw_frames.size()
         
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
-        features = self.enc(x)
+        features = self.enc(raw_frames)
         _,_,fH,fW = features.size()
         
         # spatial attention
