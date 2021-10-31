@@ -875,4 +875,4 @@ if __name__ == '__main__':
     rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
     hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
     com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
-    print(com_frames, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
+    print(com_frames.size(), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics)
