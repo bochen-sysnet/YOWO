@@ -867,9 +867,9 @@ class SLVC(nn.Module):
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         
 if __name__ == '__main__':
-    batch_size = 8
+    batch_size = 2
     h = w = 224
-    channels = 128
+    channels = 32
     x = torch.randn(batch_size,3,h,w).cuda()
     model = SLVC('SLVC', channels)
     rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
