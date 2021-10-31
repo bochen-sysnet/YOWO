@@ -787,8 +787,11 @@ class SLVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         self.kfnet.cuda(0)
-    def forward(self, raw_frames, hidden_states, use_psnr=True):
+    def forward(self, raw_frames, ref_frame, hidden_states, use_psnr=True):
         # raw_frames=[B,C,H,W]: input sequence of frames
+        # 1. BPG compress the first frame
+        # 2. compress motion/residual of the rectified frame
+        # 3. Use the rectified frame to compress a batch of frames
         batch_size, _, Height, Width = raw_frames.shape
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
@@ -812,10 +815,18 @@ class SLVC(nn.Module):
         key_frames = I_frame.repeat(batch_size,1,1,1) # todo
         
         # use the derived key frame to compute optical flow
-        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
         
         # compress optical flow
-        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        # it is better to utilize redundancy among frames
+        mv_hat_list = [];mv_act_list = [];mv_est_list = [];mv_aux_list = []
+        for i in range(batch_size):
+            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors[i,:,:,:], rae_mv_hidden, rpm_mv_hidden, i>0)
+            mv_hat_list.append(mv_hat)
+            mv_act_list.append(mv_act)
+            mv_est_list.append(mv_est)
+            mv_aux_list.append(mv_aux)
+        mv_hat = torch.cat(mv_hat_list)
         
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
@@ -826,18 +837,25 @@ class SLVC(nn.Module):
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), use_psnr)
         
         # compress residual
-        res_tensor = raw_frames.cuda(1) - MC_frames
-        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        res_tensors = raw_frames.cuda(1) - MC_frames
+        res_hat_list = [];res_act_list = [];res_est_list = [];res_aux_list = []
+        for i in range(batch_size):
+            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor[i,:,:,:], rae_res_hidden, rpm_res_hidden, i>0)
+            res_hat_list.append(res_hat)
+            res_act_list.append(res_act)
+            res_est_list.append(res_est)
+            res_aux_list.append(res_aux)
+        res_hat = torch.cat(res_hat_list)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
         ##### compute bits
         # estimated bits
-        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
+        bpp_est = (torch.stack(mv_est_list,dim=0).mean(dim=0) + torch.stack(res_est_list,dim=0).mean(dim=0).cuda(0))/(Height * Width * batch_size)
         # actual bits
-        bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
+        bpp_act = (torch.stack(mv_act_list,dim=0).mean(dim=0) + torch.stack(res_act_list,dim=0).mean(dim=0).to(raw_frames.device))/(Height * Width * batch_size)
         # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0).to(raw_frames.device))/2
         # calculate metrics/loss
         metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
         rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), use_psnr)
