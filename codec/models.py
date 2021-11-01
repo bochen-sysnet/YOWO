@@ -814,7 +814,10 @@ class SLVC(nn.Module):
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
         
         # compress optical flow
+        # hidden should be initialized once for forward and once for backward
         # it is better to utilize redundancy among frames
+        # another approach is to estimate based on a compressed vector extracted from mv_tensors
+        # we can apply spatial-temporal attention to the mv_tensor
         mv_hat_list = [];mv_act_list = [];mv_est_list = [];mv_aux_list = []
         for i in range(batch_size):
             mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors[i,:,:,:].unsqueeze(0), rae_mv_hidden, rpm_mv_hidden, i>0)
