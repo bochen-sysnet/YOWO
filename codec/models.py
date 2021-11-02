@@ -23,14 +23,7 @@ from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import RecProbModel
 from datasets.clip import *
 
-# compress I frames with an image compression alg, e.g., DeepCOD, bpg, CA, none
-# compress P frames wth RLVC
-# no size estimation is performed on the first/last P frame
-# loss can be psnr,ms-ssim
-
-# Goal: convert images/videos that are compressed by RLVC
-# GOP_size = args.f_P + args.b_P + 1
-# Output: compressed images, predicted bits, actual bits
+# DVC,RLVC,MLVC
 class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=128):
         super(LearnedVideoCodecs, self).__init__()
@@ -38,7 +31,7 @@ class LearnedVideoCodecs(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if name in ['MRLVC-RPM-BPG','RLVC','DVC']:
+        if name in ['MLVC','RLVC','DVC']:
             self.image_coder_name = 'bpg' 
         elif 'RAW' in name:
             self.image_coder_name = 'raw'
@@ -219,9 +212,10 @@ class LearnedVideoCodecs(nn.Module):
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act.cpu()
+        # we can record PSNR wrt the distance to I-frame
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        if self.name in ['MRLVC-RPM-BPG','RAW']:
+        if self.name in ['MLVC','RAW']:
             return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
             return self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -243,6 +237,8 @@ class LearnedVideoCodecs(nn.Module):
             if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
                  continue
             own_state[name].copy_(param)
+            
+# DCVC?
         
 class StandardVideoCodecs(nn.Module):
     def __init__(self, name):
@@ -500,7 +496,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if codec_name in ['MRLVC-RPM-BPG', 'RLVC', 'SLVC']:
+        if codec_name in ['MLVC', 'RLVC', 'SLVC']:
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
         elif 'DVC' == codec_name:
@@ -516,7 +512,7 @@ class ComprNet(nn.Module):
             exit(1)
         print('Bottleneck:',self.entropy_type)
         self.channels = channels
-        self.encoder_type = 'rec' if codec_name in ['MRLVC-RPM-BPG', 'RLVC'] else 'non-rec'
+        self.encoder_type = 'rec' if codec_name in ['MLVC', 'RLVC'] else 'non-rec'
         if self.encoder_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)

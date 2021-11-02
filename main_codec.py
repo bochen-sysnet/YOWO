@@ -52,7 +52,7 @@ pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_g
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-if cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC','DVC','RAW']:
+if cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
@@ -73,7 +73,7 @@ if cfg.TRAIN.CODEC_NAME in ['DVC']:
     parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-elif cfg.TRAIN.CODEC_NAME in ['MRLVC-RPM-BPG','RLVC']:
+elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
@@ -98,7 +98,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MRLVC-RPM-BPG', 'RLVC', 'DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
