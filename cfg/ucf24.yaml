@@ -1,7 +1,7 @@
 TRAIN:
   RESUME_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_best.pth"
   RESUME_CODEC_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"
-  CODEC_NAME: "RLVC" # DVC,RLVC,MRLVC,PRLVC
+  CODEC_NAME: "RLVC" # DVC,RLVC,MLVC,SLVC
   DATASET: ucf24  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 4
   TOTAL_BATCH_SIZE: 128
@@ -13,7 +13,7 @@ TRAIN:
 SOLVER:
   MOMENTUM: 0.9
   WEIGHT_DECAY: 5e-4
-  STEPS: [4,9]
+  STEPS: []
   LR_DECAY_RATE: 0.1
   ANCHORS: [0.70458, 1.18803, 1.26654, 2.55121, 1.59382, 4.08321, 2.30548, 4.94180, 3.52332, 5.91979]
   NUM_ANCHORS: 5

@@ -53,14 +53,8 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
-        # gamma_0: the weight of bpp_loss (affecting application-specific loss)
-        # gamma_1: the weight of I/P-frame loss (affecting image reconstruction)
-        # gamma_2: the weight of auxilary loss (affecting bits estimation)
-        # gamma_3: the weight of flow loss (affecting flow estimation)
-        # gamma_4: the ratio of I-frame loss to P-frame loss, which affects the emphasis of the codec
-        self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
-        
-        # need to add position encoding for PRLVC
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
+        self.epoch = -1
         
         # split on multi-gpus
         self.split()
@@ -81,9 +75,9 @@ class LearnedVideoCodecs(nn.Module):
         
         # setup training weights
         if epoch <= -1:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,1
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
         else:
-            self.gamma_0, self.gamma_1, self.gamma_2, self.gamma_3, self.gamma_4 = 1,1,1,1,0
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,0,0,0
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
@@ -91,6 +85,8 @@ class LearnedVideoCodecs(nn.Module):
         
         # whether to compute action detection
         doAD = True if self.gamma_4 > 0 else False
+        
+        self.epoch = epoch
         
         return GOP, doAD
 
@@ -134,7 +130,10 @@ class LearnedVideoCodecs(nn.Module):
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
-        img_loss = (rec_loss + warp_loss + mc_loss)/3
+        if self.epoch <= -1:
+            img_loss = (rec_loss + warp_loss + mc_loss)/3 # change this to only rec_loss in the last stage?
+        else:
+            img_loss = rec_loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
@@ -223,9 +222,9 @@ class LearnedVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MRLVC-RPM-BPG','RAW']:
-            return self.gamma_4*app_loss + self.gamma_1*pix_loss + self.gamma_0*bpp_loss + self.gamma_2*aux_loss + self.gamma_3*flow_loss
+            return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         elif self.name == 'RLVC' or self.name == 'DVC':
-            return self.gamma_1*pix_loss + self.gamma_0*bpp_loss + self.gamma_2*aux_loss + self.gamma_3*flow_loss
+            return self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         else:
             print('Loss not implemented')
             exit(1)
@@ -816,7 +815,7 @@ class SLVC(nn.Module):
         # compress optical flow
         # hidden should be initialized once for forward and once for backward
         # it is better to utilize redundancy among frames
-        # another approach is to estimate based on a compressed vector extracted from mv_tensors
+        # TODO: another approach is to estimate based on a compressed vector extracted from mv_tensors (same to res_tensors)
         # we can apply spatial-temporal attention to the mv_tensor
         mv_hat_list = [];mv_act_list = [];mv_est_list = [];mv_aux_list = []
         for i in range(batch_size):
