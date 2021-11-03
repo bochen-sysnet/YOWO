@@ -341,7 +341,6 @@ class DCVC(nn.Module):
             elif i==9:
                 x_hat = torch.cat((x_hat, context), axis=1)
             else:
-                print(i,m,x_hat.size())
                 x_hat = m(x_hat)
         
         # estimated bits
