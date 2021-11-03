@@ -780,7 +780,10 @@ class ComprNet(nn.Module):
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         
         # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+        if self.entropy_type == 'non-rec':
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+        else:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
