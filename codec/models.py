@@ -319,7 +319,7 @@ class DCVC(nn.Module):
         y = self.ctx_encoder(torch.cat((x, context), axis=1))
         
         # entropy model
-        y_hat, likelihoods = self.entropy_bottleneck(y, context, training=self.training)
+        y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_act = self.entropy_bottleneck.get_actual_bits(y)
         y_aux = self.entropy_bottleneck.loss()
