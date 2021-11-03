@@ -250,12 +250,12 @@ class DCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.ctx_decoder = nn.ModuleList([nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1)
+        self.ctx_decoder = nn.ModuleList([nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1),
                                         GDN(channels, inverse=True),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
                                         GDN(channels, inverse=True),
                                         ResidualBlock(channels,channels),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
                                         GDN(channels, inverse=True),
                                         ResidualBlock(channels,channels),
                                         nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
