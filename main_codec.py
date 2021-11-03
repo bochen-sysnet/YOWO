@@ -20,7 +20,7 @@ from cfg import parser
 from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
-from codec.models import LearnedVideoCodecs, StandardVideoCodecs
+from codec.models import LearnedVideoCodecs, StandardVideoCodecs, DCVC
 
 
 ####### Load configuration arguments
@@ -54,6 +54,8 @@ logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 # codec model .
 if cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
+elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
+    model_codec = DCVC(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
 else:
@@ -73,7 +75,7 @@ if cfg.TRAIN.CODEC_NAME in ['DVC']:
     parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC']:
+elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
@@ -98,7 +100,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'DCVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):

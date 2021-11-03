@@ -46,7 +46,7 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.epoch = -1
         
         # split on multi-gpus
@@ -61,16 +61,15 @@ class LearnedVideoCodecs(nn.Module):
         self.res_codec.cuda(1)
         
     def update_training(self, epoch):
-        # pretraining DeepCOD： -4,...,-2
-        # training flow estimation without AD: -1
-        # training focus on PSNR without AD:0
-        # training with AD: 1,2,3...
+        # warmup with all gamma set to 1
+        # optimize for bpp,img loss and focus only reconstruction loss
+        # optimize bpp and app loss only
         
         # setup training weights
         if epoch <= -1:
-            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         else:
-            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,0,.1,0
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,0,.1,0,1,0,0
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
@@ -123,10 +122,7 @@ class LearnedVideoCodecs(nn.Module):
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
-        if self.epoch <= -1:
-            img_loss = (rec_loss + warp_loss + mc_loss)/3 # change this to only rec_loss in the last stage?
-        else:
-            img_loss = rec_loss
+        img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
@@ -212,7 +208,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act.cpu()
-        # we can record PSNR wrt the distance to I-frame
+        # we can record PSNR wrt the distance to I-frame to show error propagation
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MLVC','RAW']:
@@ -285,8 +281,13 @@ class DCVC(nn.Module):
         self.optical_flow = OpticalFlowNet()
         self.mv_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels)
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,1,1,1
     
     def forward(self, x, x_hat_prev, hidden_states, RPM_flag, use_psnr=True):
+        # I-frame compression
+        if x_hat_prev is None:
+            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,'bpg',None,use_psnr)
+            return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # size
         bs,_,h,w = x.size()
         
@@ -349,15 +350,133 @@ class DCVC(nn.Module):
         # calculate metrics/loss
         metrics = calc_metrics(x, x_hat, use_psnr)
         rec_loss = calc_loss(x, x_hat, use_psnr)
-        if self.epoch <= 5:
-            img_loss = (rec_loss + warp_loss)/2 # change this to only rec_loss in the last stage?
-        else:
-            img_loss = rec_loss
+        img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
         # flow loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
-        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+    
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
+        # process the involving GOP
+        # how to deal with backward P frames?
+        # if process in order, some frames need later frames to compress
+        if startNewClip:
+            # create cache
+            cache['bpp_est'] = {}
+            cache['img_loss'] = {}
+            cache['flow_loss'] = {}
+            cache['aux'] = {}
+            cache['bpp_act'] = {}
+            cache['metrics'] = {}
+            cache['hidden'] = None
+            cache['max_processed_idx'] = -1
+            # the first frame to be compressed in a video
+            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
+            start_idx = max(0,start_idx)
+            # search for the I frame in this GOP
+            # then compress all frames based on that
+            # GOP = 6+6+1 = 13
+            # I frames: 0, 13, ...
+            for i in range(start_idx,frame_idx):
+                self._compress_GOP(i, cache)
+        else:
+            self._compress_GOP(frame_idx-1, cache)
+            
+    def _compress_GOP(self, i, cache, fP=6, bP=6):
+        cache['max_idx'] = i
+        if i<=cache['max_processed_idx']:
+            return
+        GOP = fP + bP + 1
+        if i%GOP <= fP:
+            # e.g.: i=4,left=0,right=6,mid=0
+            mid = i//GOP*GOP
+            left = max(mid,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        else:
+            # e.g.: i=8,left=7,right=19,mid=13
+            # in this case the last frame is always I frame
+            possible_I = (i//GOP+1)*GOP
+            mid = min(possible_I,len(cache['clip'])-1)
+            left = max(possible_I-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        cache['max_processed_idx'] = right
+        # process backward frames
+        if mid > left:
+            for i in range(mid,left-1,-1):
+                prev = i+1 if i<mid else -1
+                self._process_single_frame(i, prev, cache, i==mid-1, i<=mid-2)
+            mid2 = mid+1
+        else:
+            mid2 = mid
+        # process forward frames
+        for i in range(mid2,right+1):
+            prev = i-1 if i>mid else -1
+            self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
+        
+    def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
+        # frame shape
+        _,h,w = cache['clip'][0].shape
+        # frames to be processed
+        Y0_com = cache['clip'][prev].unsqueeze(0) if prev>=0 else None
+        Y1_raw = cache['clip'][i].unsqueeze(0)
+        # hidden variables
+        if P_flag:
+            rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
+            rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
+            hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+        else:
+            hidden = cache['hidden']
+        Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
+        cache['hidden'] = hidden
+        cache['clip'][i] = Y1_com.detach().squeeze(0)
+        cache['img_loss'][i] = img_loss
+        cache['flow_loss'][i] = flow_loss
+        cache['aux'][i] = aux_loss
+        cache['bpp_est'][i] = bpp_est
+        cache['metrics'][i] = metrics
+        cache['bpp_act'][i] = bpp_act.cpu()
+        # we can record PSNR wrt the distance to I-frame to show error propagation
+        
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
+        return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
+        
+    def update_training(self, epoch):
+        # warmup with all gamma set to 1
+        # optimize for bpp,img loss and focus only reconstruction loss
+        # optimize bpp and app loss only
+        
+        # setup training weights
+        if epoch <= -1:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,0,1,1
+        else:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,0,.1,0,1,0
+            
+        # set up GOP
+        # epoch >=1 means pretraining on I-frame compression
+        GOP = 10 if epoch >= -1 else 1
+        
+        # whether to compute action detection
+        doAD = True if self.gamma_app > 0 else False
+        
+        self.epoch = epoch
+        
+        return GOP, doAD
+        
+    def load_state_dict_whatever(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
+                 continue
+            if name in own_state:
+                own_state[name].copy_(param)
+                
+    def load_state_dict_all(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
+                 continue
+            own_state[name].copy_(param)
         
 class StandardVideoCodecs(nn.Module):
     def __init__(self, name):
@@ -1008,6 +1127,38 @@ def test_SLVC():
             f"bits_act: {float(bits_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
+            
+def test_DCVC():
+    batch_size = 1
+    h = w = 224
+    channels = 64
+    x = torch.randn(batch_size,3,h,w).cuda()
+    model = DCVC('DCVC')
+    import torch.optim as optim
+    from tqdm import tqdm
+    parameters = set(p for n, p in model.named_parameters())
+    optimizer = optim.Adam(parameters, lr=1e-4)
+    rae_mv_hidden, _ = init_hidden(h,w,channels)
+    rpm_mv_hidden, = model.mv_codec.entropy_bottleneck.init_state()
+    hidden_states = (rae_mv_hidden, rpm_mv_hidden)
+    train_iter = tqdm(range(0,10000))
+    for i,_ in enumerate(train_iter):
+        optimizer.zero_grad()
+        
+        com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, hidden_states)
+        
+        loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
+        loss.backward()
+        optimizer.step()
+        
+        train_iter.set_description(
+            f"Batch: {i:4}. "
+            f"loss: {float(loss):.2f}. "
+            f"img_loss: {float(img_loss):.2f}. "
+            f"bits_est: {float(bits_est):.2f}. "
+            f"bits_act: {float(bits_act):.2f}. "
+            f"aux_loss: {float(aux_loss):.2f}. "
+            f"flow_loss: {float(flow_loss):.2f}. ")
         
 if __name__ == '__main__':
-    test_SLVC()
+    test_DCVC()
