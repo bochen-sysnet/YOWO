@@ -1144,7 +1144,7 @@ def test_DCVC():
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     rae_mv_hidden, _ = init_hidden(h,w,channels)
-    rpm_mv_hidden, = model.mv_codec.entropy_bottleneck.init_state()
+    rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
     print(rae_mv_hidden.size(),rpm_mv_hidden.size())
     hidden_states = (rae_mv_hidden, rpm_mv_hidden)
     train_iter = tqdm(range(0,10000))
