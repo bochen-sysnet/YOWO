@@ -254,7 +254,7 @@ def test(name = 'Joint'):
         
         train_iter.set_description(
             f"Batch: {i:4}. "
-            f"likelihood: {float(torch.mean(likelihoods)):.4f}. "
+            f"loss: {float(loss):.2f}. "
             f"bits_est: {float(bits_est):.2f}. "
             f"bits_act: {float(bits_act):.2f}. "
             f"MSE: {float(mse):.2f}. ")
