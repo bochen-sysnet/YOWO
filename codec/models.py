@@ -47,6 +47,7 @@ class LearnedVideoCodecs(nn.Module):
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
+        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         self.epoch = -1
         
         # split on multi-gpus
@@ -91,7 +92,7 @@ class LearnedVideoCodecs(nn.Module):
             aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
-            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder,use_psnr)
+            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder, self.r,use_psnr)
             return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # otherwise, it's P frame
         # hidden states
@@ -103,10 +104,10 @@ class LearnedVideoCodecs(nn.Module):
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), use_psnr)
+        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
-        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), use_psnr)
+        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
@@ -121,7 +122,7 @@ class LearnedVideoCodecs(nn.Module):
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
-        rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
+        rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
         img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
@@ -282,11 +283,12 @@ class DCVC(nn.Module):
         self.mv_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,1,1,1
+        self.r = 1024
     
     def forward(self, x, x_hat_prev, hidden_states, RPM_flag, use_psnr=True):
         # I-frame compression
         if x_hat_prev is None:
-            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(x,'bpg',None,use_psnr)
+            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(x,'bpg',None,self.r,use_psnr)
             return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # size
         bs,c,h,w = x.size()
@@ -307,7 +309,7 @@ class DCVC(nn.Module):
         loc = get_grid_locations(bs, h, w).type(x.type())
         x_warp = F.grid_sample(x_rhat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(x, x_tilde.to(x.device), use_psnr)
+        warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
         
         # context refinement
         context = self.ctx_refine(x_warp)
@@ -560,15 +562,15 @@ def calc_metrics(Y1_raw, Y1_com, use_psnr):
         metrics = MSSSIM(Y1_raw, Y1_com)
     return metrics
     
-def calc_loss(Y1_raw, Y1_com, use_psnr):
+def calc_loss(Y1_raw, Y1_com, r, use_psnr):
     if use_psnr:
-        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*1024
+        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*r
     else:
         metrics = MSSSIM(Y1_raw, Y1_com)
-        loss = 32*(1-metrics)
+        loss = r*(1-metrics)
     return loss
         
-def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
+def I_compression(Y1_raw, image_coder_name, _image_coder, r, use_psnr):
     # we can compress with bpg,deepcod ...
     batch_size, _, Height, Width = Y1_raw.shape
     if image_coder_name in ['deepcod']:
@@ -578,7 +580,7 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, use_psnr):
         bpp_act = bits_act/(Height * Width * batch_size)
         # calculate metrics/loss
         metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
-        loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+        loss = calc_loss(Y1_raw, Y1_com, r, use_psnr)
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     elif image_coder_name == 'bpg':
         prename = "tmp/frames/prebpg"
@@ -1011,7 +1013,7 @@ class SLVC(nn.Module):
         self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.kfnet = KFNet(channels)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,0
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.r = 1,1,1,1,0,1024
         # split on multi-gpus
         self.split()
 
@@ -1039,7 +1041,7 @@ class SLVC(nn.Module):
         # get compensated key frame
         # compress res of key frame
         # get compressed key frame, which will be used as the base for later compression
-        #I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None,use_psnr)
+        #I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None, self.r,use_psnr)
         
         
         key_frames = I_frame.repeat(batch_size,1,1,1) # todo
@@ -1064,10 +1066,10 @@ class SLVC(nn.Module):
         # motion compensation
         loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
         warped_frames = F.grid_sample(key_frames, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), use_psnr)
+        warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), self.r, use_psnr)
         MC_input = torch.cat((mv_hat, key_frames, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input.cuda(1))
-        mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), use_psnr)
+        mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
@@ -1091,7 +1093,7 @@ class SLVC(nn.Module):
         aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0))/2
         # calculate metrics/loss
         metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
-        rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), use_psnr)
+        rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), self.r, use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
