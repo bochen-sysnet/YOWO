@@ -306,7 +306,8 @@ class DCVC(nn.Module):
         # motion compensation
         loc = get_grid_locations(bs, h, w).type(x.type())
         x_warp = F.grid_sample(x_rhat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(x, x_warp.to(x.device), use_psnr)
+        x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warp_loss = calc_loss(x, x_tilde.to(x.device), use_psnr)
         
         # context refinement
         context = self.ctx_refine(x_warp)
