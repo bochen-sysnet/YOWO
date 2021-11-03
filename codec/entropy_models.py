@@ -74,6 +74,98 @@ class RecProbModel(CompressionModel):
         bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
         return bits_act
         
+    def get_estimate_bits(self, likelihoods):
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        return bits_est
+        
+class JointAutoregressiveHierarchicalPriors(CompressionModel):
+
+    def __init__(
+        self,
+        channels,
+    ):
+        super().__init__(channels)
+
+        self.channels = int(channels)
+        
+        self.sigma = self.mu = self.prior_latent = None
+        h = w = 224
+        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        self.gaussian_conditional = GaussianConditional(None)
+        
+        self.h_a = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+        )
+
+        self.h_s = nn.ModuleList(
+            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1),
+        )
+
+        self.entropy_parameters = nn.Sequential(
+            nn.Conv2d(channels * 2, channels * 3, 1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels * 3, channels * 3, 1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels * 3, channels * 2, 1),
+        )
+             
+    def init_state(self):
+        return self.model_states
+        
+    def update(self, scale_table=None, force=False):
+        if scale_table is None:
+            scale_table = get_scale_table()
+        updated = self.gaussian_conditional.update_scale_table(scale_table, force=force)
+        updated |= super().update(force=force)
+        return updated
+
+    def loss(self):
+        return self.aux_loss()
+
+    def forward(
+        self, x, ctx_params, training = None
+    ):
+        bs,c,h,w = x.size()
+        z = self.h_a(x)
+        z_hat, z_likelihood = self.entropy_bottleneck(z)
+        params = z_hat
+        for i,m in enumerate(self.h_s):
+            if i in [0,2]:
+                sz = torch.Size(bs,c,h//2,w//2) if i==0 else torch.Size(bs,c,h,w)
+                params = m(params,output_size=sz)
+            else:
+                params = m(params)
+        x_hat = self.gaussian_conditional.quantize(
+            x, "noise" if training else "dequantize"
+        )
+        gaussian_params = self.entropy_parameters(
+            torch.cat((params, ctx_params), dim=1)
+        )
+        self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1)
+        x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
+        return x_hat, (x_likelihood,z_likelihood)
+        
+    def get_actual_bits(self, x):
+        indexes = self.gaussian_conditional.build_indexes(self.sigma)
+        string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+        return bits_act
+        
+    def get_estimate_bits(self, likelihoods):
+        (x_likelihood,z_likelihood) = likelihood
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
+        bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
+        return bits_est
+        
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
@@ -125,9 +217,12 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'RPM'):
+def test(name = 'Joint'):
     channels = 128
-    net = RecProbModel(channels)
+    if name =='RPM':
+        net = RecProbModel(channels)
+    else:
+        net = JointAutoregressiveHierarchicalPriors(channels)
     x = torch.rand(1, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
@@ -141,14 +236,17 @@ def test(name = 'RPM'):
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
+        net.update(force=True)
         if name == 'RPM':
-            net.update(force=True)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
             bits_act = net.get_actual_bits(x, rpm_flag)
+        else:
+            x_hat, likelihoods = net(x,x,training=True)
+            bits_act = net.get_actual_bits(x)
         
-        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
-        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+        bits_est = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
+        loss = bits_est + net.loss()
         
         bits_est.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(),1)
