@@ -144,6 +144,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
                 params = m(params,output_size=sz)
             else:
                 params = m(params)
+        print(params.size(),ctx_params.size())
         gaussian_params = self.entropy_parameters(
             torch.cat((params, ctx_params), dim=1)
         )
