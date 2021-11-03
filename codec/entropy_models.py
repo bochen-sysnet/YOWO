@@ -102,12 +102,12 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
         )
 
-        self.h_s = nn.ModuleList(
+        self.h_s = nn.ModuleList([
             nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)]
         )
 
         self.entropy_parameters = nn.Sequential(
