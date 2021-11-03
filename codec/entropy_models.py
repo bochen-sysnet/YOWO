@@ -140,7 +140,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         params = z_hat
         for i,m in enumerate(self.h_s):
             if i in [0,2]:
-                sz = torch.Size(bs,c,h//2,w//2) if i==0 else torch.Size(bs,c,h,w)
+                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size(bs,c,h,w)
                 params = m(params,output_size=sz)
             else:
                 params = m(params)
