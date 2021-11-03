@@ -280,7 +280,7 @@ class DCVC(nn.Module):
                                         )
         self.optical_flow = OpticalFlowNet()
         self.mv_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels)
+        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,1,1,1
     
     def forward(self, x, x_hat_prev, hidden_states, RPM_flag, use_psnr=True):
