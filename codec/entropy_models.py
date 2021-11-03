@@ -161,7 +161,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
-        (x_likelihood,z_likelihood) = likelihood
+        (x_likelihood,z_likelihood) = likelihoods
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
         bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
         return bits_est
