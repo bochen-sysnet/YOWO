@@ -1162,10 +1162,11 @@ def test_DCVC():
             f"Batch: {i:4}. "
             f"loss: {float(loss):.2f}. "
             f"img_loss: {float(img_loss):.2f}. "
-            f"bits_est: {float(bits_est):.2f}. "
-            f"bits_act: {float(bits_act):.2f}. "
+            f"bpp_est: {float(bpp_est):.2f}. "
+            f"bpp_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
-            f"flow_loss: {float(flow_loss):.2f}. ")
+            f"flow_loss: {float(flow_loss):.2f}. "
+            f"metrics: {float(metrics):.2f}. ")
         
 if __name__ == '__main__':
     test_DCVC()
