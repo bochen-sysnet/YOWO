@@ -328,7 +328,6 @@ class DCVC(nn.Module):
         # contextual decoder
         x_hat = y_hat
         for i,m in enumerate(self.ctx_decoder):
-            print(i,m,x_hat.size(),)
             if i in [0,2,5,8]:
                 if i==0:
                     sz = torch.Size([bs,c,h//8,w//8])
@@ -340,11 +339,9 @@ class DCVC(nn.Module):
                     sz = torch.Size([bs,c,h,w])
                 x_hat = m(x_hat,output_size=sz)
             elif i==9:
-                x_hat = torch.cat((x_hat, context), axis=1)
+                x_hat = m(torch.cat((x_hat, context), axis=1))
             else:
                 x_hat = m(x_hat)
-            
-            print(x_hat.size())
         
         # estimated bits
         bpp_est = (mv_est + y_est)/(h * w * bs)
