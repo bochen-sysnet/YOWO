@@ -260,9 +260,9 @@ class DCVC(nn.Module):
                                         ResidualBlock(channels,channels),
                                         nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
                                         nn.Conv2d(channels*2, channels, kernel_size=3, stride=1, padding=1),
-                                        ResidualBlock(channels+channels2,channels+channels2),
-                                        ResidualBlock(channels+channels2,channels+channels2),
-                                        nn.Conv2d(channels+channels2, 3, kernel_size=3, stride=1, padding=1)
+                                        ResidualBlock(channels,channels),
+                                        ResidualBlock(channels,channels),
+                                        nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
                                         ])
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
