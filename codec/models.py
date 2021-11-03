@@ -295,7 +295,7 @@ class DCVC(nn.Module):
         rae_mv_hidden, rpm_mv_hidden = hidden_states
                 
         # motion estimation
-        mv, l0, l1, l2, l3, l4 = self.optical_flow(x, x_hat_prev, bs, h, s)
+        mv, l0, l1, l2, l3, l4 = self.optical_flow(x, x_hat_prev, bs, h, w)
         
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
