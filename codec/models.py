@@ -289,7 +289,7 @@ class DCVC(nn.Module):
             x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(x,'bpg',None,use_psnr)
             return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         # size
-        bs,_,h,w = x.size()
+        bs,c,h,w = x.size()
         
         # hidden states
         rae_mv_hidden, rpm_mv_hidden = hidden_states
