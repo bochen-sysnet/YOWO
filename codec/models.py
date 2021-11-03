@@ -327,13 +327,13 @@ class DCVC(nn.Module):
         for i,m in enumerate(self.ctx_decoder):
             if i in [0,2,5,8]:
                 if i==0:
-                    sz = torch.Size(bs,c,h//8,w//8)
+                    sz = torch.Size([bs,c,h//8,w//8])
                 elif i==2:
-                    sz = torch.Size(bs,c,h//4,w//4)
+                    sz = torch.Size([bs,c,h//4,w//4])
                 elif i==5:
-                    sz = torch.Size(bs,c,h//2,w//2)
+                    sz = torch.Size([bs,c,h//2,w//2])
                 else:
-                    sz = torch.Size(bs,c,h,w)
+                    sz = torch.Size([bs,c,h,w])
                 x_hat = m(x_hat,output_size=sz)
             elif i==9:
                 x_hat = torch.cat((x_hat, context), axis=1)
