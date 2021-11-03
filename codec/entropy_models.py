@@ -202,7 +202,6 @@ class ConvLSTM(nn.Module):
         self._channels = channels
 
     def forward(self, x, state):
-        print(state.size(),self._channels)
         c, h = torch.split(state,self._channels,dim=1)
         x = torch.cat((x, h), dim=1)
         y = self.conv(x)
