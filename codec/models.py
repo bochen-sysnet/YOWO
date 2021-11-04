@@ -1276,8 +1276,8 @@ def test_SLVC(name = 'SLVC2'):
             f"Batch: {i:4}. "
             f"loss: {float(loss):.2f}. "
             f"img_loss: {float(img_loss):.2f}. "
-            f"bits_est: {float(bits_est):.2f}. "
-            f"bits_act: {float(bits_act):.2f}. "
+            f"bits_est: {float(bpp_est):.2f}. "
+            f"bits_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
