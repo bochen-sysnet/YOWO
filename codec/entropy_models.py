@@ -89,7 +89,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
         self.channels = int(channels)
         
-        self.sigma = self.mu = None
+        self.sigma = self.mu = self.z_string = None
         h = w = 224
         self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         self.gaussian_conditional = GaussianConditional(None)
@@ -137,6 +137,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         bs,c,h,w = x.size()
         z = self.h_a(x)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
+        # compressed string of prior used to get bpp
+        self.z_string = self.entropy_bottleneck.compress(z)
         params = z_hat
         for i,m in enumerate(self.h_s):
             if i in [0,2]:
@@ -153,8 +155,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         
     def get_actual_bits(self, x):
         indexes = self.gaussian_conditional.build_indexes(self.sigma)
-        string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
-        bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(self.z_string))*8]).squeeze(0)
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
