@@ -89,7 +89,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
         self.channels = int(channels)
         
-        self.sigma = self.mu = self.prior_latent = None
+        self.sigma = self.mu = None
         h = w = 224
         self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         self.gaussian_conditional = GaussianConditional(None)
@@ -111,11 +111,11 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         )
 
         self.entropy_parameters = nn.Sequential(
-            nn.Conv2d(channels * 2, channels * 3, 1),
+            nn.Conv2d(channels * 2, channels * 5 // 3, 1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3, channels * 3, 1),
+            nn.Conv2d(channels * 5 // 3, channels * 4 // 3, 1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3, channels * 2, 1),
+            nn.Conv2d(channels * 4 // 3, channels * 2, 1),
         )
              
     def init_state(self):

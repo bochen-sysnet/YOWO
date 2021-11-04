@@ -100,9 +100,19 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'DCVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
+    elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
+        # load what exists
+        print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_best.pth"
+        checkpoint = torch.load(pretrained_model_path)
+        model_codec.load_state_dict_whatever(checkpoint['state_dict'])
+        print("Loaded model codec score: ", checkpoint['score'])
+        if 'misc' in checkpoint:
+            print('Other metrics:',checkpoint['misc'])
+        del checkpoint
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
@@ -110,8 +120,7 @@ if cfg.TRAIN.RESUME_PATH:
         best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
         model_codec.load_state_dict_all(checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
-        if 'misc' in checkpoint:
-            print('Other metrics:',checkpoint['misc'])
+        if 'misc' in checkpoint: print('Other metrics:',checkpoint['misc'])
         del checkpoint
     else:
         print("Cannot load model codec", cfg.TRAIN.CODEC_NAME)
@@ -169,12 +178,12 @@ else:
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score)
         if epoch >= 1:
             logging('testing at epoch %d' % (epoch))
-            score,misc = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
+            score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score,misc = [0,0],[]
+            score = [0,1]
 
         # Save the model to backup directory
         is_best = (score[0] >= best_codec_score[0]) and (score[1] <= best_codec_score[1])
@@ -186,8 +195,7 @@ else:
         state = {
             'epoch': epoch,
             'state_dict': model_codec.state_dict(),
-            'score': score,
-            'misc': misc
+            'score': score
             }
         save_codec_checkpoint(state, is_best, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
         logging('Weights are saved to backup directory: %s' % (cfg.BACKUP_DIR))

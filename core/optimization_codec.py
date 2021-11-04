@@ -6,7 +6,7 @@ from datasets.meters import AVAMeter
 from torch.cuda.amp import autocast as autocast
 from tqdm import tqdm
 
-def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers):
+def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -91,6 +91,15 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             ba_loss_module.reset()
             metrics_module.reset()
             
+        # save model to prevent floating point exception
+        if batch_idx % 10000 == 0 and batch_idx > 0:
+            state = {
+                'epoch': epoch,
+                'state_dict': model_codec.state_dict(),
+                'score': score
+            }
+            save_codec_checkpoint(state, False, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
+            
         # show result
         train_iter.set_description(
             f"Batch: {batch_idx:6}. "
@@ -109,7 +118,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
 
 
-def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers):
+def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -196,6 +205,15 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             all_loss_module.reset()
             ba_loss_module.reset()
             metrics_module.reset()
+         
+        # save model to prevent floating point exception
+        if batch_idx % 10000 == 0 and batch_idx > 0:
+            state = {
+                'epoch': epoch,
+                'state_dict': model_codec.state_dict(),
+                'score': score
+            }
+            save_codec_checkpoint(state, False, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
 
         # show result
         train_iter.set_description(
@@ -318,7 +336,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
     mAP = meter.evaluate_ava()
     logging("mode: {} -- mAP: {}".format(meter.mode, mAP))
 
-    return mAP
+    return [fscore,ba_loss_module.avg,metrics_module.avg,loss_module.l_total.avg,mAP]
 
 
 
@@ -481,4 +499,4 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
 
     print("Result: %.4f, %.4f" % (fscore,ba_loss_module.avg))
 
-    return [fscore,ba_loss_module.avg],[metrics_module.avg,loss_module.l_total.avg]
+    return [fscore,ba_loss_module.avg,metrics_module.avg,loss_module.l_total.avg]
