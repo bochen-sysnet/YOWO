@@ -430,6 +430,7 @@ class DCVC(nn.Module):
             self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
         
     def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
+        print(i,prev,P_flag,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
