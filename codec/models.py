@@ -1120,7 +1120,7 @@ class SLVC2(nn.Module):
         super(SLVC2, self).__init__()
         self.name = name 
         device = torch.device('cuda')
-        self.ctx_encoder = nn.Sequential(nn.Conv2d(channels+3, channels, kernel_size=5, stride=2, padding=2),
+        self.ctx_encoder = nn.Sequential(nn.Conv2d(6, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
