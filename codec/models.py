@@ -1116,7 +1116,7 @@ class SLVC(nn.Module):
         
 # use context based compression
 class SLVC2(nn.Module):
-    def __init__(self, name, channels=64):
+    def __init__(self, name, channels=64, channels2=96):
         super(SLVC2, self).__init__()
         self.name = name 
         device = torch.device('cuda')
