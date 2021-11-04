@@ -1147,7 +1147,7 @@ class SLVC2(nn.Module):
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
                                         )
-        self.tmp_prior_encoder = nn.Sequential(nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2),
+        self.tmp_prior_encoder = nn.Sequential(nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
@@ -1156,7 +1156,7 @@ class SLVC2(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.ctx_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.r = 1,1,1,1,0,1024
@@ -1165,7 +1165,7 @@ class SLVC2(nn.Module):
 
     def split(self):
         self.kfnet.cuda(0)
-        self.ctx_codec.cuda(0)
+        self.ref_codec.cuda(0)
         self.feature_extract.cuda(0)
         self.tmp_prior_encoder.cuda(0)
         self.ctx_encoder.cuda(0)
@@ -1177,23 +1177,25 @@ class SLVC2(nn.Module):
         bs, _, h, w = x.size()
         
         # hidden
-        rae_ctx_hidden,rpm_ctx_hidden = hidden_states
+        rae_ref_hidden,rpm_ref_hidden = hidden_states
         
-        # extract context, which is close to all frames in a sense
+        # extract ref frame, which is close to all frames in a sense
         ref_frame = self.kfnet(x)
+        
+        # compress ref frame, use cheng2020?
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, False)
+        
+        # extract context
         context = self.feature_extract(ref_frame)
         
-        # compress context, use cheng2020?
-        context_hat,rae_ctx_hidden,rpm_ctx_hidden,ctx_act,ctx_est,ctx_aux = self.ctx_codec(context, rae_ctx_hidden, rpm_ctx_hidden, False)
-        
         # temporal prior
-        prior = self.tmp_prior_encoder(context_hat)
+        prior = self.tmp_prior_encoder(context)
         
         # repeat context to match the size of all frames
-        context_hat_rep = context_hat.repeat(bs,1,1,1)
+        context_rep = context.repeat(bs,1,1,1)
         
         # contextual encoder
-        y = self.ctx_encoder(torch.cat((x, context_hat_rep), axis=1))
+        y = self.ctx_encoder(torch.cat((x, context_rep), axis=1))
         
         # entropy model
         self.entropy_bottleneck.update()
@@ -1221,11 +1223,11 @@ class SLVC2(nn.Module):
                 x_hat = m(x_hat)
         
         # estimated bits
-        bpp_est = (ctx_est + y_est)/(h * w * bs)
+        bpp_est = (ref_est + y_est)/(h * w * bs)
         # actual bits
-        bpp_act = (ctx_act + y_act)/(h * w * bs)
+        bpp_act = (ref_act + y_act)/(h * w * bs)
         # auxilary loss
-        aux_loss = (ctx_aux + y_aux)/2
+        aux_loss = (ref_aux + y_aux)/2
         # calculate metrics/loss
         metrics = calc_metrics(x, x_hat, use_psnr)
         rec_loss = calc_loss(x, x_hat, use_psnr)
@@ -1233,7 +1235,7 @@ class SLVC2(nn.Module):
         # flow loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden
-        hidden_states = (rae_ctx_hidden,rpm_ctx_hidden)
+        hidden_states = (rae_ref_hidden,rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
@@ -1258,9 +1260,9 @@ def test_SLVC(name = 'SLVC2'):
         rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
     else:
-        rae_ctx_hidden,_ = init_hidden(h,w,channels)
-        rpm_ctx_hidden = model.ctx_codec.entropy_bottleneck.init_state()
-        hidden_states = (rae_ctx_hidden,rpm_ctx_hidden)
+        rae_ref_hidden,_ = init_hidden(h,w,channels)
+        rpm_ref_hidden = model.ref_codec.entropy_bottleneck.init_state()
+        hidden_states = (rae_ref_hidden,rpm_ref_hidden)
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
