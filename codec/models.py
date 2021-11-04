@@ -1159,7 +1159,7 @@ class SLVC2(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.ctx_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ctx_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.r = 1,1,1,1,0,1024
