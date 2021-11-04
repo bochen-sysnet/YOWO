@@ -185,7 +185,6 @@ else:
         if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
-        else:
             
 
         # Save the model to backup directory
