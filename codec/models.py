@@ -353,7 +353,7 @@ class DCVC(nn.Module):
                     sz = torch.Size([bs,c,h,w])
                 x_hat = m(x_hat,output_size=sz)
             elif i==9:
-                x_hat = m(torch.cat((x_hat, context), axis=1))
+                x_hat = m(torch.cat((x_hat, context.cuda(1)), axis=1))
             else:
                 x_hat = m(x_hat)
         
