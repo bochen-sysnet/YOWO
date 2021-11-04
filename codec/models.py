@@ -1150,7 +1150,7 @@ class SLVC2(nn.Module):
         self.ctx_refine = nn.Sequential(ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
                                         )
-        self.tmp_prior_encoder = nn.Sequential(nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+        self.tmp_prior_encoder = nn.Sequential(nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
