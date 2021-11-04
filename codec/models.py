@@ -365,7 +365,7 @@ class DCVC(nn.Module):
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
         metrics = calc_metrics(x, x_hat.cuda(0), use_psnr)
-        rec_loss = calc_loss(x, x_hat.cuda(0), use_psnr)
+        rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
         # flow loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
