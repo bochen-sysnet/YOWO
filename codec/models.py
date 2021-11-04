@@ -1174,7 +1174,7 @@ class SLVC2(nn.Module):
         
     def forward(self, x, hidden_states, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
-        bs, _, h, w = x.size()
+        bs, c, h, w = x.size()
         
         # hidden
         rae_ref_hidden,rpm_ref_hidden = hidden_states
