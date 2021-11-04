@@ -20,7 +20,7 @@ from cfg import parser
 from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
-from codec.models import LearnedVideoCodecs, StandardVideoCodecs, DCVC
+from codec.models import LearnedVideoCodecs, StandardVideoCodecs, DCVC, SCVC
 
 
 ####### Load configuration arguments
@@ -56,6 +56,8 @@ if cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DVC','RAW']:
     model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
     model_codec = DCVC(cfg.TRAIN.CODEC_NAME)
+elif cfg.TRAIN.CODEC_NAME in ['SCVC']:
+    model_codec = SCVC(cfg.TRAIN.CODEC_NAME)
 elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
     model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
 else:
@@ -75,7 +77,7 @@ if cfg.TRAIN.CODEC_NAME in ['DVC']:
     parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC']:
+elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
@@ -100,7 +102,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC']:
+    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'SCVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
@@ -179,7 +181,7 @@ else:
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score)
-        if epoch >= 1:
+        if epoch >= 3:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:

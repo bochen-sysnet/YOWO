@@ -209,7 +209,7 @@ class LearnedVideoCodecs(nn.Module):
         cache['bpp_est'][i] = bpp_est
         cache['metrics'][i] = metrics
         cache['bpp_act'][i] = bpp_act.cpu()
-        # we can record PSNR wrt the distance to I-frame to show error propagation
+        # we can record PSNR wrt the distance to I-frame to show error propagation, and record time
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MLVC','RAW']:
@@ -236,7 +236,6 @@ class LearnedVideoCodecs(nn.Module):
             own_state[name].copy_(param)
             
 # DCVC?
-
 class DCVC(nn.Module):
     def __init__(self, name, channels=64, channels2=96):
         super(DCVC, self).__init__()
@@ -462,7 +461,7 @@ class DCVC(nn.Module):
         # optimize bpp and app loss only
         
         # setup training weights
-        if epoch <= -1:
+        if epoch <= 2:
             self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,0,1,1
         else:
             self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,0,.1,0,1,0
@@ -752,7 +751,7 @@ class ComprNet(nn.Module):
         if codec_name in ['MLVC', 'RLVC', 'SLVC','DCVC']:
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
-        elif codec_name in ['DVC','SLVC2']:
+        elif codec_name in ['DVC','SCVC']:
             from compressai.entropy_models import EntropyBottleneck
             EntropyBottleneck.model_states = []
             EntropyBottleneck.init_state = init_state
@@ -1115,9 +1114,9 @@ class SLVC(nn.Module):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         
 # use context based compression
-class SLVC2(nn.Module):
+class SCVC(nn.Module):
     def __init__(self, name, channels=64, channels2=96):
-        super(SLVC2, self).__init__()
+        super(SCVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
         self.ctx_encoder = nn.Sequential(nn.Conv2d(3+channels, channels, kernel_size=5, stride=2, padding=2),
@@ -1240,8 +1239,110 @@ class SLVC2(nn.Module):
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         
+    def update_training(self, epoch):
+        # warmup with all gamma set to 1
+        # optimize for bpp,img loss and focus only reconstruction loss
+        # optimize bpp and app loss only
         
-def test_SLVC(name = 'SLVC2'):
+        # setup training weights
+        if epoch <= -1:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
+        else:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,0,.1,0
+            
+        # set up GOP
+        # epoch >=1 means pretraining on I-frame compression
+        GOP = 10 if epoch >= -1 else 1
+        
+        # whether to compute action detection
+        doAD = True if self.gamma_app > 0 else False
+        
+        self.epoch = epoch
+        
+        return GOP, doAD
+        
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
+        # process the involving GOP
+        # how to deal with backward P frames?
+        # if process in order, some frames need later frames to compress
+        if startNewClip:
+            # create cache
+            cache['bpp_est'] = {}
+            cache['img_loss'] = {}
+            cache['flow_loss'] = {}
+            cache['aux'] = {}
+            cache['bpp_act'] = {}
+            cache['metrics'] = {}
+            cache['hidden'] = None
+            cache['max_processed_idx'] = -1
+            # the first frame to be compressed in a video
+            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
+            start_idx = max(0,start_idx)
+            # search for the I frame in this GOP
+            # then compress all frames based on that
+            # GOP = 6+6+1 = 13
+            # I frames: 0, 13, ...
+            for i in range(start_idx,frame_idx):
+                self._compress_GOP(i, cache)
+        else:
+            self._compress_GOP(frame_idx-1, cache)
+            
+    def _compress_GOP(self, i, cache, fP=6, bP=6):
+        cache['max_idx'] = i
+        if i<=cache['max_processed_idx']:
+            return
+        GOP = fP + bP + 1
+        if i%GOP <= fP:
+            # e.g.: i=4,left=0,right=6,mid=0
+            mid = i//GOP*GOP
+            left = max(mid,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        else:
+            # e.g.: i=8,left=7,right=19,mid=13
+            # in this case the last frame is always I frame
+            possible_I = (i//GOP+1)*GOP
+            mid = min(possible_I,len(cache['clip'])-1)
+            left = max(possible_I-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        cache['max_processed_idx'] = right
+        
+        # process backward frames
+        if mid > left:
+            # mid...left
+            self._process_range(left,mid,cache)
+            mid2 = mid+1 # no need to process the middle frame
+        else:
+            mid2 = mid
+        # process forward frames
+        # mid2...right
+        self._process_range(mid2,right,cache)
+            
+    def _process_range(self,l,r,cache):
+        # settings
+        bs = 4
+        rae_ref_hidden,_ = init_hidden(h,w,channels)
+        rpm_ref_hidden = self.ref_codec.entropy_bottleneck.init_state()
+        hidden_states = (rae_ref_hidden,rpm_ref_hidden)
+        # mid...left
+        img_list = []; idx_list = []
+        for i in range(l,r+1):
+            img_list.append(cache['clip'][i])
+            idx_list.append(i)
+            if len(idx_list) == bs or i == left:
+                x = torch.stack(img_list, dim=0)
+                n = len(idx_list)
+                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = self(x, hidden_states)
+                for j in idx_list:
+                    cache['clip'][j] = x_hat[j-idx_list[0]].detach().squeeze(0)
+                    cache['img_loss'][j] = img_loss/n
+                    cache['flow_loss'][j] = flow_loss/n
+                    cache['aux'][j] = aux_loss/n
+                    cache['bpp_est'][j] = bpp_est/n
+                    cache['metrics'][j] = metrics/n
+                    cache['bpp_act'][j] = bpp_act.cpu()/n
+                img_list = []; idx_list = []
+        
+def test_SLVC(name = 'SCVC'):
     batch_size = 4
     h = w = 224
     channels = 64
@@ -1249,7 +1350,7 @@ def test_SLVC(name = 'SLVC2'):
     if name == 'SLVC':
         model = SLVC(name,channels)
     else:
-        model = SLVC2(name,channels)
+        model = SCVC(name,channels)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
