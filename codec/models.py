@@ -1235,7 +1235,7 @@ class SLVC2(nn.Module):
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
         # hidden
         hidden_states = (rae_ref_hidden,rpm_ref_hidden)
-        return com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
