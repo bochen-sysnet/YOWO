@@ -296,7 +296,7 @@ class DCVC(nn.Module):
         self.entropy_bottleneck.cuda(1)
         self.ctx_decoder.cuda(1)
     
-    def forward(self, x, x_hat_prev, hidden_states, RPM_flag, use_psnr=True):
+    def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
         # I-frame compression
         if x_hat_prev is None:
             x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(x,'bpg',None,self.r,use_psnr)
@@ -430,7 +430,6 @@ class DCVC(nn.Module):
             self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
         
     def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
-        print(i,prev,P_flag,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
