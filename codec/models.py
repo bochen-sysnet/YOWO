@@ -438,9 +438,9 @@ class DCVC(nn.Module):
         Y1_raw = cache['clip'][i].unsqueeze(0)
         # hidden variables
         if P_flag:
-            rae_mv_hidden, rae_res_hidden = init_hidden(h,w,self.channels)
-            rpm_mv_hidden, rpm_res_hidden = self.mv_codec.entropy_bottleneck.init_state(), self.res_codec.entropy_bottleneck.init_state()
-            hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+            rae_mv_hidden, _ = init_hidden(h,w,self.channels)
+            rpm_mv_hidden = self.mv_codec.entropy_bottleneck.init_state()
+            hidden = (rae_mv_hidden, rpm_mv_hidden)
         else:
             hidden = cache['hidden']
         Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
