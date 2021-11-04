@@ -1188,11 +1188,11 @@ class SLVC2(nn.Module):
         # extract context
         context = self.feature_extract(ref_frame)
         
-        # temporal prior
-        prior = self.tmp_prior_encoder(context)
-        
         # repeat context to match the size of all frames
         context_rep = context.repeat(bs,1,1,1)
+        
+        # temporal prior
+        prior = self.tmp_prior_encoder(context_rep)
         
         # contextual encoder
         y = self.ctx_encoder(torch.cat((x, context_rep), axis=1))
