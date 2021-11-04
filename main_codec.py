@@ -88,6 +88,7 @@ elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC']:
 # initialize best score
 best_score = 0 
 best_codec_score = [0,1]
+score = [0,1]
 
 ####### Load yowo model
 # ---------------------------------------------------------------
@@ -185,7 +186,7 @@ else:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
         else:
-            score = [0,1]
+            
 
         # Save the model to backup directory
         is_best = (score[0] >= best_codec_score[0]) and (score[1] <= best_codec_score[1])
