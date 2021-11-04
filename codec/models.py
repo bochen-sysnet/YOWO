@@ -1168,6 +1168,13 @@ class SLVC2(nn.Module):
 
     def split(self):
         self.kfnet.cuda(0)
+        self.ctx_codec.cuda(0)
+        self.feature_extract.cuda(0)
+        self.ctx_refine.cuda(0)
+        self.tmp_prior_encoder.cuda(0)
+        self.ctx_encoder.cuda(0)
+        self.entropy_bottleneck.cuda(0)
+        self.ctx_decoder.cuda(0)
         
     def forward(self, x, hidden_states, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
@@ -1241,7 +1248,10 @@ def test_SLVC(name = 'SLVC2'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    model = SLVC(name,channels)
+    if name == 'SLVC':
+        model = SLVC(name,channels)
+    else:
+        model = SLVC2(name,channels)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
