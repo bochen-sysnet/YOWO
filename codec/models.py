@@ -283,6 +283,7 @@ class DCVC(nn.Module):
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,1,1,1
         self.r = 1024
+        self.name = name
         self.split()
 
     def split(self):
