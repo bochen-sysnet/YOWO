@@ -1120,7 +1120,7 @@ class SLVC2(nn.Module):
         super(SLVC2, self).__init__()
         self.name = name 
         device = torch.device('cuda')
-        self.ctx_encoder = nn.Sequential(nn.Conv2d(6, channels, kernel_size=5, stride=2, padding=2),
+        self.ctx_encoder = nn.Sequential(nn.Conv2d(3+channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
@@ -1147,9 +1147,6 @@ class SLVC2(nn.Module):
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
                                         )
-        self.ctx_refine = nn.Sequential(ResidualBlock(channels,channels),
-                                        nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-                                        )
         self.tmp_prior_encoder = nn.Sequential(nn.Conv2d(3, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
@@ -1170,7 +1167,6 @@ class SLVC2(nn.Module):
         self.kfnet.cuda(0)
         self.ctx_codec.cuda(0)
         self.feature_extract.cuda(0)
-        self.ctx_refine.cuda(0)
         self.tmp_prior_encoder.cuda(0)
         self.ctx_encoder.cuda(0)
         self.entropy_bottleneck.cuda(0)
@@ -1184,7 +1180,8 @@ class SLVC2(nn.Module):
         rae_ctx_hidden,rpm_ctx_hidden = hidden_states
         
         # extract context, which is close to all frames in a sense
-        context = self.kfnet(x)
+        ref_frame = self.kfnet(x)
+        context = self.feature_extract(ref_frame)
         
         # compress context, use cheng2020?
         context_hat,rae_ctx_hidden,rpm_ctx_hidden,ctx_act,ctx_est,ctx_aux = self.ctx_codec(context, rae_ctx_hidden, rpm_ctx_hidden, False)
