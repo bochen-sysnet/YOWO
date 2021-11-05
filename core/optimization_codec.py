@@ -14,7 +14,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
-    metrics_module = AverageMeter()
+    psnr_module = AverageMeter()
+    msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
     scalers = [torch.cuda.amp.GradScaler(enabled=True) for _ in optimizers]
     batch_size = cfg.TRAIN.BATCH_SIZE
@@ -27,13 +28,13 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            batch,be,il,a,fl,ba,m = train_dataset[data_idx]
+            batch,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             data.append(batch['clip'])
             cls.append(batch['cls'])
             boxes.append(batch['boxes'])
@@ -42,7 +43,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             img_loss_list.append(il)
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
-            metrics_list.append(m)
+            psnr_list.append(p)
+            msssim_list.append(m)
         data = torch.stack(data, dim=0)
         cls = torch.stack(cls, dim=0)
         boxes = torch.stack(boxes, dim=0)
@@ -58,14 +60,16 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+            psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
+            msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            psnr_module.update(psnr.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            msssim_module.update(msssim.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
         n_optimizers = len(optimizers)
         for i in range(n_optimizers):
@@ -89,7 +93,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             be_loss_module.reset()
             all_loss_module.reset()
             ba_loss_module.reset()
-            metrics_module.reset()
+            psnr_module.reset()
+            msssim_module.reset()
             
         # save model to prevent floating point exception
         if batch_idx % 10000 == 0 and batch_idx > 0:
@@ -110,11 +115,11 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
-            f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). ")
+            f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
+            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). ")
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_dataset)/(t1-t0)))
-    print('')
 
 
 
@@ -126,7 +131,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
-    metrics_module = AverageMeter()
+    psnr_module = AverageMeter()
+    msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
     scalers = [torch.cuda.amp.GradScaler(enabled=True) for _ in optimizers]
     batch_size = cfg.TRAIN.BATCH_SIZE
@@ -140,13 +146,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     for batch_idx,_ in enumerate(train_iter):
         # start compression
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            f,d,t,be,il,a,fl,ba,m = train_dataset[data_idx]
+            f,d,t,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             frame_idx.append(f)
             data.append(d)
             target.append(t)
@@ -155,7 +161,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             img_loss_list.append(il)
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
-            metrics_list.append(m)
+            psnr_list.append(p)
+            msssim_list.append(m)
             if train_dataset.last_frame or j == batch_size-1:
                 # if is the end of a video
                 data = torch.stack(data, dim=0).cuda()
@@ -169,14 +176,16 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
                     loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
                     ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-                    metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+                    psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
+                    msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
                     aux_loss_module.update(aux_loss.cpu().data.item(), l)
                     img_loss_module.update(img_loss.cpu().data.item(), l)
                     flow_loss_module.update(flow_loss.cpu().data.item(), l)
                     be_loss_module.update(be_loss.cpu().data.item(), l)
                     ba_loss_module.update(ba_loss.cpu().data.item(), l)
                     all_loss_module.update(loss.cpu().data.item(), l)
-                    metrics_module.update(metrics.cpu().data.item(), l)
+                    psnr_module.update(psnr.cpu().data.item(),l)
+                    msssim_module.update(msssim.cpu().data.item(), l)
                 # backward prop
                 n_optimizers = len(optimizers)
                 for i in range(n_optimizers):
@@ -193,7 +202,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                         optimizers[i].zero_grad()
                 # init batch
                 frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-                bpp_est_list = []; bpp_act_list = []; metrics_list = []
+                bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
@@ -204,7 +213,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             be_loss_module.reset()
             all_loss_module.reset()
             ba_loss_module.reset()
-            metrics_module.reset()
+            psnr_module.reset()
+            msssim_module.reset()
          
         # save model to prevent floating point exception
         if batch_idx % 10000 == 0 and batch_idx > 0:
@@ -225,11 +235,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
-            f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). ")
+            f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
+            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). ")
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_dataset)/(t1-t0)))
-    print('')
 
 
 
@@ -253,7 +263,8 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
     flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
-    metrics_module = AverageMeter()
+    psnr_module = AverageMeter()
+    msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
 
     model.eval()
@@ -262,13 +273,13 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
     for batch_idx,_ in enumerate(test_iter):
         # start compression
         data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            batch,be,il,a,fl,ba,m = train_dataset[data_idx]
+            batch,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             data.append(batch['clip'])
             cls.append(batch['cls'])
             boxes.append(batch['boxes'])
@@ -277,7 +288,8 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             img_loss_list.append(il)
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
-            metrics_list.append(m)
+            psnr_list.append(p)
+            msssim_list.append(m)
         data = torch.stack(data, dim=0)
         cls = torch.stack(cls, dim=0)
         boxes = torch.stack(boxes, dim=0)
@@ -311,14 +323,16 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+            psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
+            msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            psnr_module.update(psnr.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            msssim_module.update(msssim.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
         # show result
         test_iter.set_description(
             f"Batch: {batch_idx:6}. "
@@ -329,14 +343,15 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
-            f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). ")
+            f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
+            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). ")
 
         meter.update_stats(preds)
 
     mAP = meter.evaluate_ava()
     logging("mode: {} -- mAP: {}".format(meter.mode, mAP))
 
-    return [fscore,ba_loss_module.avg,metrics_module.avg,loss_module.l_total.avg,mAP]
+    return [fscore,ba_loss_module.avg,psnr_module.avg,msssim_module.avg,loss_module.l_total.avg,mAP]
 
 
 
@@ -377,20 +392,21 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
-    metrics_module = AverageMeter()
+    psnr_module = AverageMeter()
+    msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
 
     test_iter = tqdm(range(0,nbatch*batch_size,batch_size))
     for batch_idx,_ in enumerate(test_iter):
         # process/compress each frame in a batch
         frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; metrics_list = []
+        bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
             test_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            f,d,t,be,il,a,fl,ba,m = test_dataset[data_idx]
+            f,d,t,be,il,a,fl,ba,p,m = test_dataset[data_idx]
             frame_idx.append(f)
             data.append(d)
             target.append(t)
@@ -399,7 +415,8 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             img_loss_list.append(il)
             flow_loss_list.append(fl)
             bpp_act_list.append(ba)
-            metrics_list.append(m)
+            psnr_list.append(p)
+            msssim_list.append(m)
         data = torch.stack(data, dim=0)
         target = torch.stack(target, dim=0)
         # end of compression
@@ -477,21 +494,24 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
             loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
-            metrics = torch.stack(metrics_list,dim=0).mean(dim=0)
+            psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
+            msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            metrics_module.update(metrics.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            psnr_module.update(psnr.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
+            msssim_module.update(msssim.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
         # show result
         test_iter.set_description(
             f"Batch: {batch_idx:6}. "
             f"RL: {loss_module.l_total.val:.2f} ({loss_module.l_total.avg:.2f}). "
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
-            f"ME: {metrics_module.val:.2f} ({metrics_module.avg:.2f}). "
+            f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
+            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). "
             f"F: {fscore:.2f} ({fscore:.4f}). ")
 
     classification_accuracy = 1.0 * correct_classification / (total_detected + eps)
@@ -499,4 +519,4 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
 
     print("Result: %.4f, %.4f" % (fscore,ba_loss_module.avg))
 
-    return [fscore,ba_loss_module.avg,metrics_module.avg,loss_module.l_total.avg]
+    return [fscore,ba_loss_module.avg,psnr_module.avg,msssim_module.avg,loss_module.l_total.avg]

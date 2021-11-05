@@ -21,6 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors
+import pytorch_msssim
 from datasets.clip import *
 
 # DVC,RLVC,MLVC
@@ -121,13 +122,14 @@ class LearnedVideoCodecs(nn.Module):
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
-        metrics = calc_metrics(Y1_raw, Y1_com.to(Y1_raw.device), use_psnr)
+        psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
+        msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
         img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
@@ -140,7 +142,8 @@ class LearnedVideoCodecs(nn.Module):
             cache['flow_loss'] = {}
             cache['aux'] = {}
             cache['bpp_act'] = {}
-            cache['metrics'] = {}
+            cache['psnr'] = {}
+            cache['msssim'] = {}
             cache['hidden'] = None
             cache['max_processed_idx'] = -1
             # the first frame to be compressed in a video
@@ -200,14 +203,15 @@ class LearnedVideoCodecs(nn.Module):
             hidden = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         else:
             hidden = cache['hidden']
-        Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
+        Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,psnr,msssim = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
         cache['aux'][i] = aux_loss
         cache['bpp_est'][i] = bpp_est
-        cache['metrics'][i] = metrics
+        cache['psnr'][i] = psnr
+        cache['msssim'][i] = msssim
         cache['bpp_act'][i] = bpp_act.cpu()
         # we can record PSNR wrt the distance to I-frame to show error propagation, and record time
     
@@ -364,14 +368,15 @@ class DCVC(nn.Module):
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
-        metrics = calc_metrics(x, x_hat.cuda(0), use_psnr)
+        psnr = PSNR(x, x_hat.cuda(0))
+        msssim = MSSSIM(x, x_hat.cuda(0))
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
         # flow loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
-        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
@@ -384,7 +389,8 @@ class DCVC(nn.Module):
             cache['flow_loss'] = {}
             cache['aux'] = {}
             cache['bpp_act'] = {}
-            cache['metrics'] = {}
+            cache['psnr'] = {}
+            cache['msssim'] = {}
             cache['hidden'] = None
             cache['max_processed_idx'] = -1
             # the first frame to be compressed in a video
@@ -443,14 +449,15 @@ class DCVC(nn.Module):
             hidden = (rae_mv_hidden, rpm_mv_hidden)
         else:
             hidden = cache['hidden']
-        Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,metrics = self(Y0_com, Y1_raw, hidden, RPM_flag)
+        Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,psnr,msssim = self(Y0_com, Y1_raw, hidden, RPM_flag)
         cache['hidden'] = hidden
         cache['clip'][i] = Y1_com.detach().squeeze(0)
         cache['img_loss'][i] = img_loss
         cache['flow_loss'][i] = flow_loss
         cache['aux'][i] = aux_loss
         cache['bpp_est'][i] = bpp_est
-        cache['metrics'][i] = metrics
+        cache['psnr'][i] = psnr
+        cache['msssim'][i] = msssim
         cache['bpp_act'][i] = bpp_act.cpu()
         # we can record PSNR wrt the distance to I-frame to show error propagation
         
@@ -548,7 +555,8 @@ class StandardVideoCodecs(nn.Module):
             cache['bpp_est'] = {}
             cache['img_loss'] = {}
             cache['bpp_act'] = {}
-            cache['metrics'] = {}
+            cache['psnr'] = {}
+            cache['msssim'] = {}
             cache['flow_loss'] = {}
             cache['aux'] = {}
             bpp = video_size*1.0/len(clip)/(height*width)
@@ -557,7 +565,8 @@ class StandardVideoCodecs(nn.Module):
                 Y1_com = clip[i]
                 cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
                 cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
-                cache['metrics'][i] = PSNR(Y1_raw, Y1_com)
+                cache['psnr'][i] = PSNR(Y1_raw, Y1_com)
+                cache['msssim'][i] = MSSSIM(Y1_raw, Y1_com)
                 cache['bpp_act'][i] = torch.FloatTensor([bpp])
                 cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
@@ -566,21 +575,6 @@ class StandardVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
-        
-def calc_metrics(Y1_raw, Y1_com, use_psnr):
-    if use_psnr:
-        metrics = PSNR(Y1_raw, Y1_com)
-    else:
-        metrics = MSSSIM(Y1_raw, Y1_com)
-    return metrics
-    
-def calc_loss(Y1_raw, Y1_com, r, use_psnr):
-    if use_psnr:
-        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*r
-    else:
-        metrics = MSSSIM(Y1_raw, Y1_com)
-        loss = r*(1-metrics)
-    return loss
         
 def I_compression(Y1_raw, image_coder_name, _image_coder, r, use_psnr):
     # we can compress with bpg,deepcod ...
@@ -591,7 +585,8 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, r, use_psnr):
         bpp_est = bits_est/(Height * Width * batch_size)
         bpp_act = bits_act/(Height * Width * batch_size)
         # calculate metrics/loss
-        metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
+        psnr = PSNR(Y1_raw, Y1_com)
+        msssim = MSSSIM(Y1_raw, Y1_com)
         loss = calc_loss(Y1_raw, Y1_com, r, use_psnr)
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     elif image_coder_name == 'bpg':
@@ -607,28 +602,50 @@ def I_compression(Y1_raw, image_coder_name, _image_coder, r, use_psnr):
         bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
         bpg_img = Image.open(postname + '.jpg').convert('RGB')
         Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
-        metrics = calc_metrics(Y1_raw, Y1_com, use_psnr)
+        psnr = PSNR(Y1_raw, Y1_com)
+        msssim = MSSSIM(Y1_raw, Y1_com)
         #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
         bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     else:
         print('This image compression not implemented.')
         exit(0)
-    return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, metrics
+    return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, psnr, msssim
 
 def init_hidden(h,w,channels):
     rae_hidden = torch.zeros(1,channels*8,h//4,w//4).cuda()
     return torch.split(rae_hidden,channels*4,dim=1)
     
 def PSNR(Y1_raw, Y1_com):
-    train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
     log10 = torch.log(torch.FloatTensor([10])).squeeze(0).cuda()
-    quality = 10.0*torch.log(1/train_mse)/log10
+    if Y1_raw.size()[0] == 1:
+        train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
+        quality = 10.0*torch.log(1/train_mse)/log10
+    else:
+        b = Y1_raw.size()[0]
+        quality = []
+        for i in range(b):
+            train_mse = torch.mean(torch.pow(Y1_raw[i].unsqueeze(0) - Y1_com[i].unsqueeze(0), 2))
+            psnr = 10.0*torch.log(1/train_mse)/log10
+            quality.append(psnr)
     return quality
 
 def MSSSIM(Y1_raw, Y1_com):
-    # pip install pytorch-msssim
-    import pytorch_msssim
-    return pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
+    if Y1_raw.size()[0] == 1:
+        quality = pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
+    else:
+        b = Y1_raw.size()[0]
+        quality = []
+        for i in range(b):
+            quality.append(pytorch_msssim.ms_ssim(torch.pow(Y1_raw[i].unsqueeze(0) - Y1_com[i].unsqueeze(0)))
+    return quality
+    
+def calc_loss(Y1_raw, Y1_com, r, use_psnr):
+    if use_psnr:
+        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*r
+    else:
+        metrics = MSSSIM(Y1_raw, Y1_com)
+        loss = r*(1-metrics)
+    return loss
 
 # pyramid flow estimation
 class OpticalFlowNet(nn.Module):
@@ -1104,13 +1121,14 @@ class SLVC(nn.Module):
         # auxilary loss
         aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0))/2
         # calculate metrics/loss
-        metrics = calc_metrics(raw_frames, com_frames.to(raw_frames.device), use_psnr)
+        psnr = PSNR(raw_frames, com_frames.to(raw_frames.device))
+        msssim = MSSSIM(raw_frames, com_frames.to(raw_frames.device))
         rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), self.r, use_psnr)
         img_loss = (rec_loss + warp_loss + mc_loss)/3
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -1230,13 +1248,14 @@ class SCVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + y_aux)/2
         # calculate metrics/loss
-        metrics = calc_metrics(x, x_hat, use_psnr)
+        psnr = PSNR(x, x_hat)
+        msssim = MSSSIM(x, x_hat)
         img_loss = calc_loss(x, x_hat, self.r, use_psnr)
         # flow loss
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
         # hidden
         hidden_states = (rae_ref_hidden,rpm_ref_hidden)
-        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -1274,7 +1293,8 @@ class SCVC(nn.Module):
             cache['flow_loss'] = {}
             cache['aux'] = {}
             cache['bpp_act'] = {}
-            cache['metrics'] = {}
+            cache['msssim'] = {}
+            cache['psnr'] = {}
             cache['hidden'] = None
             cache['max_processed_idx'] = -1
             # the first frame to be compressed in a video
@@ -1333,14 +1353,15 @@ class SCVC(nn.Module):
             if len(idx_list) == bs or i == left:
                 x = torch.stack(img_list, dim=0)
                 n = len(idx_list)
-                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = self(x, hidden_states)
+                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, hidden_states)
                 for j in idx_list:
                     cache['clip'][j] = x_hat[j-idx_list[0]].detach().squeeze(0)
                     cache['img_loss'][j] = img_loss/n
-                    cache['flow_loss'][j] = flow_loss/n
+                    cache['flow_loss'][j] = flow_loss/n #  0
                     cache['aux'][j] = aux_loss/n
                     cache['bpp_est'][j] = bpp_est/n
-                    cache['metrics'][j] = metrics/n
+                    cache['psnr'][j] = psnr[j-idx_list[0]]
+                    cache['msssim'][j] = msssim[j-idx_list[0]]
                     cache['bpp_act'][j] = bpp_act.cpu()/n
                 img_list = []; idx_list = []
         
