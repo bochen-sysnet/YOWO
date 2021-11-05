@@ -304,8 +304,8 @@ class DCVC(nn.Module):
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
         # I-frame compression
         if x_hat_prev is None:
-            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(x,'bpg',None,self.r,use_psnr)
-            return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(x,'bpg',None,self.r,use_psnr)
+            return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         # size
         bs,c,h,w = x.size()
         
