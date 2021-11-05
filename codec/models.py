@@ -473,7 +473,7 @@ class DCVC(nn.Module):
         if epoch <= 2:
             self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,0,1,1
         else:
-            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,0,.1,0,1,0
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,.1,0,1,1
             
         # set up GOP
         # epoch >=1 means pretraining on I-frame compression
