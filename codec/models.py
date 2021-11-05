@@ -470,7 +470,7 @@ class DCVC(nn.Module):
         # optimize bpp and app loss only
         
         # setup training weights
-        if epoch <= 2:
+        if epoch <= 4:
             self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,1,0,1,1
         else:
             self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp = 1,1,1,.1,0,1,1
