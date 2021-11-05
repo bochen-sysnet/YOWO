@@ -236,7 +236,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
-            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). ")
+            f"M: {msssim_module.val:.4f} ({msssim_module.avg:.4f}). ")
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_dataset)/(t1-t0)))
@@ -511,8 +511,8 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
-            f"M: {msssim_module.val:.2f} ({msssim_module.avg:.2f}). "
-            f"F: {fscore:.2f} ({fscore:.4f}). ")
+            f"M: {msssim_module.val:.4f} ({msssim_module.avg:.4f}). "
+            f"F: {fscore:.4f} ({fscore:.4f}). ")
 
     classification_accuracy = 1.0 * correct_classification / (total_detected + eps)
     locolization_recall = 1.0 * total_detected / (total + eps)
