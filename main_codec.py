@@ -83,7 +83,7 @@ elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC']:
     #optimizers += [optimizer]
     parameters = [p for n, p in model_codec.named_parameters() if (not n.endswith(".quantiles"))]
     aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-    optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': cfg.TRAIN.LEARNING_RATE*0.1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
+    optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
 # initialize best score
 best_score = 0 
