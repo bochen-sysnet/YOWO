@@ -380,7 +380,6 @@ class DCVC(nn.Module):
     
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
-        # how to deal with backward P frames?
         # if process in order, some frames need later frames to compress
         if startNewClip:
             # create cache
@@ -401,6 +400,7 @@ class DCVC(nn.Module):
             # GOP = 6+6+1 = 13
             # I frames: 0, 13, ...
             for i in range(start_idx,frame_idx):
+                if cache['max_proc'] >= i:continue
                 ranges, cache['max_seen'], cache['max_proc'] = index2GOP(i, len(cache['clip']), progressive=True)
                 for _range in ranges:
                     prev_j = -1
@@ -408,6 +408,7 @@ class DCVC(nn.Module):
                         self._process_single_frame(j, prev_j, cache, loc==1, loc>=2)
                         prev_j = j
         else:
+            if cache['max_proc'] >= i:return
             ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
             for _range in ranges:
                 prev_j = -1
@@ -450,6 +451,7 @@ class DCVC(nn.Module):
             self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
         
     def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
+        print('proc',i,prev,P_flag,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
@@ -514,7 +516,7 @@ class DCVC(nn.Module):
                  continue
             own_state[name].copy_(param)
             
-def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
+def index2GOP(i, clip_len, max_proc, progressive = True, fP = 6, bP = 6):
     # input: 
     # - idx: the frame index of interest
     # output: 

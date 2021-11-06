@@ -112,7 +112,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         num_parts = len(im_split)
         im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
-        startNewClip = (cur_video != self.prev_video or self.cache['max_idx'] != im_ind-2)
+        startNewClip = (cur_video != self.prev_video or self.cache['max_seen'] != im_ind-2)
         # x265/x264/MRLVC/RLVC/DVC
         # read whole video
         if startNewClip:
