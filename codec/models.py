@@ -1028,7 +1028,7 @@ class SPVC(nn.Module):
         mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), None, None, False)
         
         # motion compensation
-        loc = get_grid_locations(bs, h, w).type(ref_frame_hat.type())
+        loc = get_grid_locations(bs, h, w).cuda(1)
         warped_frames = F.grid_sample(ref_frame_hat.cuda(1), loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), self.r, use_psnr)
         MC_input = torch.cat((mv_hat.cuda(1), ref_frame_hat, warped_frames), axis=1)
