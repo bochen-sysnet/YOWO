@@ -1043,6 +1043,7 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
+        print(float(ref_est), float(mv_est), float(res_est))
         # actual bits
         bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         # auxilary loss
@@ -1184,7 +1185,7 @@ class SCVC(nn.Module):
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_act = self.entropy_bottleneck.get_actual_bits(y)
-        y_aux = self.entropy_bottleneck.loss()
+        y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
         x_hat = y_hat
@@ -1206,6 +1207,7 @@ class SCVC(nn.Module):
         
         # estimated bits
         bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
+        print(float(ref_est), float(y_est))
         # actual bits
         bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
         # auxilary loss
