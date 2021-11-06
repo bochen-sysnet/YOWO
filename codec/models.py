@@ -409,7 +409,7 @@ class DCVC(nn.Module):
                         self._process_single_frame(j, prev_j, cache, loc==1, loc>=2)
                         prev_j = j
         else:
-            if cache['max_proc'] >= i:return
+            if cache['max_proc'] >= frame_idx-1:return
             ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
             for _range in ranges:
                 prev_j = -1
