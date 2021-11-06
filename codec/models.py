@@ -1122,7 +1122,7 @@ class SPVC(nn.Module):
         ref_frame = self.kfnet(raw_frames)
         
         # compress ref frame
-        ref_frame_hat,None,None,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
         
         # repeat ref frame for parallelization
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1) # we can also extend it with network, would that be too complex?
