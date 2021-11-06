@@ -381,6 +381,7 @@ class DCVC(nn.Module):
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
         # if process in order, some frames need later frames to compress
+        print('attempting',frame_idx-1)
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
