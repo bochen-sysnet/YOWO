@@ -1283,7 +1283,7 @@ def parallel_compression(model, _range, cache):
             img_list = []; idx_list = []
         
 def test_SLVC(name = 'SCVC'):
-    batch_size = 2
+    batch_size = 4
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
