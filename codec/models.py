@@ -585,7 +585,7 @@ def MSSSIM(Y1_raw, Y1_com):
         b = Y1_raw.size()[0]
         quality = []
         for i in range(b):
-            quality.append(pytorch_msssim.ms_ssim(torch.pow(Y1_raw[i].unsqueeze(0) - Y1_com[i].unsqueeze(0))))
+            quality.append(pytorch_msssim.ms_ssim(Y1_raw[i].unsqueeze(0) - Y1_com[i].unsqueeze(0)))
     return quality
     
 def calc_loss(Y1_raw, Y1_com, r, use_psnr):
