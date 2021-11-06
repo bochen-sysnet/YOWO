@@ -1301,7 +1301,7 @@ def test_SLVC(name = 'SPVC'):
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, None)
+        com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, sim = model(x, None)
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
         loss.backward()
