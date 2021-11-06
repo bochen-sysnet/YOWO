@@ -1283,7 +1283,7 @@ class SCVC(nn.Module):
             for _range in ranges:
                 parallel_compression(self, _range, cache)
         
-def test_SLVC(name = 'SPVC'):
+def test_SLVC(name = 'SCVC'):
     batch_size = 4
     h = w = 224
     channels = 64
