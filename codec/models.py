@@ -145,7 +145,7 @@ class LearnedVideoCodecs(nn.Module):
             cache['psnr'] = {}
             cache['msssim'] = {}
             cache['hidden'] = None
-            cache['max_processed_idx'] = -1
+            cache['max_proc'] = -1
             # the first frame to be compressed in a video
             start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
             start_idx = max(0,start_idx)
@@ -159,8 +159,8 @@ class LearnedVideoCodecs(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        cache['max_idx'] = i
-        if i<=cache['max_processed_idx']:
+        cache['max_seen'] = i
+        if i<=cache['max_proc']:
             return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -175,7 +175,7 @@ class LearnedVideoCodecs(nn.Module):
             mid = min(possible_I,len(cache['clip'])-1)
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
-        cache['max_processed_idx'] = right
+        cache['max_proc'] = right
         # process backward frames
         if mid > left:
             for i in range(mid,left-1,-1):
@@ -392,7 +392,7 @@ class DCVC(nn.Module):
             cache['psnr'] = {}
             cache['msssim'] = {}
             cache['hidden'] = None
-            cache['max_processed_idx'] = -1
+            cache['max_proc'] = -1
             # the first frame to be compressed in a video
             start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
             start_idx = max(0,start_idx)
@@ -401,15 +401,28 @@ class DCVC(nn.Module):
             # GOP = 6+6+1 = 13
             # I frames: 0, 13, ...
             for i in range(start_idx,frame_idx):
-                self._compress_GOP(i, cache)
+                ranges, cache['max_seen'], cache['max_proc'] = index2GOP(i, len(cache['clip']), progressive=True)
+                for _range in ranges:
+                    prev_j = -1
+                    for loc,j in enumerate(_range):
+                        self._process_single_frame(j, prev_j, cache, loc==1, loc>=2)
+                        prev_j = j
         else:
-            self._compress_GOP(frame_idx-1, cache)
+            ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
+            for _range in ranges:
+                prev_j = -1
+                for loc,j in enumerate(_range):
+                    self._process_single_frame(j, prev_j, cache, loc==1, loc>=2)
+                    prev_j = j
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        cache['max_idx'] = i
-        if i<=cache['max_processed_idx']:
+        cache['max_seen'] = i
+        if i<=cache['max_proc']:
             return
         GOP = fP + bP + 1
+        # 0 1  2  3  4  5  6  7  8  9  10 11 12 13
+        # I fP fP fP fP fP fP bP bP bP bP bP bP I 
+        # <      case 1    >  <      case 2   >
         if i%GOP <= fP:
             # e.g.: i=4,left=0,right=6,mid=0
             mid = i//GOP*GOP
@@ -422,7 +435,7 @@ class DCVC(nn.Module):
             mid = min(possible_I,len(cache['clip'])-1)
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
-        cache['max_processed_idx'] = right
+        cache['max_proc'] = right
         # process backward frames
         if mid > left:
             for i in range(mid,left-1,-1):
@@ -500,6 +513,53 @@ class DCVC(nn.Module):
             if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
                  continue
             own_state[name].copy_(param)
+            
+def index2GOP(idx, clip_len, progressive = True, fP = 6, bP = 6):
+    # input: 
+    # - idx: the frame index of interest
+    # output: 
+    # - ranges: the range(s) of GOP involving this frame
+    # - max_seen: max index has been seen
+    # - max_proc: max processed index
+    # normally progressive coding will get 1 or 2 range(s)
+    # parallel coding will get 1 range
+    
+    GOP = fP + bP + 1
+    # 0 1  2  3  4  5  6  7  8  9  10 11 12 13
+    # I fP fP fP fP fP fP bP bP bP bP bP bP I 
+    ranges = []
+    # <      case 1    >  
+    # first time calling this function will mostly fall in case 1
+    # case 1 will create one range
+    if i%GOP <= fP:
+        # e.g.: i=4,left=0,right=6,mid=0
+        mid = i
+        left = i
+        right = min(i//GOP*GOP+fP,clip_len-1)
+        _range = [j for j in range(mid,right+1)]
+        ranges += [_range]
+    #                     <      case 2   >
+    # later calling this function will fall in case 2
+    # case 2 will create one range if parallel or two ranges if progressive
+    else:
+        # e.g.: i=8,left=7,right=19,mid=13
+        mid = min((i//GOP+1)*GOP,clip_len-1)
+        left = i
+        right = min((i//GOP+1)*GOP+fP,clip_len-1)
+        possible_I = (i//GOP+1)*GOP
+        if progressive:
+            # first backward
+            _range = [j for j in range(mid,left-1,-1)]
+            ranges += [_range]
+            # then forward
+            if right >= mid+1:
+                _range = [j for j in range(mid+1,right+1)]
+                ranges += [_range]
+        else:
+            _range = [j for j in range(left,right+1)]
+            ranges += [_range]
+    max_seen, max_proc = i, right
+    return ranges, max_seen, max_proc
         
 class StandardVideoCodecs(nn.Module):
     def __init__(self, name):
@@ -571,7 +631,7 @@ class StandardVideoCodecs(nn.Module):
                 cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
                 cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
             cache['clip'] = clip
-        cache['max_idx'] = frame_idx-1
+        cache['max_seen'] = frame_idx-1
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
@@ -767,10 +827,10 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if codec_name in ['MLVC', 'RLVC', 'SLVC','DCVC']:
+        if codec_name in ['MLVC','RLVC','DCVC']:
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
-        elif codec_name in ['DVC','SCVC']:
+        elif codec_name in ['DVC','SCVC','SPVC']:
             from compressai.entropy_models import EntropyBottleneck
             EntropyBottleneck.model_states = []
             EntropyBottleneck.init_state = init_state
@@ -791,7 +851,8 @@ class ComprNet(nn.Module):
         # might need residual struct to avoid PE vanishing?
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag):
-        state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
+        if self.encoder_type == 'rec':
+            state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
@@ -1030,16 +1091,17 @@ class KFNet(nn.Module):
         
         return x_hat
     
-        
-class SLVC(nn.Module):
+# predictive coding     
+class SPVC(nn.Module):
     def __init__(self, name, channels=128):
-        super(SLVC, self).__init__()
+        super(SPVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.ref_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.r = 1,1,1,1,0,1024
@@ -1047,93 +1109,168 @@ class SLVC(nn.Module):
         self.split()
 
     def split(self):
+        self.kfnet.cuda(0)
+        self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
-        self.mv_codec.cuda(0)
+        self.mv_codec.cuda(1)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
-        self.kfnet.cuda(0)
     def forward(self, raw_frames, hidden_states, use_psnr=True):
-        # raw_frames=[B,C,H,W]: input sequence of frames
-        # 1. BPG compress the first frame
-        # 2. compress motion/residual of the rectified frame
-        # 3. Use the rectified frame to compress a batch of frames
-        batch_size, _, Height, Width = raw_frames.shape
-        # hidden states
-        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
-        # key frame will be compressed by BPG
-        # one option to compare is to just use the original I frame as key frame
-        #I frame = raw_frames[0,:,:,:].unsqueeze(0)
-        I_frame = self.kfnet(raw_frames)
+        bs, c, h, w = x.size()
         
-        # get mv of key frame
-        # compress mv of key frame
-        # get compensated key frame
-        # compress res of key frame
-        # get compressed key frame, which will be used as the base for later compression
-        #I_frame_hat, _, _, _, _, bpp_act, _ = I_compression(I_frame,'bpg',None, self.r,use_psnr)
+        # derive ref frame
+        ref_frame = self.kfnet(raw_frames)
         
+        # compress ref frame
+        ref_frame_hat,None,None,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
         
-        key_frames = I_frame.repeat(batch_size,1,1,1) # todo
+        # repeat ref frame for parallelization
+        ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1) # we can also extend it with network, would that be too complex?
         
-        # use the derived key frame to compute optical flow
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(key_frames, raw_frames, batch_size, Height, Width)
+        # calculate ref frame loss
+        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
+        
+        # use the derived ref frame to compute optical flow
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames, bs, h, w)
         
         # compress optical flow
-        # hidden should be initialized once for forward and once for backward
-        # it is better to utilize redundancy among frames
-        # TODO: another approach is to estimate based on a compressed vector extracted from mv_tensors (same to res_tensors)
-        # we can apply spatial-temporal attention to the mv_tensor
-        mv_hat_list = [];mv_act_list = [];mv_est_list = [];mv_aux_list = []
-        for i in range(batch_size):
-            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors[i,:,:,:].unsqueeze(0), rae_mv_hidden, rpm_mv_hidden, i>0)
-            mv_hat_list.append(mv_hat)
-            mv_act_list.append(mv_act)
-            mv_est_list.append(mv_est)
-            mv_aux_list.append(mv_aux)
-        mv_hat = torch.cat(mv_hat_list)
+        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), None, None, False)
         
         # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).type(key_frames.type())
-        warped_frames = F.grid_sample(key_frames, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        loc = get_grid_locations(bs, h, w).type(ref_frame_hat.type())
+        warped_frames = F.grid_sample(ref_frame_hat, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), self.r, use_psnr)
-        MC_input = torch.cat((mv_hat, key_frames, warped_frames), axis=1)
+        MC_input = torch.cat((mv_hat.cuda(1), ref_frame_hat, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
-        res_hat_list = [];res_act_list = [];res_est_list = [];res_aux_list = []
-        for i in range(batch_size):
-            res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors[i,:,:,:].unsqueeze(0), rae_res_hidden, rpm_res_hidden, i>0)
-            res_hat_list.append(res_hat)
-            res_act_list.append(res_act.cuda(0))
-            res_est_list.append(res_est.cuda(0))
-            res_aux_list.append(res_aux.cuda(0))
-        res_hat = torch.cat(res_hat_list)
+        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors[i,:,:,:].unsqueeze(0), None, None, False)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
         ##### compute bits
         # estimated bits
-        bpp_est = (torch.stack(mv_est_list,dim=0).mean(dim=0) + torch.stack(res_est_list,dim=0).mean(dim=0))/(Height * Width * batch_size)
+        bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
         # actual bits
-        bpp_act = (torch.stack(mv_act_list,dim=0).mean(dim=0) + torch.stack(res_act_list,dim=0).mean(dim=0))/(Height * Width * batch_size)
+        bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         # auxilary loss
-        aux_loss = (torch.stack(mv_aux_list,dim=0).mean(dim=0) + torch.stack(res_aux_list,dim=0).mean(dim=0))/2
+        aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
-        psnr = PSNR(raw_frames, com_frames.to(raw_frames.device))
-        msssim = MSSSIM(raw_frames, com_frames.to(raw_frames.device))
-        rec_loss = calc_loss(raw_frames, com_frames.to(raw_frames.device), self.r, use_psnr)
-        img_loss = (rec_loss + warp_loss + mc_loss)/3
+        psnr = PSNR(raw_frames, com_frames.cuda(0))
+        msssim = MSSSIM(raw_frames, com_frames.cuda(0))
+        rec_loss = calc_loss(raw_frames, com_frames.cuda(0), self.r, use_psnr)
+        img_loss = (ref_loss + rec_loss + warp_loss + mc_loss)/4
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
-        # hidden states
-        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        return com_frames.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         
-# use context based compression
+    def update_training(self, epoch):
+        # warmup with all gamma set to 1
+        # optimize for bpp,img loss and focus only reconstruction loss
+        # optimize bpp and app loss only
+        
+        # setup training weights
+        if epoch <= -1:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,1,1,1
+        else:
+            self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app = 1,1,0,.1,0
+            
+        # set up GOP
+        # epoch >=1 means pretraining on I-frame compression
+        GOP = 10 if epoch >= -1 else 1
+        
+        # whether to compute action detection
+        doAD = True if self.gamma_app > 0 else False
+        
+        self.epoch = epoch
+        
+        return GOP, doAD
+        
+    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
+        # process the involving GOP
+        # how to deal with backward P frames?
+        # if process in order, some frames need later frames to compress
+        if startNewClip:
+            # create cache
+            cache['bpp_est'] = {}
+            cache['img_loss'] = {}
+            cache['flow_loss'] = {}
+            cache['aux'] = {}
+            cache['bpp_act'] = {}
+            cache['msssim'] = {}
+            cache['psnr'] = {}
+            cache['hidden'] = None
+            cache['max_proc'] = -1
+            # the first frame to be compressed in a video
+            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
+            start_idx = max(0,start_idx)
+            # search for the I frame in this GOP
+            # then compress all frames based on that
+            # GOP = 6+6+1 = 13
+            # I frames: 0, 13, ...
+            for i in range(start_idx,frame_idx):
+                self._compress_GOP(i, cache)
+        else:
+            self._compress_GOP(frame_idx-1, cache)
+            
+    def _compress_GOP(self, i, cache, fP=6, bP=6):
+        cache['max_seen'] = i
+        if i<=cache['max_proc']:
+            return
+        GOP = fP + bP + 1
+        if i%GOP <= fP:
+            # e.g.: i=4,left=0,right=6,mid=0
+            mid = i//GOP*GOP
+            left = max(mid,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        else:
+            # e.g.: i=8,left=7,right=19,mid=13
+            # in this case the last frame is always I frame
+            possible_I = (i//GOP+1)*GOP
+            mid = min(possible_I,len(cache['clip'])-1)
+            left = max(possible_I-6,0)
+            right = min(mid+6,len(cache['clip'])-1)
+        cache['max_proc'] = right
+        
+        # process backward frames
+        if mid > left:
+            # mid...left
+            self._process_range(left,mid,cache)
+            mid2 = mid+1 # no need to process the middle frame
+        else:
+            mid2 = mid
+        # process forward frames
+        # mid2...right
+        self._process_range(mid2,right,cache)
+            
+    def _process_range(self,l,r,cache):
+        # settings
+        bs = 4
+        # mid...left
+        img_list = []; idx_list = []
+        for i in range(l,r+1):
+            img_list.append(cache['clip'][i])
+            idx_list.append(i)
+            if len(idx_list) == bs or i == left:
+                x = torch.stack(img_list, dim=0)
+                n = len(idx_list)
+                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, N)
+                for j in idx_list:
+                    cache['clip'][j] = x_hat[j-idx_list[0]].detach().squeeze(0)
+                    cache['img_loss'][j] = img_loss/n
+                    cache['flow_loss'][j] = flow_loss/n #  0
+                    cache['aux'][j] = aux_loss/n
+                    cache['bpp_est'][j] = bpp_est/n
+                    cache['psnr'][j] = psnr[j-idx_list[0]]
+                    cache['msssim'][j] = msssim[j-idx_list[0]]
+                    cache['bpp_act'][j] = bpp_act.cpu()/n
+                img_list = []; idx_list = []
+        
+# conditional coding
 class SCVC(nn.Module):
     def __init__(self, name, channels=64, channels2=96):
         super(SCVC, self).__init__()
@@ -1186,26 +1323,26 @@ class SCVC(nn.Module):
         self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
         self.feature_extract.cuda(0)
-        self.tmp_prior_encoder.cuda(0)
-        self.ctx_encoder.cuda(0)
-        self.entropy_bottleneck.cuda(0)
-        self.ctx_decoder.cuda(0)
+        self.tmp_prior_encoder.cuda(1)
+        self.ctx_encoder.cuda(1)
+        self.entropy_bottleneck.cuda(1)
+        self.ctx_decoder.cuda(1)
         
     def forward(self, x, hidden_states, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x.size()
         
-        # hidden
-        rae_ref_hidden,rpm_ref_hidden = hidden_states
-        
         # extract ref frame, which is close to all frames in a sense
         ref_frame = self.kfnet(x)
         
         # compress ref frame, use cheng2020?
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, False)
+        ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        
+        # calculate ref frame loss
+        ref_loss = calc_loss(raw_frames, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
         
         # extract context
-        context = self.feature_extract(ref_frame)
+        context = self.feature_extract(ref_frame).cuda(1)
         
         # repeat context to match the size of all frames
         context_rep = context.repeat(bs,1,1,1)
@@ -1214,7 +1351,7 @@ class SCVC(nn.Module):
         prior = self.tmp_prior_encoder(context_rep)
         
         # contextual encoder
-        y = self.ctx_encoder(torch.cat((x, context_rep), axis=1))
+        y = self.ctx_encoder(torch.cat((x.cuda(1), context_rep), axis=1))
         
         # entropy model
         self.entropy_bottleneck.update()
@@ -1242,20 +1379,19 @@ class SCVC(nn.Module):
                 x_hat = m(x_hat)
         
         # estimated bits
-        bpp_est = (ref_est + y_est)/(h * w * bs)
+        bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
-        bpp_act = (ref_act + y_act)/(h * w * bs)
+        bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
         # auxilary loss
-        aux_loss = (ref_aux + y_aux)/2
+        aux_loss = (ref_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
         psnr = PSNR(x, x_hat)
         msssim = MSSSIM(x, x_hat)
-        img_loss = calc_loss(x, x_hat, self.r, use_psnr)
+        rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
+        img_loss = (ref_loss + rec_loss)/2
         # flow loss
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        # hidden
-        hidden_states = (rae_ref_hidden,rpm_ref_hidden)
-        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        return x_hat.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -1296,7 +1432,7 @@ class SCVC(nn.Module):
             cache['msssim'] = {}
             cache['psnr'] = {}
             cache['hidden'] = None
-            cache['max_processed_idx'] = -1
+            cache['max_proc'] = -1
             # the first frame to be compressed in a video
             start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
             start_idx = max(0,start_idx)
@@ -1310,8 +1446,8 @@ class SCVC(nn.Module):
             self._compress_GOP(frame_idx-1, cache)
             
     def _compress_GOP(self, i, cache, fP=6, bP=6):
-        cache['max_idx'] = i
-        if i<=cache['max_processed_idx']:
+        cache['max_seen'] = i
+        if i<=cache['max_proc']:
             return
         GOP = fP + bP + 1
         if i%GOP <= fP:
@@ -1326,7 +1462,7 @@ class SCVC(nn.Module):
             mid = min(possible_I,len(cache['clip'])-1)
             left = max(possible_I-6,0)
             right = min(mid+6,len(cache['clip'])-1)
-        cache['max_processed_idx'] = right
+        cache['max_proc'] = right
         
         # process backward frames
         if mid > left:
@@ -1342,9 +1478,6 @@ class SCVC(nn.Module):
     def _process_range(self,l,r,cache):
         # settings
         bs = 4
-        rae_ref_hidden,_ = init_hidden(h,w,channels)
-        rpm_ref_hidden = self.ref_codec.entropy_bottleneck.init_state()
-        hidden_states = (rae_ref_hidden,rpm_ref_hidden)
         # mid...left
         img_list = []; idx_list = []
         for i in range(l,r+1):
@@ -1353,7 +1486,7 @@ class SCVC(nn.Module):
             if len(idx_list) == bs or i == left:
                 x = torch.stack(img_list, dim=0)
                 n = len(idx_list)
-                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, hidden_states)
+                x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, None)
                 for j in idx_list:
                     cache['clip'][j] = x_hat[j-idx_list[0]].detach().squeeze(0)
                     cache['img_loss'][j] = img_loss/n
@@ -1370,15 +1503,15 @@ def test_SLVC(name = 'SCVC'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    if name == 'SLVC':
-        model = SLVC(name,channels)
+    if name == 'SPVC':
+        model = SPVC(name,channels)
     else:
         model = SCVC(name,channels)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
-    if name == 'SLVC':
+    if name == 'SPVC':
         rae_mv_hidden, rae_res_hidden = init_hidden(h,w,channels)
         rpm_mv_hidden, rpm_res_hidden = model.mv_codec.entropy_bottleneck.init_state(), model.res_codec.entropy_bottleneck.init_state()
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
