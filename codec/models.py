@@ -1031,7 +1031,7 @@ class SPVC(nn.Module):
         loc = get_grid_locations(bs, h, w).cuda(1)
         warped_frames = F.grid_sample(ref_frame_hat_rep.cuda(1), loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), self.r, use_psnr)
-        MC_input = torch.cat((mv_hat.cuda(1), ref_frame_hat_rep, warped_frames), axis=1)
+        MC_input = torch.cat((mv_hat.cuda(1), ref_frame_hat_rep.cuda(1), warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
