@@ -1235,8 +1235,8 @@ class SCVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
-        psnr = PSNR(x, x_hat)
-        msssim = MSSSIM(x, x_hat)
+        psnr = PSNR(x, x_hat.cuda(0))
+        msssim = MSSSIM(x, x_hat.cuda(0))
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
         # flow loss
