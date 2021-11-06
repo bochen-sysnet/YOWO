@@ -1095,30 +1095,7 @@ class SPVC(nn.Module):
             ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=False)
             for _range in ranges:
                 parallel_compression(self, _range, cache)
-            
-def parallel_compression(model, _range, cache):
-    # settings
-    bs = 4
-    # mid...left
-    img_list = []; idx_list = []
-    for i in _range:
-        img_list.append(cache['clip'][i])
-        idx_list.append(i)
-        if len(idx_list) == bs or i == left:
-            x = torch.stack(img_list, dim=0)
-            n = len(idx_list)
-            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, None)
-            for pos,j in enumerate(idx_list):
-                cache['clip'][j] = x_hat[pos].detach().squeeze(0)
-                cache['img_loss'][j] = img_loss/n
-                cache['flow_loss'][j] = flow_loss/n #  0
-                cache['aux'][j] = aux_loss/n
-                cache['bpp_est'][j] = bpp_est/n
-                cache['psnr'][j] = psnr[pos]
-                cache['msssim'][j] = msssim[pos]
-                cache['bpp_act'][j] = bpp_act.cpu()/n
-            img_list = []; idx_list = []
-        
+                
 # conditional coding
 class SCVC(nn.Module):
     def __init__(self, name, channels=64, channels2=96):
@@ -1283,6 +1260,29 @@ class SCVC(nn.Module):
             for _range in ranges:
                 parallel_compression(self, _range, cache)
         
+def parallel_compression(model, _range, cache):
+    # settings
+    bs = 4
+    # mid...left
+    img_list = []; idx_list = []
+    for i in _range:
+        img_list.append(cache['clip'][i])
+        idx_list.append(i)
+        if len(idx_list) == bs or i == left:
+            x = torch.stack(img_list, dim=0)
+            n = len(idx_list)
+            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, None)
+            for pos,j in enumerate(idx_list):
+                cache['clip'][j] = x_hat[pos].detach().squeeze(0)
+                cache['img_loss'][j] = img_loss/n
+                cache['flow_loss'][j] = flow_loss/n #  0
+                cache['aux'][j] = aux_loss/n
+                cache['bpp_est'][j] = bpp_est/n
+                cache['psnr'][j] = psnr[pos]
+                cache['msssim'][j] = msssim[pos]
+                cache['bpp_act'][j] = bpp_act.cpu()/n
+            img_list = []; idx_list = []
+        
 def test_SLVC(name = 'SCVC'):
     batch_size = 4
     h = w = 224
@@ -1351,4 +1351,5 @@ def test_DCVC():
             f"metrics: {float(metrics):.2f}. ")
         
 if __name__ == '__main__':
-    test_SLVC()
+    import sys
+    test_SLVC(sys.argv[1])
