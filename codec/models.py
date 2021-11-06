@@ -1037,7 +1037,7 @@ class SPVC(nn.Module):
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
-        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors[i,:,:,:].unsqueeze(0), None, None, False)
+        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
