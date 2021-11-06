@@ -1050,6 +1050,7 @@ class SPVC(nn.Module):
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
         psnr = PSNR(raw_frames, com_frames.cuda(0))
+        print(raw_frames.size(),com_frames.size())
         msssim = MSSSIM(raw_frames, com_frames.cuda(0))
         rec_loss = calc_loss(raw_frames, com_frames.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
