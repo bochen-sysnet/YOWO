@@ -296,7 +296,7 @@ class DCVC(nn.Module):
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_act = self.entropy_bottleneck.get_actual_bits(y)
-        y_aux = self.entropy_bottleneck.loss()
+        y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
         x_hat = y_hat
@@ -730,7 +730,6 @@ class ComprNet(nn.Module):
         else:
             print('Bottleneck not implemented for:',codec_name)
             exit(1)
-        print('Bottleneck:',self.entropy_type)
         self.channels = channels
         self.encoder_type = 'rec' if codec_name in ['MLVC', 'RLVC'] else 'non-rec'
         if self.encoder_type == 'rec':
