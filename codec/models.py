@@ -1189,7 +1189,7 @@ class SCVC(nn.Module):
         ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
         
         # calculate ref frame loss
-        ref_loss = calc_loss(raw_frames, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
+        ref_loss = calc_loss(x, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
         
         # extract context
         context = self.feature_extract(ref_frame).cuda(1)
