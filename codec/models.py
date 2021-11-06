@@ -1043,7 +1043,6 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
-        print(float(ref_est), float(mv_est), float(res_est))
         # actual bits
         bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         # auxilary loss
@@ -1169,7 +1168,7 @@ class SCVC(nn.Module):
         ref_loss = calc_loss(x, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
         
         # extract context
-        context = self.feature_extract(ref_frame).cuda(1)
+        context = self.feature_extract(ref_frame_hat).cuda(1)
         
         # repeat context to match the size of all frames
         context_rep = context.repeat(bs,1,1,1)
@@ -1207,7 +1206,6 @@ class SCVC(nn.Module):
         
         # estimated bits
         bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
-        print(float(ref_est), float(y_est))
         # actual bits
         bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
         # auxilary loss
@@ -1285,7 +1283,7 @@ def parallel_compression(model, _range, cache):
             img_list = []; idx_list = []
         
 def test_SLVC(name = 'SCVC'):
-    batch_size = 4
+    batch_size = 2
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
