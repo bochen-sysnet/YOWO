@@ -381,7 +381,7 @@ class DCVC(nn.Module):
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
         # if process in order, some frames need later frames to compress
-        print('attempting',frame_idx-1)
+        print('attempting',frame_idx-1,startNewClip)
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
@@ -562,6 +562,7 @@ def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
             _range = [j for j in range(left,right+1)]
             ranges += [_range]
     max_seen, max_proc = i, right
+    print('seen',max_seen,'proc',max_proc)
     return ranges, max_seen, max_proc
         
 class StandardVideoCodecs(nn.Module):
