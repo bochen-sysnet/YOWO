@@ -514,7 +514,7 @@ class DCVC(nn.Module):
                  continue
             own_state[name].copy_(param)
             
-def index2GOP(idx, clip_len, progressive = True, fP = 6, bP = 6):
+def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
     # input: 
     # - idx: the frame index of interest
     # output: 
