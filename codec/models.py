@@ -1096,7 +1096,7 @@ class SPVC(nn.Module):
             for _range in ranges:
                 parallel_compression(self, _range, cache)
             
-def parallel_compression(model, _range, cache)
+def parallel_compression(model, _range, cache):
     # settings
     bs = 4
     # mid...left
