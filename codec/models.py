@@ -168,14 +168,14 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 6:
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,0,1,1,1,1
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
     else:
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,0,.1,0,1,0,0,0
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
     
     # whether to compute action detection
-    doAD = True if self.gamma_app > 0 else False
+    doAD = True if model.gamma_app > 0 else False
     
-    self.epoch = epoch
+    model.epoch = epoch
     
     return doAD
     
