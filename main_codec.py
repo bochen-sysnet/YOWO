@@ -21,6 +21,7 @@ from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
 from codec.models import LearnedVideoCodecs, StandardVideoCodecs, DCVC, SCVC
+from codec.models import load_state_dict_whatever, load_state_dict_all
 
 
 ####### Load configuration arguments
@@ -111,7 +112,7 @@ if cfg.TRAIN.RESUME_PATH:
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_best.pth"
         checkpoint = torch.load(pretrained_model_path)
-        model_codec.load_state_dict_whatever(checkpoint['state_dict'])
+        load_state_dict_whatever(model_codec, checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint:
             print('Other metrics:',checkpoint['misc'])
@@ -121,7 +122,7 @@ if cfg.TRAIN.RESUME_PATH:
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
         cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
-        model_codec.load_state_dict_all(checkpoint['state_dict'])
+        load_state_dict_all(model_codec, checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
         if 'misc' in checkpoint: print('Other metrics:',checkpoint['misc'])
         del checkpoint

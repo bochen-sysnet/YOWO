@@ -5,6 +5,7 @@ from core.utils import *
 from datasets.meters import AVAMeter
 from torch.cuda.amp import autocast as autocast
 from tqdm import tqdm
+from codec.models import update_training
 
 def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score):
     t0 = time.time()
@@ -23,7 +24,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
     model.eval()
     model_codec.train()
-    GOP, doAD = model_codec.update_training(epoch)
+    doAD = update_training(model_codec,epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
@@ -141,7 +142,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     model.eval()
     model_codec.train()
     # get instructions on training
-    GOP, doAD = model_codec.update_training(epoch)
+    doAD = update_training(model_codec,epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
