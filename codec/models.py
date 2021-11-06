@@ -381,7 +381,6 @@ class DCVC(nn.Module):
     def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
         # process the involving GOP
         # if process in order, some frames need later frames to compress
-        print('attempting',frame_idx-1,startNewClip)
         if startNewClip:
             # create cache
             cache['bpp_est'] = {}
@@ -456,7 +455,6 @@ class DCVC(nn.Module):
             self._process_single_frame(i, prev, cache, i==mid+1, i>=mid+2)
         
     def _process_single_frame(self, i, prev, cache, P_flag, RPM_flag):
-        print('proc',i,prev,P_flag,RPM_flag)
         # frame shape
         _,h,w = cache['clip'][0].shape
         # frames to be processed
@@ -566,7 +564,6 @@ def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
             _range = [j for j in range(left,right+1)]
             ranges += [_range]
     max_seen, max_proc = i, right
-    print('seen',max_seen,'proc',max_proc)
     return ranges, max_seen, max_proc
         
 class StandardVideoCodecs(nn.Module):
