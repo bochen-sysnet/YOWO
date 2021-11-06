@@ -401,7 +401,9 @@ class DCVC(nn.Module):
             # GOP = 6+6+1 = 13
             # I frames: 0, 13, ...
             for i in range(start_idx,frame_idx):
-                if cache['max_proc'] >= i:continue
+                if cache['max_proc'] >= i:
+                    cache['max_seen'] = i
+                    continue
                 ranges, cache['max_seen'], cache['max_proc'] = index2GOP(i, len(cache['clip']), progressive=True)
                 for _range in ranges:
                     prev_j = -1
@@ -409,7 +411,9 @@ class DCVC(nn.Module):
                         self._process_single_frame(j, prev_j, cache, loc==1, loc>=2)
                         prev_j = j
         else:
-            if cache['max_proc'] >= frame_idx-1:return
+            if cache['max_proc'] >= frame_idx-1:
+                cache['max_seen'] = frame_idx-1
+                return
             ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
             for _range in ranges:
                 prev_j = -1
