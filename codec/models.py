@@ -164,10 +164,10 @@ class LearnedVideoCodecs(nn.Module):
             exit(1)
     
     def init_hidden(self, h, w):
-        rae_hidden = torch.zeros(1,self.channels*8,h//4,w//4).cuda()
-        rae_mv_hidden, rae_res_hidden = torch.split(rae_hidden,self.channels*4,dim=1)
-        rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
-        rpm_res_hidden = model.res_codec.entropy_bottleneck.init_state()
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         
 def update_training(model, epoch):
@@ -390,7 +390,7 @@ class DCVC(nn.Module):
         
     def init_hidden(self, h, w):
         rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
-        rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
       
@@ -699,12 +699,8 @@ class ConvLSTM(nn.Module):
         h = o * self._activation(c)
 
         return h, torch.cat((c, h),dim=1)
-        
-def init_state(self):
-    return self.model_states
     
-def get_actual_bits(self, x):
-    string = self.compress(x)
+def get_actual_bits(self, string):
     bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
     return bits_act
         
@@ -735,8 +731,6 @@ class ComprNet(nn.Module):
             self.entropy_type = 'rec'
         elif codec_name in ['DVC','SCVC','SPVC']:
             from compressai.entropy_models import EntropyBottleneck
-            EntropyBottleneck.model_states = []
-            EntropyBottleneck.init_state = init_state
             EntropyBottleneck.get_actual_bits = get_actual_bits
             EntropyBottleneck.get_estimate_bits = get_estimate_bits
             self.entropy_bottleneck = EntropyBottleneck(channels)

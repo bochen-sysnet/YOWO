@@ -32,11 +32,7 @@ class RecProbModel(CompressionModel):
         self.sigma = self.mu = self.prior_latent = None
         self.RPM = RPM(channels)
         h = w = 224
-        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         self.gaussian_conditional = GaussianConditional(None)
-             
-    def init_state(self):
-        return self.model_states
         
     def set_RPM(self, RPM_flag):
         self.RPM_flag = RPM_flag
@@ -105,7 +101,6 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         
         self.sigma = self.mu = self.z_string = None
         h = w = 224
-        self.model_states = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         self.gaussian_conditional = GaussianConditional(None)
         
         self.h_a = nn.Sequential(
@@ -131,9 +126,6 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             nn.LeakyReLU(inplace=True),
             nn.Conv2d(channels * 4 // 3, channels * 2, 1),
         )
-             
-    def init_state(self):
-        return self.model_states
         
     def update(self, scale_table=None, force=False):
         if scale_table is None:
