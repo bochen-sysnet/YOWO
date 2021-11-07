@@ -276,6 +276,7 @@ if __name__ == '__main__':
     #test()
     net = CompressionModel(3)
     x = torch.randn(1,3,4,4)
+    net.update(True)
     string = net.entropy_bottleneck.compress(x)
     x2 = net.entropy_bottleneck.decompress(string, x.size())
     mse2 = torch.mean(torch.pow(x2-x,2))
