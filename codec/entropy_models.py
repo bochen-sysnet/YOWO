@@ -273,6 +273,7 @@ def test(name = 'RPM'):
         bits_act = net.get_actual_bits(string)
         x_hat2 = net.decompress(string, x.size()[-2:])
         mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
+        print(mse2)
         
         bits_est = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
