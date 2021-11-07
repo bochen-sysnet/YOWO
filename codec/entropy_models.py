@@ -135,10 +135,6 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         return updated
 
     def loss(self):
-        for m in self.modules():
-            if isinstance(m, EntropyBottleneck):
-                print(m)
-        exit(0)
         return self.aux_loss()
 
     def forward(
