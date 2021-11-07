@@ -38,6 +38,9 @@ class RecProbModel(CompressionModel):
     def init_state(self):
         return self.model_states
         
+    def set_RPM(self, RPM_flag):
+        self.RPM_flag = RPM_flag
+        
     def update(self, scale_table=None, force=False):
         if scale_table is None:
             scale_table = get_scale_table()
@@ -51,9 +54,9 @@ class RecProbModel(CompressionModel):
         return self.aux_loss()
 
     def forward(
-        self, x, rpm_hidden, RPM_flag, training = None
+        self, x, rpm_hidden, training = None
     ):
-        if RPM_flag:
+        if self.RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
@@ -63,7 +66,6 @@ class RecProbModel(CompressionModel):
         else:
             x_hat,likelihood = self.entropy_bottleneck(x,training=training)
         self.prior_latent = torch.round(x).detach()
-        self.RPM_flag = RPM_flag
         return x_hat, likelihood, rpm_hidden
         
     def get_actual_bits(self, string):
@@ -250,7 +252,8 @@ def test(name = 'RPM'):
 
         net.update(force=True)
         if name == 'RPM':
-            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
+            net.set_RPM(RPM_flag)
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
             string = net.compress(x)
             bits_act = net.get_actual_bits(string)
             x_hat2 = net.entropy_bottleneck.decompress(string, x.size()[-2:])
