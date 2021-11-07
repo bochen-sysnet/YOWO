@@ -251,12 +251,8 @@ def test(name = 'RPM'):
         net.update(force=True)
         if name == 'RPM':
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
-            img = torch.randn(1,3,4,4)
-            string = net.compress(img)
+            string = net.compress(x)
             bits_act = net.get_actual_bits(string)
-            img2 = net.decompress(string, img.size())
-            mse2 = torch.mean(torch.pow(img2-img,2))
-            print(float(mse2),img,img2)
         else:
             x_hat, likelihoods = net(x,x,training=True)
             bits_act = net.get_actual_bits(x)
@@ -277,4 +273,10 @@ def test(name = 'RPM'):
             f"MSE: {float(mse):.2f}. ")
     
 if __name__ == '__main__':
-    test()
+    #test()
+    net = CompressionModel(3)
+    x = torch.randn(1,3,4,4)
+    string = net.compress(x)
+    x2 = net.decompress(string, x.size())
+    mse2 = torch.mean(torch.pow(x2-x,2))
+    print(float(mse2),x,x2)
