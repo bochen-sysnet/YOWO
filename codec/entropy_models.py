@@ -75,8 +75,6 @@ class RecProbModel(CompressionModel):
         
     def compress(self, x):
         if self.RPM_flag:
-            print(x)
-            print('mu',self.mu)
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
         else:
