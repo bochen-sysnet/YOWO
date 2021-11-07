@@ -1329,6 +1329,7 @@ def test_LVC(name='RLVC'):
         model = DCVC('DCVC')
     else:
         model = LearnedVideoCodecs(name)
+    model.eval()
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
@@ -1343,8 +1344,8 @@ def test_LVC(name='RLVC'):
         x_hat_prev = x_hat
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
-        loss.backward()
-        optimizer.step()
+        #loss.backward()
+        #optimizer.step()
         
         train_iter.set_description(
             f"Batch: {i:4}. "
