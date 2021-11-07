@@ -260,7 +260,7 @@ def test(name = 'RPM'):
         else:
             x_hat, likelihoods = net(x,x,training=True)
             
-        string = net.compress(torch.zeros(1,channels,14,14))
+        string = net.compress(x)
         bits_act = net.get_actual_bits(string)
         x_hat2 = net.decompress(string, x.size()[-2:])
         mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
