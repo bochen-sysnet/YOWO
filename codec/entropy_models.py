@@ -85,11 +85,11 @@ class RecProbModel(CompressionModel):
 
     def decompress(self, string, shape):
         if self.RPM_flag:
-            x_hat = self.entropy_bottleneck.decompress(string, shape)
-        else:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
             x_hat = self.gaussian_conditional.decompress(string, indexes, means=self.mu)
             x_hat = x_hat.clamp_(0, 1)
+        else:
+            x_hat = self.entropy_bottleneck.decompress(string, shape)
         return x_hat
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
