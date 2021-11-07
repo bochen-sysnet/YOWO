@@ -56,7 +56,7 @@ class RecProbModel(CompressionModel):
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
-            self.sigma = torch.exp(self.sigma)/10
+            self.sigma = torch.exp(self.sigma)
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             rpm_hidden = rpm_hidden.detach()
         else:
@@ -76,7 +76,7 @@ class RecProbModel(CompressionModel):
     def compress(self, x):
         if self.RPM_flag:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
-            string = self.gaussian_conditional.compress(x, indexes)
+            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
         else:
             string = self.entropy_bottleneck.compress(x)
         return string
