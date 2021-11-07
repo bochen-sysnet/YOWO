@@ -415,6 +415,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['psnr'][i] = psnr
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
+    print(i,bpp_est,bpp_act.cpu())
     # we can record PSNR wrt the distance to I-frame to show error propagation)
             
 def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
