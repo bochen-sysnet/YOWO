@@ -104,10 +104,10 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'SCVC',]:
+    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'SCVC', 'DCVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
+    elif cfg.TRAIN.CODEC_NAME in []:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"

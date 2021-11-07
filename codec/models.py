@@ -391,6 +391,8 @@ def load_state_dict_all(model, state_dict):
     for name, param in state_dict.items():
         if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
              continue
+        if name in 'entropy_bottleneck':
+            continue
         own_state[name].copy_(param)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
