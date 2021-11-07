@@ -774,7 +774,6 @@ class ComprNet(nn.Module):
         latent_string = self.entropy_bottleneck.compress(latent)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
         print(latent.size(),bits_act)
-        print(latent_string)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))

@@ -52,6 +52,7 @@ class RecProbModel(CompressionModel):
     def forward(
         self, x, rpm_hidden, training = None
     ):
+        print(self.RPM_flag)
         if self.RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
