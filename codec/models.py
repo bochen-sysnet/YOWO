@@ -771,10 +771,9 @@ class ComprNet(nn.Module):
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         
         # calculate bpp (actual)
-        img = torch.zeros(1,self.channels,14,14).to(latent.device)
-        latent_string = self.entropy_bottleneck.compress(img)
+        latent_string = self.entropy_bottleneck.compress(latent)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
-        print(bits_est,bits_act)
+        print(bits_est,bits_act,latent)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
