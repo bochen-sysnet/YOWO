@@ -773,6 +773,7 @@ class ComprNet(nn.Module):
         # calculate bpp (actual)
         latent_string = self.entropy_bottleneck.compress(latent)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        print(bits_est,bits_act)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
