@@ -264,8 +264,8 @@ def test(name = 'RPM'):
 
         net.update(force=True)
         if name == 'RPM':
-            net.set_RPM(rpm_flag)
-            x_hat, likelihoods, rpm_hidden = net(x,False,training=False)
+            net.set_RPM(False)
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
         else:
             x_hat, likelihoods = net(x,x,training=True)
             
