@@ -25,6 +25,8 @@ import pytorch_msssim
 from datasets.clip import *
 
 # DVC,RLVC,MLVC
+# Need to measure time and implement decompression for demo
+# cache should store start/end-of-GOP information for the action detector to stop; test will be based on it
 class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=128):
         super(LearnedVideoCodecs, self).__init__()
@@ -167,7 +169,7 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 6:
+    if epoch <= 10:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
     else:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
@@ -296,7 +298,7 @@ class DCVC(nn.Module):
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_act = self.entropy_bottleneck.get_actual_bits(y)
-        y_aux = self.entropy_bottleneck.loss()/self.channels
+        y_aux = self.entropy_bottleneck.loss()#/self.channels
         
         # contextual decoder
         x_hat = y_hat
