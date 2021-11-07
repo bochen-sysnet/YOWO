@@ -1324,13 +1324,13 @@ def test_SLVC(name = 'SCVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
-# test bits act/act; encode/decode; change init_hidden
+# test bits act/act; measure codec time
 def test_LVC():
     batch_size = 1
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    model = DCVC('DCVC')
+    model = LearnedVideoCodecs('DVC')#DCVC('DCVC')
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())

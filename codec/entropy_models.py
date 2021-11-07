@@ -264,15 +264,14 @@ def test(name = 'Joint'):
         net.update(force=True)
         if name == 'RPM':
             net.set_RPM(rpm_flag)
-            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
         else:
-            x_hat, likelihoods = net(x,x,training=False)
+            x_hat, likelihoods = net(x,x,training=True)
             
         string = net.compress(x)
         bits_act = net.get_actual_bits(string)
         x_hat2 = net.decompress(string, x.size()[-2:])
         mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
-        print(mse2)
         
         bits_est = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
