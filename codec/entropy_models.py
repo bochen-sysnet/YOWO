@@ -244,7 +244,7 @@ def test(name = 'Joint'):
     from tqdm import tqdm
     parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
-    rpm_hidden = net.init_state()
+    rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
     rpm_flag = True
     if name == 'RPM':
         net.set_RPM(False)
