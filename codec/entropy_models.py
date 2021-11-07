@@ -245,7 +245,8 @@ def test(name = 'RPM'):
     rpm_hidden = net.init_state()
     rpm_flag = True
     if name == 'RPM':
-        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
+        net.set_RPM(False)
+        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
