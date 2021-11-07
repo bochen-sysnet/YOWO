@@ -1321,7 +1321,6 @@ def test_SLVC(name = 'SCVC'):
 def test_LVC(name='RLVC'):
     batch_size = 1
     h = w = 224
-    channels = 64
     x = torch.rand(batch_size,3,h,w).cuda()
     if name == 'DCVC':
         model = DCVC('DCVC')
