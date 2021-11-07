@@ -253,6 +253,8 @@ def test(name = 'RPM'):
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
             string = net.compress(x)
             bits_act = net.get_actual_bits(string)
+            x_hat2 = net.entropy_bottleneck.decompress(string, x.size()[-2:])
+            mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
         else:
             x_hat, likelihoods = net(x,x,training=True)
             bits_act = net.get_actual_bits(x)
@@ -273,14 +275,4 @@ def test(name = 'RPM'):
             f"MSE: {float(mse):.2f}. ")
     
 if __name__ == '__main__':
-    #test()
-    net = CompressionModel(3)
-    x = torch.randn(1,3,2,2)
-    net.update(True)
-    x3,_ = net.entropy_bottleneck(x,training=False)
-    string = net.entropy_bottleneck.compress(x)
-    print(string)
-    x2 = net.entropy_bottleneck.decompress(string, [2,2])
-    mse2 = torch.mean(torch.pow(x2-x3,2))
-    print(x2.size(),x3.size())
-    print(float(mse2),x3,x2)
+    test()
