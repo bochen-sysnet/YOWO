@@ -304,7 +304,8 @@ class DCVC(nn.Module):
         self.entropy_bottleneck.update()
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        y_act = self.entropy_bottleneck.get_actual_bits(y)
+        y_string = self.entropy_bottleneck.compress_fast(y)
+        y_act = self.entropy_bottleneck.get_actual_bits(y_string)
         y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
@@ -776,7 +777,8 @@ class ComprNet(nn.Module):
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         
         # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent)
+        latent_string = self.entropy_bottleneck.compress_fast(latent)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))

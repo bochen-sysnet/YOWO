@@ -77,7 +77,7 @@ class RecProbModel(CompressionModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
-    def compress(self, x):
+    def compress_fast(self, x):
         if self.RPM_flag:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
@@ -152,8 +152,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         bs,c,h,w = x.size()
         z = self.h_a(x)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
-        # compressed string of prior used to get bpp
-        self.z_string = self.entropy_bottleneck.compress(z)
+        self.z = z # for fast compression
+        
         params = z_hat
         for i,m in enumerate(self.h_s):
             if i in [0,2]:
@@ -164,12 +164,13 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         gaussian_params = self.entropy_parameters(
             torch.cat((params, ctx_params), dim=1)
         )
-        self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1)
+        self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
         return x_hat, (x_likelihood,z_likelihood)
         
     def get_actual_bits(self, string):
-        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(self.z_string))*8]).squeeze(0)
+        (x_string,z_string) = string
+        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
@@ -178,20 +179,15 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
         return bits_est
         
-    def compress(self, x):
-        if self.RPM_flag:
-            indexes = self.gaussian_conditional.build_indexes(self.sigma)
-            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
-        else:
-            string = self.entropy_bottleneck.compress(x)
-        return string
+    def compress_fast(self, x):
+        z_string = self.entropy_bottleneck.compress(self.z)
+        indexes = self.gaussian_conditional.build_indexes(self.sigma)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        return (x_string,z_string)
 
     def decompress(self, string, shape):
-        if self.RPM_flag:
-            indexes = self.gaussian_conditional.build_indexes(self.sigma)
-            x_hat = self.gaussian_conditional.decompress(string, indexes, means=self.mu)
-        else:
-            x_hat = self.entropy_bottleneck.decompress(string, shape)
+        indexes = self.gaussian_conditional.build_indexes(self.sigma)
+        x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=self.mu)
         return x_hat
         
 # conditional probability
