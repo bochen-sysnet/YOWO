@@ -253,11 +253,11 @@ def test(name = 'RPM'):
 
         net.update(force=True)
         if name == 'RPM':
-            net.set_RPM(False)
+            net.set_RPM(rpm_flag)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
             string = net.compress(x)
             bits_act = net.get_actual_bits(string)
-            x_hat2 = net.entropy_bottleneck.decompress(string, x.size()[-2:])
+            x_hat2 = net.decompress(string, x.size()[-2:])
             mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
             print(mse2)
         else:
