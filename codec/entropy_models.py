@@ -266,7 +266,7 @@ def test(name = 'Joint'):
             net.set_RPM(rpm_flag)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
         else:
-            x_hat, likelihoods = net(x,x,training=True)
+            x_hat, likelihoods = net(x,x,training=False)
             
         string = net.compress(x)
         bits_act = net.get_actual_bits(string)
