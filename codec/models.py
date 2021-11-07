@@ -1334,7 +1334,7 @@ def test_DCVC():
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = model(x, x_hat_prev.detach(), hidden_states, i>=1)
+        x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, p,m = model(x, x_hat_prev.detach(), hidden_states, i>=1)
         x_hat_prev = x_hat
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
@@ -1349,7 +1349,7 @@ def test_DCVC():
             f"bpp_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. "
-            f"metrics: {float(metrics):.2f}. ")
+            f"psnr: {float(p):.2f}. ")
         
 if __name__ == '__main__':
     #import sys
