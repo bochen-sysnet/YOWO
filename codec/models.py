@@ -99,7 +99,6 @@ class LearnedVideoCodecs(nn.Module):
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
         # actual bits
         bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
-        print(float(mv_est),float(res_est),float(mv_act),float(res_act))
         # auxilary loss
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
         # calculate metrics/loss
@@ -331,7 +330,6 @@ class DCVC(nn.Module):
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
-        print(float(mv_est),float(y_est),float(mv_act),float(y_act))
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
@@ -775,6 +773,7 @@ class ComprNet(nn.Module):
         # calculate bpp (actual)
         latent_string = self.entropy_bottleneck.compress(latent)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        print(latent.size(),bits_act)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
