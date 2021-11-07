@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from torch import Tensor
 
-from compressai.entropy_models import EntropyModel,GaussianConditional
+from compressai.entropy_models import EntropyModel,GaussianConditional,EntropyBottleneck
 from compressai.models import CompressionModel
 import sys, os, math
 sys.path.append('..')
