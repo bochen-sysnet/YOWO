@@ -251,11 +251,12 @@ def test(name = 'RPM'):
         net.update(force=True)
         if name == 'RPM':
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
-            string = net.compress(x)
+            img = torch.randn(1,3,4,4)
+            string = net.compress(img)
             bits_act = net.get_actual_bits(string)
-            x_hat2 = net.decompress(string, x.size())
-            mse2 = torch.mean(torch.pow(x_hat2-x_hat,2))
-            print(float(mse2))
+            img2 = net.decompress(string, x.size())
+            mse2 = torch.mean(torch.pow(img2-img,2))
+            print(float(mse2),img,img2)
         else:
             x_hat, likelihoods = net(x,x,training=True)
             bits_act = net.get_actual_bits(x)
