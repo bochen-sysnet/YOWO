@@ -1352,5 +1352,6 @@ def test_DCVC():
             f"metrics: {float(metrics):.2f}. ")
         
 if __name__ == '__main__':
-    import sys
-    test_SLVC(sys.argv[1])
+    #import sys
+    #test_SLVC(sys.argv[1])
+    test_DCVC()
