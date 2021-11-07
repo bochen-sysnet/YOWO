@@ -275,7 +275,7 @@ def test(name = 'RPM'):
 if __name__ == '__main__':
     #test()
     net = CompressionModel(3)
-    x = torch.randn(1,3,4,4)
+    x = torch.randn(1,3,2,2)
     net.update(True)
     x3,_ = net.entropy_bottleneck(x,training=False)
     string = net.entropy_bottleneck.compress(x)
