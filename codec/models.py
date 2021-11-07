@@ -322,6 +322,7 @@ class DCVC(nn.Module):
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
+        print(float(mv_est),float(y_est),float(mv_act),float(y_act))
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
@@ -1316,7 +1317,7 @@ def test_SLVC(name = 'SCVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
-def test_DCVC():
+def test_LVC():
     batch_size = 1
     h = w = 224
     channels = 64
@@ -1354,4 +1355,4 @@ def test_DCVC():
 if __name__ == '__main__':
     #import sys
     #test_SLVC(sys.argv[1])
-    test_DCVC()
+    test_LVC()
