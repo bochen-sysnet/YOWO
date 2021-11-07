@@ -764,7 +764,7 @@ class ComprNet(nn.Module):
         if self.entropy_type == 'non-rec':
             latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         else:
-            self.entropy_bottleneck.set_RPM(RPM_flag)
+            self.entropy_bottleneck.set_RPM(False)
             latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
         
         # calculate bpp (estimated)
