@@ -51,6 +51,7 @@ class LearnedVideoCodecs(nn.Module):
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+        self.I_level = 27 # [37,32,27,22]
         self.epoch = -1
         
         # split on multi-gpus
@@ -73,7 +74,7 @@ class LearnedVideoCodecs(nn.Module):
             aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
-            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(Y1_raw,self.image_coder_name,self._image_coder, self.r,use_psnr)
+            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(Y1_raw, self.r, self.I_level, use_psnr)
             return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         # otherwise, it's P frame
         # hidden states
@@ -218,6 +219,7 @@ class DCVC(nn.Module):
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+        self.I_level = 27 # [37,32,27,22]
         self.name = name
         self.channels = channels
         self.split()
@@ -235,7 +237,7 @@ class DCVC(nn.Module):
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
         # I-frame compression
         if x_hat_prev is None:
-            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(x,'bpg',None,self.r,use_psnr)
+            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(x,self.r,self.I_level,use_psnr)
             return x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         # size
         bs,c,h,w = x.size()
@@ -540,39 +542,25 @@ class StandardVideoCodecs(nn.Module):
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
         
-def I_compression(Y1_raw, image_coder_name, _image_coder, r, use_psnr):
+def I_compression(Y1_raw, r, I_level, use_psnr):
     # we can compress with bpg,deepcod ...
     batch_size, _, Height, Width = Y1_raw.shape
-    if image_coder_name in ['deepcod']:
-        Y1_com,bits_act,bits_est,aux_loss = _image_coder(Y1_raw)
-        # calculate bpp
-        bpp_est = bits_est/(Height * Width * batch_size)
-        bpp_act = bits_act/(Height * Width * batch_size)
-        # calculate metrics/loss
-        psnr = PSNR(Y1_raw, Y1_com)
-        msssim = MSSSIM(Y1_raw, Y1_com)
-        loss = calc_loss(Y1_raw, Y1_com, r, use_psnr)
-        flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-    elif image_coder_name == 'bpg':
-        prename = "tmp/frames/prebpg"
-        binname = "tmp/frames/bpg"
-        postname = "tmp/frames/postbpg"
-        raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
-        raw_img.save(prename + '.jpg')
-        pre_bits = os.path.getsize(prename + '.jpg')*8
-        os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q 22')
-        os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
-        post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
-        bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
-        bpg_img = Image.open(postname + '.jpg').convert('RGB')
-        Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
-        psnr = PSNR(Y1_raw, Y1_com)
-        msssim = MSSSIM(Y1_raw, Y1_com)
-        #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
-        bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-    else:
-        print('This image compression not implemented.')
-        exit(0)
+    prename = "tmp/frames/prebpg"
+    binname = "tmp/frames/bpg"
+    postname = "tmp/frames/postbpg"
+    raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
+    raw_img.save(prename + '.jpg')
+    pre_bits = os.path.getsize(prename + '.jpg')*8
+    os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q ' + str(I_level))
+    os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
+    post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
+    bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
+    bpg_img = Image.open(postname + '.jpg').convert('RGB')
+    Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+    psnr = PSNR(Y1_raw, Y1_com)
+    msssim = MSSSIM(Y1_raw, Y1_com)
+    #loss = calc_loss(Y1_raw, Y1_com, use_psnr)
+    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, psnr, msssim
 
 def init_hidden(h,w,channels):
