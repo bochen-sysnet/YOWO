@@ -297,7 +297,7 @@ class DCVC(nn.Module):
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
-        print(float(mv_est), float(mv_act), float(y_est), float(y_act))
+        print(float(mv_est/(h * w * bs)), float(mv_act/(h * w * bs)), float(y_est/(h * w * bs)), float(y_act/(h * w * bs)))
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
@@ -415,7 +415,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['psnr'][i] = psnr
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
-    print(i,bpp_est,bpp_act.cpu())
+    print(i,float(bpp_est),float(bpp_act))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
             
 def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
