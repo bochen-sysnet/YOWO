@@ -253,7 +253,7 @@ def test(name = 'RPM'):
 
         net.update(force=True)
         if name == 'RPM':
-            net.set_RPM(rpm_flag)
+            net.set_RPM(False)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
             string = net.compress(x)
             bits_act = net.get_actual_bits(string)
