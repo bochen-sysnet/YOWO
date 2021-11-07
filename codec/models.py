@@ -298,7 +298,7 @@ class DCVC(nn.Module):
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_act = self.entropy_bottleneck.get_actual_bits(y)
-        y_aux = self.entropy_bottleneck.loss()
+        y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
         x_hat = y_hat
@@ -322,7 +322,6 @@ class DCVC(nn.Module):
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
-        print('mv',float(mv_est),float(mv_act),'y',float(y_est),float(y_act))
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
