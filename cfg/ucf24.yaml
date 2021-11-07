@@ -1,6 +1,6 @@
 TRAIN:
   RESUME_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_best.pth"
-  RESUME_CODEC_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_DCVC_best.pth"
+  RESUME_CODEC_PATH: "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_DCVC_ckpt.pth"
   CODEC_NAME: "DCVC" # DVC,RLVC,MLVC,SCVC,DCVC
   DATASET: ucf24  # `ava`, `ucf24` or `jhmdb21`
   BATCH_SIZE: 4
