@@ -1319,7 +1319,7 @@ def test_SLVC(name = 'SCVC'):
             f"flow_loss: {float(flow_loss):.2f}. ")
             
 # test bits act/act; measure codec time
-def test_LVC(name='DCVC'):
+def test_LVC(name='RLVC'):
     batch_size = 1
     h = w = 224
     channels = 64
