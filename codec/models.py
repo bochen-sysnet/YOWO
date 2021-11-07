@@ -51,7 +51,7 @@ class LearnedVideoCodecs(nn.Module):
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
-        self.I_level = 27 # [37,32,27,22]
+        self.I_level = 37 # [37,32,27,22]
         self.epoch = -1
         
         # split on multi-gpus
