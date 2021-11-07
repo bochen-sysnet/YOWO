@@ -254,7 +254,7 @@ def test(name = 'RPM'):
             img = torch.randn(1,3,4,4)
             string = net.compress(img)
             bits_act = net.get_actual_bits(string)
-            img2 = net.decompress(string, x.size())
+            img2 = net.decompress(string, img.size())
             mse2 = torch.mean(torch.pow(img2-img,2))
             print(float(mse2),img,img2)
         else:
