@@ -168,9 +168,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
         return x_hat, (x_likelihood,z_likelihood)
         
-    def get_actual_bits(self, x):
-        indexes = self.gaussian_conditional.build_indexes(self.sigma)
-        x_string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+    def get_actual_bits(self, string):
         bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(self.z_string))*8]).squeeze(0)
         return bits_act
         
@@ -179,6 +177,22 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
         bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
         return bits_est
+        
+    def compress(self, x):
+        if self.RPM_flag:
+            indexes = self.gaussian_conditional.build_indexes(self.sigma)
+            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        else:
+            string = self.entropy_bottleneck.compress(x)
+        return string
+
+    def decompress(self, string, shape):
+        if self.RPM_flag:
+            indexes = self.gaussian_conditional.build_indexes(self.sigma)
+            x_hat = self.gaussian_conditional.decompress(string, indexes, means=self.mu)
+        else:
+            x_hat = self.entropy_bottleneck.decompress(string, shape)
+        return x_hat
         
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
@@ -231,7 +245,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'RPM'):
+def test(name = 'Joint'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels)
@@ -255,14 +269,13 @@ def test(name = 'RPM'):
         if name == 'RPM':
             net.set_RPM(rpm_flag)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
-            string = net.compress(x)
-            bits_act = net.get_actual_bits(string)
-            x_hat2 = net.decompress(string, x.size()[-2:])
-            mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
-            print(mse2)
         else:
             x_hat, likelihoods = net(x,x,training=True)
-            bits_act = net.get_actual_bits(x)
+            
+        string = net.compress(x)
+        bits_act = net.get_actual_bits(string)
+        x_hat2 = net.decompress(string, x.size()[-2:])
+        mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
         
         bits_est = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
@@ -277,7 +290,8 @@ def test(name = 'RPM'):
             f"loss: {float(loss):.2f}. "
             f"bits_est: {float(bits_est):.2f}. "
             f"bits_act: {float(bits_act):.2f}. "
-            f"MSE: {float(mse):.2f}. ")
+            f"MSE: {float(mse):.2f}. "
+            f"MSE2: {float(mse2):.4f}. ")
     
 if __name__ == '__main__':
     test()
