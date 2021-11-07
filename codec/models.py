@@ -73,8 +73,8 @@ class LearnedVideoCodecs(nn.Module):
             aux_loss = flow_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
         if Y0_com is None:
-            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics = I_compression(Y1_raw,self.image_coder_name,self._image_coder, self.r,use_psnr)
-            return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, metrics
+            Y1_com, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = I_compression(Y1_raw,self.image_coder_name,self._image_coder, self.r,use_psnr)
+            return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         # otherwise, it's P frame
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
