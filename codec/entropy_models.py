@@ -76,7 +76,7 @@ class RecProbModel(CompressionModel):
     def compress(self, x):
         if self.RPM_flag:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
-            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+            string = self.gaussian_conditional.compress(x, indexes)
         else:
             string = self.entropy_bottleneck.compress(x)
         return string
