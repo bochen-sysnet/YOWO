@@ -77,7 +77,7 @@ class RecProbModel(CompressionModel):
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
         
-    def compress_fast(self, x):
+    def compress(self, x):
         if self.RPM_flag:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
@@ -179,7 +179,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
         return bits_est
         
-    def compress_fast(self, x):
+    def compress(self, x):
+        # a fast implementation of compression
         z_string = self.entropy_bottleneck.compress(self.z)
         indexes = self.gaussian_conditional.build_indexes(self.sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
