@@ -771,7 +771,7 @@ class ComprNet(nn.Module):
         
         # calculate bpp (actual)
         img = torch.rand(*latent.size()).to(latent.device)
-        latent_string = self.entropy_bottleneck.compress(latent)
+        latent_string = self.entropy_bottleneck.compress(img)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
         print(bits_act)
 
