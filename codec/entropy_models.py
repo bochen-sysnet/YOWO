@@ -280,5 +280,5 @@ if __name__ == '__main__':
     x3 = net.entropy_bottleneck(x,training=False)
     string = net.entropy_bottleneck.compress(x)
     x2 = net.entropy_bottleneck.decompress(string, x.size())
-    mse2 = torch.mean(torch.pow(x2-x,2))
-    print(float(mse2),x,x2)
+    mse2 = torch.mean(torch.pow(x2-x3,2))
+    print(float(mse2),x3,x2)
