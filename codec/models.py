@@ -169,39 +169,6 @@ class LearnedVideoCodecs(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        
-def update_training(model, epoch):
-    # warmup with all gamma set to 1
-    # optimize for bpp,img loss and focus only reconstruction loss
-    # optimize bpp and app loss only
-    
-    # setup training weights
-    if epoch <= 10:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
-    else:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
-    
-    # whether to compute action detection
-    doAD = True if model.gamma_app > 0 else False
-    
-    model.epoch = epoch
-    
-    return doAD
-    
-def load_state_dict_whatever(model, state_dict):
-    own_state = model.state_dict()
-    for name, param in state_dict.items():
-        if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
-             continue
-        if name in own_state:
-            own_state[name].copy_(param)
-            
-def load_state_dict_all(model, state_dict):
-    own_state = model.state_dict()
-    for name, param in state_dict.items():
-        if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
-             continue
-        own_state[name].copy_(param)
             
 # DCVC?
 class DCVC(nn.Module):
@@ -393,6 +360,38 @@ class DCVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
+def update_training(model, epoch):
+    # warmup with all gamma set to 1
+    # optimize for bpp,img loss and focus only reconstruction loss
+    # optimize bpp and app loss only
+    
+    # setup training weights
+    if epoch <= 10:
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
+    else:
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
+    
+    # whether to compute action detection
+    doAD = True if model.gamma_app > 0 else False
+    
+    model.epoch = epoch
+    
+    return doAD
+    
+def load_state_dict_whatever(model, state_dict):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
+             continue
+        if name in own_state:
+            own_state[name].copy_(param)
+            
+def load_state_dict_all(model, state_dict):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
+             continue
+        own_state[name].copy_(param)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
