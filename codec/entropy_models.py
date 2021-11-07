@@ -89,7 +89,6 @@ class RecProbModel(CompressionModel):
         if self.RPM_flag:
             indexes = self.gaussian_conditional.build_indexes(self.sigma)
             x_hat = self.gaussian_conditional.decompress(string, indexes, means=self.mu)
-            x_hat = x_hat.clamp_(0, 1)
         else:
             x_hat = self.entropy_bottleneck.decompress(string, shape)
         return x_hat
@@ -264,7 +263,7 @@ def test(name = 'RPM'):
 
         net.update(force=True)
         if name == 'RPM':
-            net.set_RPM(False)
+            net.set_RPM(rpm_flag)
             x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
         else:
             x_hat, likelihoods = net(x,x,training=True)
