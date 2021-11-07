@@ -255,6 +255,7 @@ def test(name = 'RPM'):
             bits_act = net.get_actual_bits(string)
             x_hat2 = net.entropy_bottleneck.decompress(string, x.size()[-2:])
             mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
+            print(mse2)
         else:
             x_hat, likelihoods = net(x,x,training=True)
             bits_act = net.get_actual_bits(x)
