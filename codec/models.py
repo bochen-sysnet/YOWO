@@ -162,6 +162,13 @@ class LearnedVideoCodecs(nn.Module):
         else:
             print('Loss not implemented')
             exit(1)
+    
+    def init_hidden(self, h, w):
+        rae_hidden = torch.zeros(1,self.channels*8,h//4,w//4).cuda()
+        rae_mv_hidden, rae_res_hidden = torch.split(rae_hidden,self.channels*4,dim=1)
+        rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
+        rpm_res_hidden = model.res_codec.entropy_bottleneck.init_state()
+        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -379,6 +386,12 @@ class DCVC(nn.Module):
         
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
+        
+    def init_hidden(self, h, w):
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
+        return (rae_mv_hidden, rpm_mv_hidden)
+        
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -388,9 +401,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     Y1_raw = cache['clip'][i].unsqueeze(0)
     # hidden variables
     if P_flag:
-        rae_mv_hidden, _ = init_hidden(h,w,model.channels)
-        rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
-        hidden = (rae_mv_hidden, rpm_mv_hidden)
+        hidden = model.init_hidden(h,w)
     else:
         hidden = cache['hidden']
     Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
@@ -764,10 +775,7 @@ class ComprNet(nn.Module):
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         
         # calculate bpp (actual)
-        if self.entropy_type == 'non-rec':
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent)
-        else:
-            bits_act = self.entropy_bottleneck.get_actual_bits(latent, RPM_flag)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent)
 
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
@@ -778,10 +786,7 @@ class ComprNet(nn.Module):
         hat = self.dec_conv4(x)
         
         # auxilary loss
-        if self.entropy_type == 'rec':
-            aux_loss = self.entropy_bottleneck.loss(RPM_flag)/self.channels
-        else:
-            aux_loss = self.entropy_bottleneck.loss()/self.channels
+        aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         if self.encoder_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
@@ -1316,6 +1321,7 @@ def test_SLVC(name = 'SCVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
+# test bits act/act; encode/decode; change init_hidden
 def test_LVC():
     batch_size = 1
     h = w = 224
@@ -1326,9 +1332,7 @@ def test_LVC():
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
-    rae_mv_hidden, _ = init_hidden(h,w,channels)
-    rpm_mv_hidden = model.mv_codec.entropy_bottleneck.init_state()
-    hidden_states = (rae_mv_hidden, rpm_mv_hidden)
+    hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,10000))
     x_hat_prev = x
     for i,_ in enumerate(train_iter):

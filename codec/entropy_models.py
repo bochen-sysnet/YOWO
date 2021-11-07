@@ -45,8 +45,8 @@ class RecProbModel(CompressionModel):
         updated |= super().update(force=force)
         return updated
 
-    def loss(self, RPM_flag):
-        if RPM_flag:
+    def loss(self):
+        if self.RPM_flag:
             return torch.FloatTensor([0]).squeeze(0).cuda(0)
         return self.aux_loss()
 
@@ -58,6 +58,7 @@ class RecProbModel(CompressionModel):
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
             self.sigma = torch.exp(self.sigma)/10
+            self.RPM_flag = RPM_flag
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             rpm_hidden = rpm_hidden.detach()
         else:
@@ -65,12 +66,7 @@ class RecProbModel(CompressionModel):
         self.prior_latent = torch.round(x).detach()
         return x_hat, likelihood, rpm_hidden
         
-    def get_actual_bits(self, x, RPM_flag):
-        if RPM_flag:
-            indexes = self.gaussian_conditional.build_indexes(self.sigma)
-            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
-        else:
-            string = self.entropy_bottleneck.compress(x)
+    def get_actual_bits(self, string):
         bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
         return bits_act
         
@@ -78,6 +74,23 @@ class RecProbModel(CompressionModel):
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
         return bits_est
+        
+    def compress(self, x):
+        if self.RPM_flag:
+            indexes = self.gaussian_conditional.build_indexes(self.sigma)
+            string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        else:
+            string = self.entropy_bottleneck.compress(x)
+        return string
+
+    def decompress(self, string, shape):
+        if self.RPM_flag:
+            x_hat = self.entropy_bottleneck.decompress(string, shape)
+        else:
+            indexes = self.gaussian_conditional.build_indexes(self.sigma)
+            x_hat = self.gaussian_conditional.decompress(string, indexes, means=self.mu)
+            x_hat = x_hat.clamp_(0, 1)
+        return x_hat
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
@@ -216,7 +229,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'Joint'):
+def test(name = 'RPM'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels)
@@ -230,15 +243,18 @@ def test(name = 'Joint'):
     rpm_hidden = net.init_state()
     rpm_flag = True
     if name == 'RPM':
-        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=True)
+        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,False,training=False)
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
         net.update(force=True)
         if name == 'RPM':
-            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=True)
-            bits_act = net.get_actual_bits(x, rpm_flag)
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,rpm_flag,training=False)
+            string = net.compress(x)
+            bits_act = net.get_actual_bits(string)
+            x_hat2 = net.decompress(string, x.size())
+            mse2 = torch.mean(torch.pow(x_hat2-x_hat,2))
         else:
             x_hat, likelihoods = net(x,x,training=True)
             bits_act = net.get_actual_bits(x)
