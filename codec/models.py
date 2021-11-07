@@ -297,7 +297,7 @@ class DCVC(nn.Module):
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
-        print(mv_est, y_est, mv_act, y_act)
+        print(float(mv_est), float(mv_act), float(y_est), float(y_act))
         # auxilary loss
         aux_loss = (mv_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
