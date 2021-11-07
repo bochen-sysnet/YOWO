@@ -1324,7 +1324,8 @@ def test_LVC():
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    model = LearnedVideoCodecs('DVC')#DCVC('DCVC')
+    #model = LearnedVideoCodecs('DVC')
+    model = DCVC('DCVC')
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
