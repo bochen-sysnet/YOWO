@@ -241,7 +241,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'RPM'):
+def test(name = 'Joint'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels)
