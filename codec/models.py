@@ -24,8 +24,22 @@ from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPri
 import pytorch_msssim
 from datasets.clip import *
 
+def get_codec_model(name):
+    if name in ['MLVC','RLVC','DVC','RAW']:
+        model_codec = LearnedVideoCodecs(name)
+    elif name in ['DCVC','DCVC_v2']:
+        model_codec = DCVC(name)
+    elif name in ['SCVC']:
+        model_codec = SCVC(name)
+    elif name in ['x264','x265']:
+        model_codec = StandardVideoCodecs(name)
+    else:
+        print('Cannot recognize codec:', name)
+        exit(1)
+    return model_codec
+
 def compress_video(model, frame_idx, cache, startNewClip):
-    if model.name in ['MLVC','RLVC','DVC','DCVC']:
+    if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2'']:
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
@@ -327,6 +341,8 @@ class DCVC(nn.Module):
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
                                         ])
+        if name == 'DCVC_v2':
+            self.MC_network = MCNet()
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
                                         )
@@ -354,6 +370,8 @@ class DCVC(nn.Module):
     def split(self):
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
+        if self.name == 'DCVC_v2':
+            self.MC_network.cuda(0)
         self.feature_extract.cuda(0)
         self.ctx_refine.cuda(0)
         self.tmp_prior_encoder.cuda(1)
@@ -378,17 +396,28 @@ class DCVC(nn.Module):
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         
-        # feature extraction
-        x_rhat_prev = self.feature_extract(x_hat_prev)
-        
-        # motion compensation
+        # warping
         loc = get_grid_locations(bs, h, w).type(x.type())
-        x_warp = F.grid_sample(x_rhat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
+        if self.name == 'DCVC':
+            # feature extraction
+            x_feat = self.feature_extract(x_hat_prev)
+            
+            # motion compensation
+            x_feat_warp = F.grid_sample(x_feat, loc + mv_hat.permute(0,2,3,1), align_corners=True) # the difference
+            x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+            warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
+        else:
+            # motion compensation
+            x_warp = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True) # the difference
+            warp_loss = calc_loss(x, x_warp.to(x.device), self.r, use_psnr)
+            x_mc = self.MC_network(torch.cat((mv_hat, x_hat_prev, x_warp), axis=1))
+            mc_loss = calc_loss(x, x_mc.to(x.device), self.r, use_psnr)
+            
+            # feature extraction
+            x_feat_warp = self.feature_extract(x_mc)
         
         # context refinement
-        context = self.ctx_refine(x_warp)
+        context = self.ctx_refine(x_feat_warp)
         
         # temporal prior
         prior = self.tmp_prior_encoder(context.cuda(1))
@@ -433,7 +462,10 @@ class DCVC(nn.Module):
         psnr = PSNR(x, x_hat.cuda(0))
         msssim = MSSSIM(x, x_hat.cuda(0))
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
-        img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
+        if self.name == 'DCVC':
+            img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
+        else:
+            img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         # flow loss
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         # hidden states
@@ -483,10 +515,10 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 10:
+    if epoch <= 1:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
     else:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,.1,0,1,0,0,0
     
     # whether to compute action detection
     doAD = True if model.gamma_app > 0 else False
@@ -494,6 +526,13 @@ def update_training(model, epoch):
     model.epoch = epoch
     
     return doAD
+    
+def load_state_dict_only(model, state_dict, keyword):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if keyword not in name: continue
+        if name in own_state:
+            own_state[name].copy_(param)
     
 def load_state_dict_whatever(model, state_dict):
     own_state = model.state_dict()
@@ -701,7 +740,7 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if codec_name in ['MLVC','RLVC','DCVC']:
+        if codec_name in ['MLVC','RLVC','DCVC','DCVC_v2']:
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
         elif codec_name in ['DVC','SCVC','SPVC']:
@@ -1231,6 +1270,9 @@ def test_LVC(name='RLVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. "
             f"psnr: {float(p):.2f}. ")
+            
+# integrate all codec models
+# measure the speed of all codecs
         
 if __name__ == '__main__':
     #import sys

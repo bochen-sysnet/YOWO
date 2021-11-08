@@ -20,8 +20,8 @@ from cfg import parser
 from core.utils import *
 from core.region_loss import RegionLoss, RegionLoss_Ava
 from core.model import YOWO, get_fine_tuning_parameters
-from codec.models import LearnedVideoCodecs, StandardVideoCodecs, DCVC, SCVC
-from codec.models import load_state_dict_whatever, load_state_dict_all
+from codec.models import get_codec_model
+from codec.models import load_state_dict_whatever, load_state_dict_all, load_state_dict_only
 
 
 ####### Load configuration arguments
@@ -48,22 +48,11 @@ if use_cuda:
 model = YOWO(cfg)
 model = model.cuda()
 model = nn.DataParallel(model) # in multi-gpu case
-# print(model)
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 logging('Total number of trainable parameters: {}'.format(pytorch_total_params))
 
 # codec model .
-if cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DVC','RAW']:
-    model_codec = LearnedVideoCodecs(cfg.TRAIN.CODEC_NAME)
-elif cfg.TRAIN.CODEC_NAME in ['DCVC']:
-    model_codec = DCVC(cfg.TRAIN.CODEC_NAME)
-elif cfg.TRAIN.CODEC_NAME in ['SCVC']:
-    model_codec = SCVC(cfg.TRAIN.CODEC_NAME)
-elif cfg.TRAIN.CODEC_NAME in ['x264','x265']:
-    model_codec = StandardVideoCodecs(cfg.TRAIN.CODEC_NAME)
-else:
-    print('Cannot recognize codec:', cfg.TRAIN.CODEC_NAME)
-    exit(1)
+model_codec = get_codec_model(cfg.TRAIN.CODEC_NAME)
 pytorch_total_params = sum(p.numel() for p in model_codec.parameters() if p.requires_grad)
 logging('Total number of trainable codec parameters: {}'.format(pytorch_total_params))
 
@@ -107,15 +96,16 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'SCVC', 'DCVC']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in []:
+    elif cfg.TRAIN.CODEC_NAME in ['DCVC_v2']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_DCVC_ckpt.pth"
         checkpoint = torch.load(pretrained_model_path)
         load_state_dict_whatever(model_codec, checkpoint['state_dict'])
-        print("Loaded model codec score: ", checkpoint['score'])
-        if 'misc' in checkpoint:
-            print('Other metrics:',checkpoint['misc'])
+        del checkpoint
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"
+        checkpoint = torch.load(pretrained_model_path)
+        load_state_dict_only(model_codec, checkpoint['state_dict'], 'MC_network') # reuse MC network
         del checkpoint
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME)
