@@ -225,6 +225,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
     def compress_slow(self, x, ctx_params):
         # shouldnt be used together with forward()
         t_0 = time.perf_counter()
+        bs,c,h,w = x.size()
         z = self.h_a(x)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
@@ -243,11 +244,12 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
         duration = time.perf_counter() - t_0
-        return {"string": [y_string, z_string], "shape": z.size()[-2:]}, duration
+        return (y_string, z_string), x.size(), duration
         
     def decompress_slow(self, string, shape, ctx_params):
         t_0 = time.perf_counter()
-        z_hat = self.entropy_bottleneck.decompress(string[1], shape)
+        bs,c,h,w = shape
+        z_hat = self.entropy_bottleneck.decompress(string[1], [h//4,w//4])
         params = z_hat
         for i,m in enumerate(self.h_s):
             if i in [0,2]:
@@ -361,8 +363,7 @@ def test(name = 'Joint'):
                 x_hat, likelihoods = net(x,x,training=True)
                 string = net.compress(x)
             else:
-                tmp, duration_e = net.compress_slow(x, x)
-                string,shape = tmp['string'],tmp['shape']
+                string, shape, duration_e = net.compress_slow(x, x)
                 x_hat, duration_d = net.decompress_slow(string, shape, x)
             
         bits_act = net.get_actual_bits(string)
