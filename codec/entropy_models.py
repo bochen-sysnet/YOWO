@@ -367,11 +367,11 @@ def test(name = 'Joint'):
                 x_hat, duration_d = net.decompress_slow(string, shape, x)
             
         bits_act = net.get_actual_bits(string)
+        mse = torch.mean(torch.pow(x-x_hat,2))
         mse2 = torch.mean(torch.pow(x_hat-torch.round(x),2))
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)
-            mse = torch.mean(torch.pow(x-x_hat,2))
             loss = bits_est + net.loss()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(),1)
