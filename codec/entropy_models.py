@@ -352,7 +352,7 @@ def test(name = 'RPM'):
             else:
                 string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
                 x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
-                net.set_prior(x):
+                net.set_prior(x)
         else:
             if isTrain:
                 x_hat, likelihoods = net(x,x,training=True)
