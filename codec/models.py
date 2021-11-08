@@ -373,7 +373,7 @@ class DCVC(nn.Module):
         if self.name == 'DCVC_v2':
             self.MC_network.cuda(0)
         self.feature_extract.cuda(0)
-        self.ctx_refine.cuda(0)
+        self.ctx_refine.cuda(1)
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
         self.entropy_bottleneck.cuda(1)
@@ -417,13 +417,13 @@ class DCVC(nn.Module):
             x_feat_warp = self.feature_extract(x_mc)
         
         # context refinement
-        context = self.ctx_refine(x_feat_warp)
+        context = self.ctx_refine(x_feat_warp.cuda(1))
         
         # temporal prior
-        prior = self.tmp_prior_encoder(context.cuda(1))
+        prior = self.tmp_prior_encoder(context)
         
         # contextual encoder
-        y = self.ctx_encoder(torch.cat((x, context), axis=1).cuda(1))
+        y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
         
         # entropy model
         self.entropy_bottleneck.update()
