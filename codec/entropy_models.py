@@ -369,9 +369,10 @@ def test(name = 'RPM'):
         mse = torch.mean(torch.pow(x-x_hat,2))
         loss = bits_est + net.loss()
         
-        bits_est.backward()
-        torch.nn.utils.clip_grad_norm_(net.parameters(),1)
-        optimizer.step()
+        if isTrain:
+            bits_est.backward()
+            torch.nn.utils.clip_grad_norm_(net.parameters(),1)
+            optimizer.step()
         
         train_iter.set_description(
             f"Batch: {i:4}. "
