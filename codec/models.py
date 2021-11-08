@@ -112,49 +112,6 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
-        # process the involving GOP
-        # how to deal with backward P frames?
-        # if process in order, some frames need later frames to compress
-        if startNewClip:
-            # create cache
-            cache['bpp_est'] = {}
-            cache['img_loss'] = {}
-            cache['flow_loss'] = {}
-            cache['aux'] = {}
-            cache['bpp_act'] = {}
-            cache['psnr'] = {}
-            cache['msssim'] = {}
-            cache['hidden'] = None
-            cache['max_proc'] = -1
-            # the first frame to be compressed in a video
-            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
-            start_idx = max(0,start_idx)
-            # search for the I frame in this GOP
-            # then compress all frames based on that
-            # GOP = 6+6+1 = 13
-            # I frames: 0, 13, ...
-            for i in range(start_idx,frame_idx):
-                if cache['max_proc'] >= i:
-                    cache['max_seen'] = i
-                    continue
-                ranges, cache['max_seen'], cache['max_proc'] = index2GOP(i, len(cache['clip']), progressive=True)
-                for _range in ranges:
-                    prev_j = -1
-                    for loc,j in enumerate(_range):
-                        progressive_compression(self, j, prev_j, cache, loc==1, loc>=2)
-                        prev_j = j
-        else:
-            if cache['max_proc'] >= frame_idx-1:
-                cache['max_seen'] = frame_idx-1
-                return
-            ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
-            for _range in ranges:
-                prev_j = -1
-                for loc,j in enumerate(_range):
-                    progressive_compression(self, j, prev_j, cache, loc==1, loc>=2)
-                    prev_j = j
-    
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         if self.name in ['MLVC','RAW']:
             return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -312,48 +269,6 @@ class DCVC(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
-    
-    def update_cache(self, frame_idx, clip_duration, sampling_rate, cache, startNewClip, shape):
-        # process the involving GOP
-        # if process in order, some frames need later frames to compress
-        if startNewClip:
-            # create cache
-            cache['bpp_est'] = {}
-            cache['img_loss'] = {}
-            cache['flow_loss'] = {}
-            cache['aux'] = {}
-            cache['bpp_act'] = {}
-            cache['psnr'] = {}
-            cache['msssim'] = {}
-            cache['hidden'] = None
-            cache['max_proc'] = -1
-            # the first frame to be compressed in a video
-            start_idx = (frame_idx - (clip_duration-1) * sampling_rate - 1)
-            start_idx = max(0,start_idx)
-            # search for the I frame in this GOP
-            # then compress all frames based on that
-            # GOP = 6+6+1 = 13
-            # I frames: 0, 13, ...
-            for i in range(start_idx,frame_idx):
-                if cache['max_proc'] >= i:
-                    cache['max_seen'] = i
-                    continue
-                ranges, cache['max_seen'], cache['max_proc'] = index2GOP(i, len(cache['clip']), progressive=True)
-                for _range in ranges:
-                    prev_j = -1
-                    for loc,j in enumerate(_range):
-                        progressive_compression(self, j, prev_j, cache, loc==1, loc>=2)
-                        prev_j = j
-        else:
-            if cache['max_proc'] >= frame_idx-1:
-                cache['max_seen'] = frame_idx-1
-                return
-            ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
-            for _range in ranges:
-                prev_j = -1
-                for loc,j in enumerate(_range):
-                    progressive_compression(self, j, prev_j, cache, loc==1, loc>=2)
-                    prev_j = j
         
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
@@ -362,6 +277,32 @@ class DCVC(nn.Module):
         rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
+        
+def compress_video_sequential(model, frame_idx, cache, startNewClip):
+    # process the involving GOP
+    # if process in order, some frames need later frames to compress
+    if startNewClip:
+        # create cache
+        cache['bpp_est'] = {}
+        cache['img_loss'] = {}
+        cache['flow_loss'] = {}
+        cache['aux'] = {}
+        cache['bpp_act'] = {}
+        cache['psnr'] = {}
+        cache['msssim'] = {}
+        cache['hidden'] = None
+        cache['max_proc'] = -1
+        # the first frame to be compressed in a video
+    assert frame_idx>=1, 'Frame index less than 1'
+    if cache['max_proc'] >= frame_idx-1:
+        cache['max_seen'] = frame_idx-1
+        return
+    ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
+    for _range in ranges:
+        prev_j = -1
+        for loc,j in enumerate(_range):
+            progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
+            prev_j = j
         
 def update_training(model, epoch):
     # warmup with all gamma set to 1

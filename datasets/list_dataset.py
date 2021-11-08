@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-
+from codec.models import compress_video_sequential
 from datasets.clip import *
 
 
@@ -121,7 +121,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        model_codec.update_cache(im_ind, self.clip_duration, self.sampling_rate, self.cache, startNewClip, self.shape)
+        compress_video_sequential(model_codec, im_ind, self.cache, startNewClip)
         self.prev_video = cur_video
         # check if the last frame of a clip
         if index == len(self)-1:
