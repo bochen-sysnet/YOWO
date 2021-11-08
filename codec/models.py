@@ -39,7 +39,7 @@ def get_codec_model(name):
     return model_codec
 
 def compress_video(model, frame_idx, cache, startNewClip):
-    if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2'']:
+    if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
