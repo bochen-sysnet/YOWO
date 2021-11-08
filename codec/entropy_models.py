@@ -316,7 +316,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'RPM'):
+def test(name = 'Joint'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels)
@@ -332,7 +332,10 @@ def test(name = 'RPM'):
     rpm_flag = True
     if name == 'RPM':
         net.set_RPM(False)
-        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
+        if isTrain:
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
+        else:
+            net.set_prior(x)
             
     train_iter = tqdm(range(0,10000))
     duration_e = duration_d = 0
