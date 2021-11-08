@@ -8,7 +8,7 @@ from torch import Tensor
 
 from compressai.entropy_models import EntropyModel,GaussianConditional,EntropyBottleneck
 from compressai.models import CompressionModel
-import sys, os, math
+import sys, os, math, time
 sys.path.append('..')
 import codec.arithmeticcoding as arithmeticcoding
         
@@ -89,6 +89,42 @@ class RecProbModel(CompressionModel):
         else:
             x_hat = self.entropy_bottleneck.decompress(string, shape)
         return x_hat
+        
+    # there should be a validattion for speed
+    # RPM will be executed twice on both encoder and decoder
+    def set_prior(self, x):
+        self.prior_latent = torch.round(x).detach()
+        
+    # we should only use one hidden from compression or decompression
+    def compress_slow(self, x, rpm_hidden):
+        # shouldnt be used together with forward()
+        # otherwise rpm_hidden will be messed up
+        t_0 = time.perf_counter()
+        if self.RPM_flag:
+            assert self.prior_latent is not None, 'prior latent is none!'
+            sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
+            sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
+            sigma = torch.exp(sigma)/10
+            indexes = self.gaussian_conditional.build_indexes(sigma)
+            string = self.gaussian_conditional.compress(x, indexes, means=mu)
+        else:
+            string = self.entropy_bottleneck.compress(x)
+        duration = time.perf_counter() - t_0
+        return string, rpm_hidden, duration
+        
+    def decompress_slow(self, string, shape):
+        t_0 = time.perf_counter()
+        if self.RPM_flag:
+            assert self.prior_latent is not None, 'prior latent is none!'
+            sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
+            sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
+            sigma = torch.exp(sigma)/10
+            indexes = self.gaussian_conditional.build_indexes(sigma)
+            x_hat = self.gaussian_conditional.decompress(string, indexes, means=mu)
+        else:
+            x_hat = self.entropy_bottleneck.decompress(string, shape)
+        duration = time.perf_counter() - t_0
+        return x_hat, rpm_hidden, duration
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
@@ -185,6 +221,50 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=self.mu)
         return x_hat
         
+    # we should only use one hidden from compression or decompression
+    def compress_slow(self, x, ctx_params):
+        # shouldnt be used together with forward()
+        t_0 = time.perf_counter()
+        z = self.h_a(x)
+        z_string = self.entropy_bottleneck.compress(z)
+        z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
+        params = z_hat
+        for i,m in enumerate(self.h_s):
+            if i in [0,2]:
+                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size([bs,c,h,w])
+                params = m(params,output_size=sz)
+            else:
+                params = m(params)
+        gaussian_params = self.entropy_parameters(
+            torch.cat((params, ctx_params), dim=1)
+        )
+        sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
+        sigma = torch.exp(self.sigma)/10
+        indexes = self.gaussian_conditional.build_indexes(sigma)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
+        duration = time.perf_counter() - t_0
+        return {"string": [y_string, z_string], "shape": z.size()[-2:]}, duration
+        
+    def decompress_slow(self, string, shape, ctx_params):
+        t_0 = time.perf_counter()
+        z_hat = self.entropy_bottleneck.decompress(string[1], shape)
+        params = z_hat
+        for i,m in enumerate(self.h_s):
+            if i in [0,2]:
+                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size([bs,c,h,w])
+                params = m(params,output_size=sz)
+            else:
+                params = m(params)
+        gaussian_params = self.entropy_parameters(
+            torch.cat((params, ctx_params), dim=1)
+        )
+        sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
+        sigma = torch.exp(self.sigma)/10
+        indexes = self.gaussian_conditional.build_indexes(sigma)
+        x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
+        duration = time.perf_counter() - t_0
+        return x_hat, duration
+        
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
@@ -248,25 +328,41 @@ def test(name = 'RPM'):
     parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     rpm_hidden = torch.zeros(1,channels*2,14,14)
+    isTrain = False
     rpm_flag = True
     if name == 'RPM':
         net.set_RPM(False)
-        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=False)
+        if isTrain:
+            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
+        else:
+            string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
+            x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
+            
     train_iter = tqdm(range(0,10000))
+    duration_e = duration_d = 0
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
 
-        net.update(force=True)
         if name == 'RPM':
             net.set_RPM(rpm_flag)
-            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
+            if isTrain:
+                net.update(force=True)  
+                x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
+                string = net.compress(x)
+            else:
+                string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
+                x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
         else:
-            x_hat, likelihoods = net(x,x,training=True)
+            if isTrain:
+                x_hat, likelihoods = net(x,x,training=True)
+                string = net.compress(x)
+            else:
+                tmp, duration_e = net.compress_slow(x, x)
+                string,shape = tmp['string'],tmp['shape']
+                x_hat, duration_d = net.decompress_slow(string, shape, x)
             
-        string = net.compress(x)
         bits_act = net.get_actual_bits(string)
-        x_hat2 = net.decompress(string, x.size()[-2:])
-        mse2 = torch.mean(torch.pow(x_hat-x_hat2,2))
+        mse2 = torch.mean(torch.pow(x_hat-torch.round(x),2))
         
         bits_est = net.get_estimate_bits(likelihoods)
         mse = torch.mean(torch.pow(x-x_hat,2))
@@ -282,7 +378,9 @@ def test(name = 'RPM'):
             f"bits_est: {float(bits_est):.2f}. "
             f"bits_act: {float(bits_act):.2f}. "
             f"MSE: {float(mse):.2f}. "
-            f"MSE2: {float(mse2):.4f}. ")
+            f"MSE2: {float(mse2):.4f}. "
+            f"ENC: {float(duration_e):.3f}. "
+            f"DEC: {float(duration_d):.3f}. ")
     
 if __name__ == '__main__':
     test()
