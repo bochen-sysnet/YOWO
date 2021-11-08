@@ -448,13 +448,42 @@ class DCVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
+class StandardVideoCodecs(nn.Module):
+    def __init__(self, name):
+        super(StandardVideoCodecs, self).__init__()
+        self.name = name # x264, x265?
+        self.placeholder = torch.nn.Parameter(torch.zeros(1))
+    
+    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
+        return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
+        
+def I_compression(Y1_raw, r, I_level, use_psnr):
+    # we can compress with bpg,deepcod ...
+    batch_size, _, Height, Width = Y1_raw.shape
+    prename = "tmp/frames/prebpg"
+    binname = "tmp/frames/bpg"
+    postname = "tmp/frames/postbpg"
+    raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
+    raw_img.save(prename + '.jpg')
+    pre_bits = os.path.getsize(prename + '.jpg')*8
+    os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q ' + str(I_level))
+    os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
+    post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
+    bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
+    bpg_img = Image.open(postname + '.jpg').convert('RGB')
+    Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+    psnr = PSNR(Y1_raw, Y1_com)
+    msssim = MSSSIM(Y1_raw, Y1_com)
+    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+    return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 1:
+    if epoch <= 10:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
     else:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,0,.1,0,1,0,0,0
@@ -523,35 +552,6 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
             ranges += [_range]
     max_seen, max_proc = i, right
     return ranges, max_seen, max_proc
-        
-class StandardVideoCodecs(nn.Module):
-    def __init__(self, name):
-        super(StandardVideoCodecs, self).__init__()
-        self.name = name # x264, x265?
-        self.placeholder = torch.nn.Parameter(torch.zeros(1))
-    
-    def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
-        
-def I_compression(Y1_raw, r, I_level, use_psnr):
-    # we can compress with bpg,deepcod ...
-    batch_size, _, Height, Width = Y1_raw.shape
-    prename = "tmp/frames/prebpg"
-    binname = "tmp/frames/bpg"
-    postname = "tmp/frames/postbpg"
-    raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
-    raw_img.save(prename + '.jpg')
-    pre_bits = os.path.getsize(prename + '.jpg')*8
-    os.system('bpgenc -f 444 -m 9 ' + prename + '.jpg -o ' + binname + '.bin -q ' + str(I_level))
-    os.system('bpgdec ' + binname + '.bin -o ' + postname + '.jpg')
-    post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
-    bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
-    bpg_img = Image.open(postname + '.jpg').convert('RGB')
-    Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
-    psnr = PSNR(Y1_raw, Y1_com)
-    msssim = MSSSIM(Y1_raw, Y1_com)
-    bpp_est = loss = aux_loss = flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-    return Y1_com, bpp_est, loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
 def PSNR(Y1_raw, Y1_com):
     log10 = torch.log(torch.FloatTensor([10])).squeeze(0).cuda()
