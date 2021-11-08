@@ -343,8 +343,8 @@ class DCVC(nn.Module):
                                         ])
         if name == 'DCVC_v2':
             self.MC_network = MCNet()
-        self.feature_extract = nn.Sequential(ResidualBlock(channels,channels),
-                                        nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1)
+        self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
+                                        ResidualBlock(channels,channels)
                                         )
         self.ctx_refine = nn.Sequential(ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
