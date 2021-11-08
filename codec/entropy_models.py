@@ -19,6 +19,7 @@ SCALES_LEVELS = 64
 def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
     return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
     
+# each module should include encoding/decoding time
 class RecProbModel(CompressionModel):
 
     def __init__(

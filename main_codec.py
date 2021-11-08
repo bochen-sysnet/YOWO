@@ -183,7 +183,7 @@ else:
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, best_codec_score)
-        if epoch >= 3:
+        if epoch >= 2:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
             
