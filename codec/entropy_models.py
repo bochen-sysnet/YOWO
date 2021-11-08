@@ -107,6 +107,7 @@ class RecProbModel(CompressionModel):
             sigma = torch.exp(sigma)/10
             indexes = self.gaussian_conditional.build_indexes(sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=mu)
+            self.sigma,self.mu = sigma,mu
         else:
             string = self.entropy_bottleneck.compress(x)
         duration = time.perf_counter() - t_0
@@ -119,6 +120,7 @@ class RecProbModel(CompressionModel):
             sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden)
             sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
             sigma = torch.exp(sigma)/10
+            sigma,mu = self.sigma,self.mu
             indexes = self.gaussian_conditional.build_indexes(sigma)
             x_hat = self.gaussian_conditional.decompress(string, indexes, means=mu)
         else:
