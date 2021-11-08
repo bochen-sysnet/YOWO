@@ -112,7 +112,7 @@ class RecProbModel(CompressionModel):
         duration = time.perf_counter() - t_0
         return string, rpm_hidden, duration
         
-    def decompress_slow(self, string, shape):
+    def decompress_slow(self, string, shape, rpm_hidden):
         t_0 = time.perf_counter()
         if self.RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
@@ -351,7 +351,7 @@ def test(name = 'RPM'):
                 string = net.compress(x)
             else:
                 string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
-                x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
+                x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:], rpm_hidden)
                 net.set_prior(x)
         else:
             if isTrain:
