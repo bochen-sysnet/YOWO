@@ -340,7 +340,7 @@ def test(name = 'Joint'):
             net.set_prior(x)
             
     train_iter = tqdm(range(0,10000))
-    duration_e = duration_d = 0
+    duration_e = duration_d = bits_est = 0
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
@@ -369,24 +369,31 @@ def test(name = 'Joint'):
         bits_act = net.get_actual_bits(string)
         mse2 = torch.mean(torch.pow(x_hat-torch.round(x),2))
         
-        bits_est = net.get_estimate_bits(likelihoods)
-        mse = torch.mean(torch.pow(x-x_hat,2))
-        loss = bits_est + net.loss()
-        
         if isTrain:
-            bits_est.backward()
+            bits_est = net.get_estimate_bits(likelihoods)
+            mse = torch.mean(torch.pow(x-x_hat,2))
+            loss = bits_est + net.loss()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(),1)
             optimizer.step()
         
-        train_iter.set_description(
-            f"Batch: {i:4}. "
-            f"loss: {float(loss):.2f}. "
-            f"bits_est: {float(bits_est):.2f}. "
-            f"bits_act: {float(bits_act):.2f}. "
-            f"MSE: {float(mse):.2f}. "
-            f"MSE2: {float(mse2):.4f}. "
-            f"ENC: {float(duration_e):.3f}. "
-            f"DEC: {float(duration_d):.3f}. ")
+            train_iter.set_description(
+                f"Batch: {i:4}. "
+                f"loss: {float(loss):.2f}. "
+                f"bits_est: {float(bits_est):.2f}. "
+                f"bits_act: {float(bits_act):.2f}. "
+                f"MSE: {float(mse):.2f}. "
+                f"MSE2: {float(mse2):.4f}. "
+                f"ENC: {float(duration_e):.3f}. "
+                f"DEC: {float(duration_d):.3f}. ")
+        else:
+            train_iter.set_description(
+                f"Batch: {i:4}. "
+                f"bits_act: {float(bits_act):.2f}. "
+                f"MSE: {float(mse):.2f}. "
+                f"MSE2: {float(mse2):.4f}. "
+                f"ENC: {float(duration_e):.3f}. "
+                f"DEC: {float(duration_d):.3f}. ")
     
 if __name__ == '__main__':
     test()
