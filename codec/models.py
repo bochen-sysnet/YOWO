@@ -514,16 +514,12 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
         left = i
         right = min((i//GOP+1)*GOP+fP,clip_len-1)
         possible_I = (i//GOP+1)*GOP
-        if progressive:
-            # first backward
-            _range = [j for j in range(mid,left-1,-1)]
-            ranges += [_range]
-            # then forward
-            if right >= mid+1:
-                _range = [j for j in range(mid+1,right+1)]
-                ranges += [_range]
-        else:
-            _range = [j for j in range(left,right+1)]
+        # first backward
+        _range = [j for j in range(mid,left-1,-1)]
+        ranges += [_range]
+        # then forward
+        if right >= mid+1:
+            _range = [j for j in range(mid+1,right+1)]
             ranges += [_range]
     max_seen, max_proc = i, right
     return ranges, max_seen, max_proc
