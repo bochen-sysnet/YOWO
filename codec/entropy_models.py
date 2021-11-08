@@ -342,11 +342,15 @@ def test(name = 'RPM'):
     duration_e = duration_d = 0
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
+        
+        if isTrain:
+            net.update(force=True)  
+        else:
+            if i==0:net.update(force=True)
 
         if name == 'RPM':
             net.set_RPM(rpm_flag)
             if isTrain:
-                net.update(force=True)  
                 x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
                 string = net.compress(x)
             else:
