@@ -244,7 +244,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
         duration = time.perf_counter() - t_0
-        return (y_string, z_string), x.size(), duration
+        return (x_string, z_string), x.size(), duration
         
     def decompress_slow(self, string, shape, ctx_params):
         t_0 = time.perf_counter()
