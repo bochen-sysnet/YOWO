@@ -332,11 +332,7 @@ def test(name = 'RPM'):
     rpm_flag = True
     if name == 'RPM':
         net.set_RPM(False)
-        if isTrain:
-            x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
-        else:
-            string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
-            x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
+        x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
             
     train_iter = tqdm(range(0,10000))
     duration_e = duration_d = 0
@@ -356,6 +352,7 @@ def test(name = 'RPM'):
             else:
                 string, rpm_hidden, duration_e = net.compress_slow(x,rpm_hidden)
                 x_hat, _, duration_d = net.decompress_slow(string, x.size()[-2:])
+                net.set_prior(x):
         else:
             if isTrain:
                 x_hat, likelihoods = net(x,x,training=True)
