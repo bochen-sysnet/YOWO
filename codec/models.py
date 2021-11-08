@@ -540,6 +540,7 @@ def load_state_dict_whatever(model, state_dict):
         if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length"):
              continue
         if name in own_state:
+            print(name,own_state[name].size(),param.size())
             own_state[name].copy_(param)
             
 def load_state_dict_all(model, state_dict):
