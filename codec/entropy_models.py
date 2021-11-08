@@ -344,10 +344,7 @@ def test(name = 'Joint'):
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        if isTrain:
-            net.update(force=True)  
-        else:
-            if i==0:net.update(force=True)
+        net.update(force=True)
 
         if name == 'RPM':
             net.set_RPM(rpm_flag)
