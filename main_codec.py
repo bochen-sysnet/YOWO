@@ -93,7 +93,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if cfg.TRAIN.CODEC_NAME not in ['MLVC', 'RLVC', 'DVC', 'SCVC', 'DCVC']:
+    if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.CODEC_NAME in ['DCVC_v2']:
