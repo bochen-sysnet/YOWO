@@ -32,6 +32,168 @@ def compress_video(model, frame_idx, cache, startNewClip):
     elif model.name in ['SPVC','SCVC']:
         compress_video_batch(model, frame_idx, cache, startNewClip)
         
+def compress_video_sequential(model, frame_idx, cache, startNewClip):
+    # process the involving GOP
+    # if process in order, some frames need later frames to compress
+    if startNewClip:
+        # create cache
+        cache['bpp_est'] = {}
+        cache['img_loss'] = {}
+        cache['flow_loss'] = {}
+        cache['aux'] = {}
+        cache['bpp_act'] = {}
+        cache['psnr'] = {}
+        cache['msssim'] = {}
+        cache['hidden'] = None
+        cache['max_proc'] = -1
+        # the first frame to be compressed in a video
+    assert frame_idx>=1, 'Frame index less than 1'
+    if cache['max_proc'] >= frame_idx-1:
+        cache['max_seen'] = frame_idx-1
+        return
+    ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']))
+    for _range in ranges:
+        prev_j = -1
+        for loc,j in enumerate(_range):
+            progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
+            prev_j = j
+        
+def compress_video_group(model, frame_idx, cache, startNewClip):
+    if startNewClip:
+        imgByteArr = io.BytesIO()
+        width,height = shape
+        fps = 25
+        Q = 27#15,19,23,27
+        GOP = 13
+        output_filename = 'tmp/videostreams/output.mp4'
+        if model.name == 'x265':
+            cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx265 -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
+        elif model.name == 'x264':
+            cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx264 -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b_strategy 0 -sc_threshold 0 -loglevel debug {output_filename}'
+        else:
+            print('Codec not supported')
+            exit(1)
+        # bgr24, rgb24, rgb?
+        #process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
+        process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
+        raw_clip = cache['clip']
+        for img in raw_clip:
+            process.stdin.write(np.array(img).tobytes())
+        # Close and flush stdin
+        process.stdin.close()
+        # Wait for sub-process to finish
+        process.wait()
+        # Terminate the sub-process
+        process.terminate()
+        # check video size
+        video_size = os.path.getsize(output_filename)*8
+        # Use OpenCV to read video
+        clip = []
+        cap = cv2.VideoCapture(output_filename)
+        # Check if camera opened successfully
+        if (cap.isOpened()== False):
+            print("Error opening video stream or file")
+        # Read until video is completed
+        while(cap.isOpened()):
+            # Capture frame-by-frame
+            ret, img = cap.read()
+            if ret != True:break
+            clip.append(transforms.ToTensor()(img).cuda())
+        # When everything done, release the video capture object
+        cap.release()
+        assert len(clip) == len(raw_clip), 'Clip size mismatch'
+        # create cache
+        cache['bpp_est'] = {}
+        cache['img_loss'] = {}
+        cache['bpp_act'] = {}
+        cache['psnr'] = {}
+        cache['msssim'] = {}
+        cache['flow_loss'] = {}
+        cache['aux'] = {}
+        bpp = video_size*1.0/len(clip)/(height*width)
+        for i in range(frame_idx-1,len(clip)):
+            Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda()
+            Y1_com = clip[i]
+            cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
+            cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
+            cache['psnr'][i] = PSNR(Y1_raw, Y1_com)
+            cache['msssim'][i] = MSSSIM(Y1_raw, Y1_com)
+            cache['bpp_act'][i] = torch.FloatTensor([bpp])
+            cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
+            cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
+        cache['clip'] = clip
+    cache['max_seen'] = frame_idx-1
+        
+def compress_video_batch(model, frame_idx, cache, startNewClip):
+    # process the involving GOP
+    # how to deal with backward P frames?
+    # if process in order, some frames need later frames to compress
+    if startNewClip:
+        # create cache
+        cache['bpp_est'] = {}
+        cache['img_loss'] = {}
+        cache['flow_loss'] = {}
+        cache['aux'] = {}
+        cache['bpp_act'] = {}
+        cache['msssim'] = {}
+        cache['psnr'] = {}
+        cache['hidden'] = None
+        cache['max_proc'] = -1
+    if cache['max_proc'] >= frame_idx-1:
+        cache['max_seen'] = frame_idx-1
+        return
+        
+    cache['max_seen'], cache['max_proc'] = frame_idx-1, len(cache['clip'])-1 
+    parallel_compression(self, range(frame_idx-1,len(cache['clip'])), cache)
+      
+def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
+    # frame shape
+    _,h,w = cache['clip'][0].shape
+    # frames to be processed
+    Y0_com = cache['clip'][prev].unsqueeze(0) if prev>=0 else None
+    Y1_raw = cache['clip'][i].unsqueeze(0)
+    # hidden variables
+    if P_flag:
+        hidden = model.init_hidden(h,w)
+    else:
+        hidden = cache['hidden']
+    Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
+    cache['hidden'] = hidden
+    cache['clip'][i] = Y1_com.detach().squeeze(0)
+    cache['img_loss'][i] = img_loss
+    cache['flow_loss'][i] = flow_loss
+    cache['aux'][i] = aux_loss
+    cache['bpp_est'][i] = bpp_est
+    cache['psnr'][i] = psnr
+    cache['msssim'][i] = msssim
+    cache['bpp_act'][i] = bpp_act.cpu()
+    #print(i,float(bpp_est),float(bpp_act),float(psnr))
+    # we can record PSNR wrt the distance to I-frame to show error propagation)
+        
+def parallel_compression(model, _range, cache):
+    # we can summarize the result for each index to study error propagation
+    # settings
+    bs = 4
+    # mid...left
+    img_list = []; idx_list = []
+    for i in _range:
+        img_list.append(cache['clip'][i])
+        idx_list.append(i)
+        if len(idx_list) == bs or i == left:
+            x = torch.stack(img_list, dim=0)
+            n = len(idx_list)
+            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, None)
+            for pos,j in enumerate(idx_list):
+                cache['clip'][j] = x_hat[pos].detach().squeeze(0)
+                cache['img_loss'][j] = img_loss/n
+                cache['flow_loss'][j] = flow_loss/n #  0
+                cache['aux'][j] = aux_loss/n
+                cache['bpp_est'][j] = bpp_est/n
+                cache['psnr'][j] = psnr[pos]
+                cache['msssim'][j] = msssim[pos]
+                cache['bpp_act'][j] = bpp_act.cpu()/n
+            img_list = []; idx_list = []
+    
 # DVC,RLVC,MLVC
 # Need to measure time and implement decompression for demo
 # cache should store start/end-of-GOP information for the action detector to stop; test will be based on it
@@ -286,32 +448,6 @@ class DCVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
-def compress_video_sequential(model, frame_idx, cache, startNewClip):
-    # process the involving GOP
-    # if process in order, some frames need later frames to compress
-    if startNewClip:
-        # create cache
-        cache['bpp_est'] = {}
-        cache['img_loss'] = {}
-        cache['flow_loss'] = {}
-        cache['aux'] = {}
-        cache['bpp_act'] = {}
-        cache['psnr'] = {}
-        cache['msssim'] = {}
-        cache['hidden'] = None
-        cache['max_proc'] = -1
-        # the first frame to be compressed in a video
-    assert frame_idx>=1, 'Frame index less than 1'
-    if cache['max_proc'] >= frame_idx-1:
-        cache['max_seen'] = frame_idx-1
-        return
-    ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=True)
-    for _range in ranges:
-        prev_j = -1
-        for loc,j in enumerate(_range):
-            progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
-            prev_j = j
-        
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
@@ -344,32 +480,8 @@ def load_state_dict_all(model, state_dict):
         if name.endswith("._offset") or name.endswith("._quantized_cdf") or name.endswith("._cdf_length") or name.endswith(".scale_table"):
              continue
         own_state[name].copy_(param)
-      
-def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
-    # frame shape
-    _,h,w = cache['clip'][0].shape
-    # frames to be processed
-    Y0_com = cache['clip'][prev].unsqueeze(0) if prev>=0 else None
-    Y1_raw = cache['clip'][i].unsqueeze(0)
-    # hidden variables
-    if P_flag:
-        hidden = model.init_hidden(h,w)
-    else:
-        hidden = cache['hidden']
-    Y1_com,hidden,bpp_est,img_loss,aux_loss,flow_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
-    cache['hidden'] = hidden
-    cache['clip'][i] = Y1_com.detach().squeeze(0)
-    cache['img_loss'][i] = img_loss
-    cache['flow_loss'][i] = flow_loss
-    cache['aux'][i] = aux_loss
-    cache['bpp_est'][i] = bpp_est
-    cache['psnr'][i] = psnr
-    cache['msssim'][i] = msssim
-    cache['bpp_act'][i] = bpp_act.cpu()
-    #print(i,float(bpp_est),float(bpp_act),float(psnr))
-    # we can record PSNR wrt the distance to I-frame to show error propagation)
             
-def index2GOP(i, clip_len, progressive = True, fP = 6, bP = 6):
+def index2GOP(i, clip_len, fP = 6, bP = 6):
     # input: 
     # - idx: the frame index of interest
     # output: 
@@ -424,72 +536,6 @@ class StandardVideoCodecs(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return app_loss + pix_loss + bpp_loss + aux_loss + flow_loss
-            
-def compress_video_group(model, frame_idx, cache, startNewClip):
-    if startNewClip:
-        imgByteArr = io.BytesIO()
-        width,height = shape
-        fps = 25
-        Q = 27#15,19,23,27
-        GOP = 13
-        output_filename = 'tmp/videostreams/output.mp4'
-        if model.name == 'x265':
-            cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx265 -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
-        elif model.name == 'x264':
-            cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx264 -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b_strategy 0 -sc_threshold 0 -loglevel debug {output_filename}'
-        else:
-            print('Codec not supported')
-            exit(1)
-        # bgr24, rgb24, rgb?
-        #process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
-        process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
-        raw_clip = cache['clip']
-        for img in raw_clip:
-            process.stdin.write(np.array(img).tobytes())
-        # Close and flush stdin
-        process.stdin.close()
-        # Wait for sub-process to finish
-        process.wait()
-        # Terminate the sub-process
-        process.terminate()
-        # check video size
-        video_size = os.path.getsize(output_filename)*8
-        # Use OpenCV to read video
-        clip = []
-        cap = cv2.VideoCapture(output_filename)
-        # Check if camera opened successfully
-        if (cap.isOpened()== False):
-            print("Error opening video stream or file")
-        # Read until video is completed
-        while(cap.isOpened()):
-            # Capture frame-by-frame
-            ret, img = cap.read()
-            if ret != True:break
-            clip.append(transforms.ToTensor()(img).cuda())
-        # When everything done, release the video capture object
-        cap.release()
-        assert len(clip) == len(raw_clip), 'Clip size mismatch'
-        # create cache
-        cache['bpp_est'] = {}
-        cache['img_loss'] = {}
-        cache['bpp_act'] = {}
-        cache['psnr'] = {}
-        cache['msssim'] = {}
-        cache['flow_loss'] = {}
-        cache['aux'] = {}
-        bpp = video_size*1.0/len(clip)/(height*width)
-        for i in range(frame_idx-1,len(clip)):
-            Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda()
-            Y1_com = clip[i]
-            cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
-            cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
-            cache['psnr'][i] = PSNR(Y1_raw, Y1_com)
-            cache['msssim'][i] = MSSSIM(Y1_raw, Y1_com)
-            cache['bpp_act'][i] = torch.FloatTensor([bpp])
-            cache['flow_loss'][i] = torch.FloatTensor([0]).cuda(0)
-            cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
-        cache['clip'] = clip
-    cache['max_seen'] = frame_idx-1
         
 def I_compression(Y1_raw, r, I_level, use_psnr):
     # we can compress with bpg,deepcod ...
@@ -1121,52 +1167,6 @@ class SCVC(nn.Module):
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
-        
-def compress_video_batch(model, frame_idx, cache, startNewClip):
-    # process the involving GOP
-    # how to deal with backward P frames?
-    # if process in order, some frames need later frames to compress
-    if startNewClip:
-        # create cache
-        cache['bpp_est'] = {}
-        cache['img_loss'] = {}
-        cache['flow_loss'] = {}
-        cache['aux'] = {}
-        cache['bpp_act'] = {}
-        cache['msssim'] = {}
-        cache['psnr'] = {}
-        cache['hidden'] = None
-        cache['max_proc'] = -1
-    if cache['max_proc'] >= frame_idx-1:
-        cache['max_seen'] = frame_idx-1
-        return
-    ranges, cache['max_seen'], model['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']), progressive=False)
-    for _range in ranges:
-        parallel_compression(self, _range, cache)
-        
-def parallel_compression(model, _range, cache):
-    # we can summarize the result for each index to study error propagation
-    # settings
-    bs = 4
-    # mid...left
-    img_list = []; idx_list = []
-    for i in _range:
-        img_list.append(cache['clip'][i])
-        idx_list.append(i)
-        if len(idx_list) == bs or i == left:
-            x = torch.stack(img_list, dim=0)
-            n = len(idx_list)
-            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = self(x, None)
-            for pos,j in enumerate(idx_list):
-                cache['clip'][j] = x_hat[pos].detach().squeeze(0)
-                cache['img_loss'][j] = img_loss/n
-                cache['flow_loss'][j] = flow_loss/n #  0
-                cache['aux'][j] = aux_loss/n
-                cache['bpp_est'][j] = bpp_est/n
-                cache['psnr'][j] = psnr[pos]
-                cache['msssim'][j] = msssim[pos]
-                cache['bpp_act'][j] = bpp_act.cpu()/n
-            img_list = []; idx_list = []
         
 def test_SLVC(name = 'SCVC'):
     batch_size = 4
