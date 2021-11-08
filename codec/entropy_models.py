@@ -227,7 +227,6 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         t_0 = time.perf_counter()
         bs,c,h,w = x.size()
         z = self.h_a(x)
-        print(x.size(),z.size())
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
         params = z_hat
@@ -250,7 +249,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
     def decompress_slow(self, string, shape, ctx_params):
         t_0 = time.perf_counter()
         bs,c,h,w = shape
-        z_hat = self.entropy_bottleneck.decompress(string[1], [h//4,w//4])
+        z_hat = self.entropy_bottleneck.decompress(string[1], [4,4])
         params = z_hat
         for i,m in enumerate(self.h_s):
             if i in [0,2]:
