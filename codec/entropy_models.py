@@ -240,7 +240,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             torch.cat((params, ctx_params), dim=1)
         )
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
-        sigma = torch.exp(self.sigma)/10
+        sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
         duration = time.perf_counter() - t_0
@@ -261,7 +261,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             torch.cat((params, ctx_params), dim=1)
         )
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
-        sigma = torch.exp(self.sigma)/10
+        sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
         duration = time.perf_counter() - t_0
