@@ -371,8 +371,8 @@ class DCVC(nn.Module):
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
         if self.name == 'DCVC_v2':
-            self.MC_network.cuda(0)
-        self.feature_extract.cuda(0)
+            self.MC_network.cuda(1)
+        self.feature_extract.cuda(1)
         self.ctx_refine.cuda(1)
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
@@ -397,27 +397,27 @@ class DCVC(nn.Module):
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         
         # warping
-        loc = get_grid_locations(bs, h, w).type(x.type())
+        loc = get_grid_locations(bs, h, w).cuda(1)
         if self.name == 'DCVC':
             # feature extraction
-            x_feat = self.feature_extract(x_hat_prev)
+            x_feat = self.feature_extract(x_hat_prev.cuda(1))
             
             # motion compensation
-            x_feat_warp = F.grid_sample(x_feat, loc + mv_hat.permute(0,2,3,1), align_corners=True) # the difference
-            x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+            x_feat_warp = F.grid_sample(x_feat, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
+            x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True)
             warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
         else:
             # motion compensation
-            x_warp = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1), align_corners=True) # the difference
+            x_warp = F.grid_sample(x_hat_prev.cuda(1), loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
             warp_loss = calc_loss(x, x_warp.to(x.device), self.r, use_psnr)
-            x_mc = self.MC_network(torch.cat((mv_hat, x_hat_prev, x_warp), axis=1))
+            x_mc = self.MC_network(torch.cat((mv_hat.cuda(1), x_hat_prev.cuda(1), x_warp), axis=1).cuda(1))
             mc_loss = calc_loss(x, x_mc.to(x.device), self.r, use_psnr)
             
             # feature extraction
             x_feat_warp = self.feature_extract(x_mc)
         
         # context refinement
-        context = self.ctx_refine(x_feat_warp.cuda(1))
+        context = self.ctx_refine(x_feat_warp)
         
         # temporal prior
         prior = self.tmp_prior_encoder(context)
