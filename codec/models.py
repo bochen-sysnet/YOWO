@@ -1246,6 +1246,7 @@ class SCVC(nn.Module):
         bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
+        print(bs,h,w,float(bpp_est),float(bpp_act))
         # auxilary loss
         aux_loss = (ref_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
