@@ -1076,7 +1076,7 @@ class SPVC(nn.Module):
         self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
-        self.mv_codec.cuda(1)
+        self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
@@ -1099,13 +1099,13 @@ class SPVC(nn.Module):
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames, bs, h, w)
         
         # compress optical flow
-        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), None, None, False)
+        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
         
         # motion compensation
-        loc = get_grid_locations(bs, h, w).cuda(1)
-        warped_frames = F.grid_sample(ref_frame_hat_rep.cuda(1), loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(raw_frames, warped_frames.to(raw_frames.device), self.r, use_psnr)
-        MC_input = torch.cat((mv_hat.cuda(1), ref_frame_hat_rep.cuda(1), warped_frames), axis=1)
+        loc = get_grid_locations(bs, h, w).cuda(0)
+        warped_frames = F.grid_sample(ref_frame_hat_rep, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
+        MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
