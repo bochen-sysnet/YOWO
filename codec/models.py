@@ -1077,7 +1077,7 @@ class SPVC(nn.Module):
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
-        self.MC_network.cuda(1)
+        self.MC_network.cuda(0)
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, hidden_states, use_psnr=True):
