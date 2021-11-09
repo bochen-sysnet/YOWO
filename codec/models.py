@@ -207,7 +207,7 @@ def parallel_compression(model, _range, cache):
                 cache['bpp_est'][j] = bpp_est
                 cache['psnr'][j] = psnr[pos]
                 cache['msssim'][j] = msssim[pos]
-                cache['bpp_act'][j] = bpp_act.cpu()/n
+                cache['bpp_act'][j] = bpp_act.cpu()
             img_list = []; idx_list = []
     
 # DVC,RLVC,MLVC
@@ -1118,7 +1118,6 @@ class SPVC(nn.Module):
         bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        print(float(bpp_est),float(bpp_act))
         # auxilary loss
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
