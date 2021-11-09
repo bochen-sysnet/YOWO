@@ -164,6 +164,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             bpp_act_list.append(ba)
             psnr_list.append(p)
             msssim_list.append(m)
+            print(batch_idx,train_dataset.last_frame)
             if train_dataset.last_frame or j == batch_size-1:
                 # if is the end of a video
                 data = torch.stack(data, dim=0).cuda()
