@@ -117,6 +117,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # read whole video
         print(cur_video,im_ind,startNewClip)
         if startNewClip:
+            self.cache = {}
             self.cache['clip'] = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
