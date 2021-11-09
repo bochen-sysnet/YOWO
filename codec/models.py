@@ -201,7 +201,7 @@ def parallel_compression(model, _range, cache):
             n = len(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
             for pos,j in enumerate(idx_list):
-                cache['clip'][j] = x_hat[pos].detach().squeeze(0)
+                cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss/n
                 cache['flow_loss'][j] = flow_loss/n #  0
                 cache['aux'][j] = aux_loss/n
