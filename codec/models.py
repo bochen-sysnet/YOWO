@@ -1056,7 +1056,7 @@ class KFNet(nn.Module):
     
 # predictive coding     
 class SPVC(nn.Module):
-    def __init__(self, name, channels=64):
+    def __init__(self, name, channels=32):
         super(SPVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
@@ -1135,7 +1135,7 @@ class SPVC(nn.Module):
                 
 # conditional coding
 class SCVC(nn.Module):
-    def __init__(self, name, channels=32, channels2=24):
+    def __init__(self, name, channels=64, channels2=96):
         super(SCVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
