@@ -1077,7 +1077,7 @@ class SPVC(nn.Module):
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
-        self.MC_network.cuda(0)
+        self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, hidden_states, use_psnr=True):
@@ -1106,15 +1106,15 @@ class SPVC(nn.Module):
         warped_frames = F.grid_sample(ref_frame_hat_rep, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
         MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
-        MC_frames = self.MC_network(MC_input)
+        MC_frames = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
         # compress residual
-        res_tensors = raw_frames - MC_frames
-        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors.cuda(1), None, None, False)
+        res_tensors = raw_frames.cuda(1) - MC_frames
+        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
         
         # reconstruction
-        com_frames = torch.clip(res_hat + MC_frames.to(res_hat.device), min=0, max=1)
+        com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
         ##### compute bits
         # estimated bits
         bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
