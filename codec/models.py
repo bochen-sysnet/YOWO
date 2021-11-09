@@ -29,6 +29,8 @@ def get_codec_model(name):
         model_codec = LearnedVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
+    elif name in ['SPVC']:
+        model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
     elif name in ['x264','x265']:
