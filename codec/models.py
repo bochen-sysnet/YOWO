@@ -199,6 +199,7 @@ def parallel_compression(model, _range, cache):
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
+            print(n,bpp_act)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss/n
@@ -1247,8 +1248,8 @@ class SCVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
-        psnr = PSNR(x, x_hat.cuda(0))
-        msssim = MSSSIM(x, x_hat.cuda(0))
+        psnr = PSNR(x, x_hat.cuda(0), use_list=True)
+        msssim = MSSSIM(x, x_hat.cuda(0), use_list=True)
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
         # flow loss
