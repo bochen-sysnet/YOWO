@@ -204,7 +204,7 @@ def parallel_compression(model, _range, cache):
                 cache['img_loss'][j] = img_loss/n
                 cache['flow_loss'][j] = flow_loss/n #  0
                 cache['aux'][j] = aux_loss/n
-                cache['bpp_est'][j] = bpp_est/n
+                cache['bpp_est'][j] = bpp_est
                 cache['psnr'][j] = psnr[pos]
                 cache['msssim'][j] = msssim[pos]
                 cache['bpp_act'][j] = bpp_act.cpu()/n
@@ -1246,7 +1246,7 @@ class SCVC(nn.Module):
         bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
-        print(bs,h,w,float(bpp_est),float(bpp_act))
+        #print(bs,h,w,float(bpp_est),float(bpp_act))
         # auxilary loss
         aux_loss = (ref_aux + y_aux.cuda(0))/2
         # calculate metrics/loss
