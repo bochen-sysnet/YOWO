@@ -161,9 +161,9 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['max_seen'] = frame_idx-1
         return
         
-    cache['max_seen'], cache['max_proc'] = frame_idx-1, len(cache['clip'])-1 
-    print(len(cache['clip']))
-    parallel_compression(model, range(frame_idx-1,len(cache['clip'])), cache)
+    end_idx = min(len(cache['clip'])-1, frame_idx+2)
+    cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
+    parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -191,17 +191,13 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
         
 def parallel_compression(model, _range, cache):
     # we can summarize the result for each index to study error propagation
-    # settings
-    bs = 2
-    # mid...left
     img_list = []; idx_list = []
     for i in _range:
         img_list.append(cache['clip'][i])
         idx_list.append(i)
-        if len(idx_list) == bs or i == _range[-1]:
+        if i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
-            print(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].detach().squeeze(0)
@@ -1058,7 +1054,7 @@ class KFNet(nn.Module):
     
 # predictive coding     
 class SPVC(nn.Module):
-    def __init__(self, name, channels=32):
+    def __init__(self, name, channels=64):
         super(SPVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
