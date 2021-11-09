@@ -313,6 +313,7 @@ class LearnedVideoCodecs(nn.Module):
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
             
 # DCVC?
+# adding MC network doesnt help much
 class DCVC(nn.Module):
     def __init__(self, name, channels=64, channels2=96):
         super(DCVC, self).__init__()
