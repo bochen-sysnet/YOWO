@@ -46,6 +46,8 @@ def compress_video(model, frame_idx, cache, startNewClip):
     elif model.name in ['SPVC','SCVC']:
         compress_video_batch(model, frame_idx, cache, startNewClip)
         
+# depending on training or testing
+# the compression time should be recorded accordinglly
 def compress_video_sequential(model, frame_idx, cache, startNewClip):
     # process the involving GOP
     # if process in order, some frames need later frames to compress
@@ -761,9 +763,20 @@ class ComprNet(nn.Module):
             
         # might need residual struct to avoid PE vanishing?
         
-    def forward(self, x, hidden, rpm_hidden, RPM_flag):
+    def forward(self, x, hidden, rpm_hidden, RPM_flag, fast=True):
+        # whether to measure time
+        noMeasure = (self.training or fast)
+        if not noMeasure:
+            duration_enc = duration_dec = 0
+        
+        # latent states
         if self.encoder_type == 'rec':
             state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
+            
+        # Time measurement: start
+        if not noMeasure:
+            t_0 = time.perf_counter()
+            
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
@@ -775,21 +788,53 @@ class ComprNet(nn.Module):
         # update CDF
         self.entropy_bottleneck.update(force=True)
         
+        # Time measurement: end
+        if not noMeasure:
+            duration = time.perf_counter() - t_0
+            duration_enc += duration
+        
         # quantization + entropy coding
         if self.entropy_type == 'non-rec':
-            latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+            if noMeasure:
+                latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+                latent_string = self.entropy_bottleneck.compress(latent)
+            else:
+                # encoding
+                t_0 = time.perf_counter()
+                latent_string = self.entropy_bottleneck.compress(latent)
+                duration_e = time.perf_counter() - t_0
+                # decoding
+                t_0 = time.perf_counter()
+                latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
+                duration_d = time.perf_counter() - t_0
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
-            latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
+            if noMeasure:
+                latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
+                latent_string = self.entropy_bottleneck.compress(latent)
+            else:
+                latent_string, _, duration_e = net.compress_slow(latent,rpm_hidden)
+                latent_hat, rpm_hidden, duration_d = net.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
             self.entropy_bottleneck.set_prior(latent)
+            
+        # add in the time in entropy bottleneck
+        if not noMeasure:
+            duration_enc += duration_e
+            duration_dec += duration_d
         
-        # calculate bpp (estimated)
-        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        # calculate bpp (estimated) if it is training else it will be set to 0
+        if noMeasure:
+            bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        else:
+            bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
         
         # calculate bpp (actual)
-        latent_string = self.entropy_bottleneck.compress(latent)
         bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
 
+        # Time measurement: start
+        if not noMeasure:
+            t_0 = time.perf_counter()
+            
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
@@ -798,13 +843,21 @@ class ComprNet(nn.Module):
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
         
+        # Time measurement: end
+        if not noMeasure:
+            duration = time.perf_counter() - t_0
+            duration_dec += duration
+        
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         if self.encoder_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
+        if noMeasure:
+            return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
+        else:
+            return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss, duration_enc, duration_dec
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -1237,7 +1290,6 @@ def test_SLVC(name = 'SCVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
-# test bits act/act; measure codec time
 def test_LVC(name='RLVC'):
     batch_size = 1
     h = w = 224
@@ -1275,6 +1327,11 @@ def test_LVC(name='RLVC'):
             
 # integrate all codec models
 # measure the speed of all codecs
+# two types of test
+# 1. (de)compress random images, faster
+# 2. (de)compress whole datasets, record time during testing 
+def test_speed(name='RLVC'):
+    net = get_codec_model(name)
         
 if __name__ == '__main__':
     #import sys
