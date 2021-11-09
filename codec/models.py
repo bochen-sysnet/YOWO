@@ -162,6 +162,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         return
         
     cache['max_seen'], cache['max_proc'] = frame_idx-1, len(cache['clip'])-1 
+    print(len(cache['clip']))
     parallel_compression(model, range(frame_idx-1,len(cache['clip'])), cache)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
