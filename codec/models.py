@@ -210,6 +210,7 @@ def parallel_compression(model, _range, cache):
                 cache['msssim'][j] = msssim[pos]
                 cache['bpp_act'][j] = bpp_act.cpu()/n
             img_list = []; idx_list = []
+    print('keys:',cache['img_loss'].keys())
     
 # DVC,RLVC,MLVC
 # Need to measure time and implement decompression for demo
