@@ -1081,6 +1081,7 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, hidden_states, use_psnr=True):
+        print('test')
         bs, c, h, w = raw_frames.size()
         
         # derive ref frame
