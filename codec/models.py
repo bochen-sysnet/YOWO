@@ -199,6 +199,7 @@ def parallel_compression(model, _range, cache):
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
+            print(idx_list)
             print(psnr)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
