@@ -169,7 +169,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 data = torch.stack(data, dim=0).cuda()
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
-                print('backward for',frame_idx)
                 with autocast():
                     reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
