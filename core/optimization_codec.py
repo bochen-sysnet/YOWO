@@ -196,6 +196,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
                         scalers[i].scale(loss).backward()
+                        print('->')
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
