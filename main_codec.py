@@ -67,7 +67,7 @@ if cfg.TRAIN.CODEC_NAME in ['DVC']:
     parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC','DCVC_v2']:
+elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC','DCVC_v2','SPVC','SCVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
