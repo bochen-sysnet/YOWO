@@ -191,7 +191,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
 def parallel_compression(model, _range, cache):
     # we can summarize the result for each index to study error propagation
     # settings
-    bs = 4
+    bs = 2
     # mid...left
     img_list = []; idx_list = []
     for i in _range:
