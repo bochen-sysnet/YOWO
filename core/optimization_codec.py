@@ -154,7 +154,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = train_dataset[data_idx]
-            frame_idx.append(f)
+            frame_idx.append(f-1)
             data.append(d)
             target.append(t)
             bpp_est_list.append(be)
