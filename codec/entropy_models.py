@@ -367,7 +367,7 @@ def test(name = 'RPM'):
             
         bits_act = net.get_actual_bits(string)
         mse = torch.mean(torch.pow(x-x_hat,2))
-        mse2 = torch.mean(torch.pow(torch.round(x)-x_q,2))
+        mse2 = torch.mean(torch.pow(x.int()-x_q,2))
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)
