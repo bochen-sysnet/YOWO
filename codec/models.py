@@ -199,8 +199,6 @@ def parallel_compression(model, _range, cache):
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
-            print(idx_list)
-            print(psnr)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss/n
@@ -597,9 +595,9 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
     max_seen, max_proc = i, right
     return ranges, max_seen, max_proc
     
-def PSNR(Y1_raw, Y1_com):
+def PSNR(Y1_raw, Y1_com, use_list=False):
     log10 = torch.log(torch.FloatTensor([10])).squeeze(0).cuda()
-    if Y1_raw.size()[0] == 1:
+    if not use_list:
         train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
         quality = 10.0*torch.log(1/train_mse)/log10
     else:
@@ -611,8 +609,8 @@ def PSNR(Y1_raw, Y1_com):
             quality.append(psnr)
     return quality
 
-def MSSSIM(Y1_raw, Y1_com):
-    if Y1_raw.size()[0] == 1:
+def MSSSIM(Y1_raw, Y1_com, use_list=False):
+    if not use_list:
         quality = pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
     else:
         b = Y1_raw.size()[0]
@@ -1123,8 +1121,8 @@ class SPVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
-        psnr = PSNR(raw_frames, com_frames.cuda(0))
-        msssim = MSSSIM(raw_frames, com_frames.cuda(0))
+        psnr = PSNR(raw_frames, com_frames.cuda(0), use_list=True)
+        msssim = MSSSIM(raw_frames, com_frames.cuda(0), use_list=True)
         rec_loss = calc_loss(raw_frames, com_frames.cuda(0), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
