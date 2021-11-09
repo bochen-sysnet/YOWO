@@ -200,6 +200,7 @@ def parallel_compression(model, _range, cache):
         if len(idx_list) == bs or i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
+            print(idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].detach().squeeze(0)
@@ -1081,7 +1082,6 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, hidden_states, use_psnr=True):
-        print('test')
         bs, c, h, w = raw_frames.size()
         
         # derive ref frame
