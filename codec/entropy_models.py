@@ -62,7 +62,7 @@ class RecProbModel(CompressionModel):
             rpm_hidden = rpm_hidden.detach()
         else:
             x_hat,likelihood = self.entropy_bottleneck(x,training=training)
-        self.prior_latent = torch.round(x).detach()
+        # self.prior_latent = torch.round(x).detach()
         return x_hat, likelihood, rpm_hidden
         
     def get_actual_bits(self, string):
@@ -354,6 +354,7 @@ def test(name = 'RPM'):
                 x_hat, likelihoods, rpm_hidden = net(x,rpm_hidden,training=True)
                 string = net.compress(x)
             else:
+                x_q, _, _ = net(x,rpm_hidden,training=False)
                 string, _, duration_e = net.compress_slow(x,rpm_hidden)
                 x_hat, rpm_hidden, duration_d = net.decompress_slow(string, x.size()[-2:], rpm_hidden)
                 net.set_prior(x)
@@ -362,12 +363,13 @@ def test(name = 'RPM'):
                 x_hat, likelihoods = net(x,x,training=True)
                 string = net.compress(x)
             else:
+                x_q, _ = net(x,x,training=False)
                 string, shape, duration_e = net.compress_slow(x, x)
                 x_hat, duration_d = net.decompress_slow(string, shape, x)
             
         bits_act = net.get_actual_bits(string)
         mse = torch.mean(torch.pow(x-x_hat,2))
-        mse2 = torch.mean(torch.pow(x_hat-torch.round(x),2))
+        mse2 = torch.mean(torch.pow(x_hat-x_q,2))
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)

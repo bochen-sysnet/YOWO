@@ -781,6 +781,7 @@ class ComprNet(nn.Module):
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
             latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
+            self.entropy_bottleneck.set_prior(latent)
         
         # calculate bpp (estimated)
         bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
