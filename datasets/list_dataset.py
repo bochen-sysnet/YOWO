@@ -104,7 +104,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
 
         return (frame_idx, clip, label, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim)
             
-    def preprocess(self, index, model_codec):
+    def preprocess(self, index, model_codec, max_len):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
@@ -123,7 +123,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        compress_video(model_codec, im_ind, self.cache, startNewClip)
+        compress_video(model_codec, im_ind, self.cache, startNewClip, max_len)
         self.prev_video = cur_video
         # check if the last frame of a clip
         if index == len(self)-1:

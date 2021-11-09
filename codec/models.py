@@ -40,13 +40,13 @@ def get_codec_model(name):
         exit(1)
     return model_codec
 
-def compress_video(model, frame_idx, cache, startNewClip):
+def compress_video(model, frame_idx, cache, startNewClip, max_len):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC']:
-        compress_video_batch(model, frame_idx, cache, startNewClip)
+        compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
         
 # depending on training or testing
 # the compression time should be recorded accordinglly
@@ -142,7 +142,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         cache['clip'] = clip
     cache['max_seen'] = frame_idx-1
         
-def compress_video_batch(model, frame_idx, cache, startNewClip):
+def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
     # process the involving GOP
     # how to deal with backward P frames?
     # if process in order, some frames need later frames to compress
@@ -161,7 +161,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['max_seen'] = frame_idx-1
         return
         
-    end_idx = min(len(cache['clip'])-1, frame_idx+2)
+    end_idx = min(len(cache['clip'])-1, frame_idx-1+max_len-1)
     cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
     parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
       
@@ -210,7 +210,6 @@ def parallel_compression(model, _range, cache):
                 cache['msssim'][j] = msssim[pos]
                 cache['bpp_act'][j] = bpp_act.cpu()/n
             img_list = []; idx_list = []
-    print('keys:',cache['img_loss'].keys())
     
 # DVC,RLVC,MLVC
 # Need to measure time and implement decompression for demo
