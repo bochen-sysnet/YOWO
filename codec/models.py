@@ -1335,6 +1335,7 @@ def test_LVC(name='RLVC'):
 # two types of test
 # 1. (de)compress random images, faster
 # 2. (de)compress whole datasets, record time during testing 
+# need to implement 3D-CNN compression
 def test_speed(name='RLVC'):
     net = get_codec_model(name)
         
