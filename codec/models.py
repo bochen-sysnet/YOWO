@@ -33,6 +33,8 @@ def get_codec_model(name):
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
+    elif name in ['AE3D']:
+        model_codec = AE3D(name)
     elif name in ['x264','x265']:
         model_codec = StandardVideoCodecs(name)
     else:
@@ -45,7 +47,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         end_of_batch = compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         end_of_batch = compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC']:
+    elif model.name in ['SPVC','SCVC','AE3D']:
         end_of_batch = compress_video_batch(model, frame_idx, cache, startNewClip)
     return end_of_batch
         
@@ -203,7 +205,7 @@ def parallel_compression(model, _range, cache):
         if i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
-            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
+            x_hat, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss
@@ -1135,7 +1137,7 @@ class SPVC(nn.Module):
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
-        return com_frames.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        return com_frames.cuda(0), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss.cuda(0) + self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0) + self.gamma_flow*flow_loss.cuda(0)
@@ -1264,20 +1266,163 @@ class SCVC(nn.Module):
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
         # flow loss
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        return x_hat.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        return x_hat.cuda(0), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
         return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
         
-def test_SLVC(name = 'SCVC'):
-    batch_size = 4
+class AE3D(nn.Module):
+    def __init__(self, name):
+        super(AE3D, self).__init__()
+        self.name = name 
+        device = torch.device('cuda')
+        self.conv1 = nn.Sequential(
+            nn.Conv3d(3, 64, kernel_size=5, stride=(1,2,2), padding=2), 
+            nn.BatchNorm3d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(64, 128, kernel_size=5, stride=(1,2,2), padding=2), 
+            nn.BatchNorm3d(128),
+            nn.ReLU(inplace=True),
+        )
+        self.conv2 = nn.Sequential(
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockA(),
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv3d(128, 128, kernel_size=5, stride=(1,2,2), padding=2), 
+            nn.BatchNorm3d(128),
+            nn.ReLU(inplace=True),
+        )
+        from compressai.entropy_models import EntropyBottleneck
+        EntropyBottleneck.get_actual_bits = get_actual_bits
+        EntropyBottleneck.get_estimate_bits = get_estimate_bits
+        self.entropy_bottleneck = EntropyBottleneck(128)
+        self.deconv1 = nn.Sequential( 
+            nn.ConvTranspose3d(128, 128, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.BatchNorm3d(128),
+            nn.ReLU(inplace=True),
+        )
+        self.deconv2 = nn.Sequential(
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockB(),
+            ResBlockA(),
+        )
+        self.deconv3 = nn.Sequential( 
+            nn.ConvTranspose3d(128, 64, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.BatchNorm3d(64),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose3d(64, 3, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.BatchNorm3d(3),
+        )
+        self.channels = 128
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+        # split on multi-gpus
+        self.split()
+
+    def split(self):
+        # too much on cuda:0
+        self.conv1.cuda(0)
+        self.conv2.cuda(0)
+        self.conv3.cuda(0)
+        self.deconv1.cuda(1)
+        self.deconv2.cuda(1)
+        self.deconv3.cuda(1)
+        self.entropy_bottleneck.cuda(0)
+        
+    def forward(self, x, use_psnr=True):
+        # x=[B,C,H,W]: input sequence of frames
+        x = x.permute(1,0,2,3).unsqueeze(0)
+        bs, c, t, h, w = x.size()
+        
+        # encoder
+        x = self.conv1(x)
+        x = self.conv2(x) + x
+        latent = self.conv3(x)
+        
+        # entropy
+        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+        latent_string = self.entropy_bottleneck.compress(latent)
+        
+        # decoder
+        x = self.deconv1(latent_hat.cuda(1))
+        print(latent_hat.size(),x.size())
+        x = self.deconv2(x) + x
+        x_hat = self.deconv3(x)
+        
+        # calculate bpp (estimated) if it is training else it will be set to 0
+        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        
+        # calculate bpp (actual)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        
+        # estimated bits
+        bpp_est = bits_est/(h * w * t)
+        # actual bits
+        bpp_act = bits_act/(h * w * t)
+        
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()/128
+        
+        # calculate metrics/loss
+        psnr = PSNR(x, x_hat.to(x.device), use_list=True)
+        msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
+        
+        # calculate img loss
+        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        
+        # flow loss
+        flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        return x_hat.cuda(0), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
+        
+class ResBlockA(nn.Module):
+    "A ResNet-like block with the GroupNorm normalization providing optional bottle-neck functionality"
+    def __init__(self, ch=128, k_size=3, stride=(1,2,2), p=1):
+        super(ResBlockA, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv3d(ch, ch, kernel_size=k_size, stride=stride, padding=p), 
+            nn.BatchNorm3d(ch),
+            nn.ReLU(inplace=True),
+
+            nn.Conv3d(ch, ch, kernel_size=k_size, stride=stride, padding=p),  
+            nn.BatchNorm3d(ch),
+        )
+        
+    def forward(self, x):
+        out = self.conv(x) + x
+        return out
+        
+class ResBlockB(nn.Module):
+    def __init__(self, ch=128, k_size=3, stride=(1,2,2), p=1):
+        super(ResBlockB, self).__init__()
+        self.conv = nn.Sequential(
+            ResBlockA(ch, k_size, stride, p), 
+            ResBlockA(ch, k_size, stride, p), 
+            ResBlockA(ch, k_size, stride, p), 
+        )
+        
+    def forward(self, x):
+        out = self.conv(x) + x
+        return out
+        
+def test_batch_proc(name = 'AE3D'):
+    batch_size = 2
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
     if name == 'SPVC':
         model = SPVC(name,channels)
-    else:
+    elif name == 'SCVC':
         model = SCVC(name,channels)
+    else:
+        model = AE3D(name)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
@@ -1286,7 +1431,7 @@ def test_SLVC(name = 'SCVC'):
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        com_frames, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, sim = model(x, None)
+        com_frames, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, sim = model(x)
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
         loss.backward()
@@ -1301,7 +1446,7 @@ def test_SLVC(name = 'SCVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. ")
             
-def test_LVC(name='RLVC'):
+def test_seq_proc(name='RLVC'):
     batch_size = 1
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
@@ -1346,6 +1491,5 @@ def test_speed(name='RLVC'):
     net = get_codec_model(name)
         
 if __name__ == '__main__':
-    #import sys
-    #test_SLVC(sys.argv[1])
-    test_LVC()
+    test_batch_proc()
+    #test_seq_proc()
