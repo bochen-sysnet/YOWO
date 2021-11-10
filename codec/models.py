@@ -160,7 +160,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['psnr'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
-    batch_size = 13
+    batch_size = 4
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
