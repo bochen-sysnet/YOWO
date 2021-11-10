@@ -206,8 +206,8 @@ def parallel_compression(model, _range, cache):
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
-                cache['img_loss'][j] = img_loss/n
-                cache['flow_loss'][j] = flow_loss/n #  0
+                cache['img_loss'][j] = img_loss
+                cache['flow_loss'][j] = flow_loss #  0
                 cache['aux'][j] = aux_loss/n
                 cache['bpp_est'][j] = bpp_est
                 cache['psnr'][j] = psnr[pos]
