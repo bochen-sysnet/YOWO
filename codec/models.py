@@ -42,11 +42,12 @@ def get_codec_model(name):
 
 def compress_video(model, frame_idx, cache, startNewClip, max_len):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
-        compress_video_sequential(model, frame_idx, cache, startNewClip)
+        end_of_batch = compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
-        compress_video_group(model, frame_idx, cache, startNewClip)
+        end_of_batch = compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC']:
-        compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
+        end_of_batch = compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
+    return end_of_batch
         
 # depending on training or testing
 # the compression time should be recorded accordinglly
@@ -68,13 +69,14 @@ def compress_video_sequential(model, frame_idx, cache, startNewClip):
     assert frame_idx>=1, 'Frame index less than 1'
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
-        return
-    ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']))
-    for _range in ranges:
-        prev_j = -1
-        for loc,j in enumerate(_range):
-            progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
-            prev_j = j
+    else:
+        ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']))
+        for _range in ranges:
+            prev_j = -1
+            for loc,j in enumerate(_range):
+                progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
+                prev_j = j
+    return True
         
 def compress_video_group(model, frame_idx, cache, startNewClip):
     if startNewClip:
@@ -141,6 +143,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
             cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
         cache['clip'] = clip
     cache['max_seen'] = frame_idx-1
+    return True
         
 def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
     # process the involving GOP
@@ -157,13 +160,16 @@ def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
         cache['psnr'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
+    batch_size = 8
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
-        return
-        
-    end_idx = min(len(cache['clip'])-1, frame_idx-1+max_len-1)
-    cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
-    parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
+    else:
+        end_idx = ((frame_idx-1)//batch_size+1)*batch_size-1
+        end_idx = min(len(cache['clip'])-1, end_idx)
+        cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
+        print('compressing',frame_idx-1,end_idx)
+        parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
+    return (frame_idx-1)%batch_size == batch_size-1
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape

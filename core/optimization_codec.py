@@ -169,6 +169,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 data = torch.stack(data, dim=0).cuda()
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
+                print('AD:',frame_idx)
                 with autocast():
                     reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
@@ -194,7 +195,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     if i != n_optimizers-1:
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
-                        scalers[i].scale(loss).backward()
+                        scalers[i].scale(loss).backward(retain_graph=not train_dataset.last_frame)
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
