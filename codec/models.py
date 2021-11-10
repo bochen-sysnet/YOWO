@@ -1127,13 +1127,12 @@ class SPVC(nn.Module):
         psnr = PSNR(raw_frames, com_frames, use_list=True)
         msssim = MSSSIM(raw_frames, com_frames, use_list=True)
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
-        print(ref_loss,rec_loss,warp_loss,mc_loss)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         return com_frames.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
     
     def loss(self, app_loss, pix_loss, bpp_loss, aux_loss, flow_loss):
-        return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss + self.gamma_flow*flow_loss
+        return self.gamma_app*app_loss.cuda(0) + self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0) + self.gamma_flow*flow_loss.cuda(0)
                 
 # conditional coding
 class SCVC(nn.Module):
