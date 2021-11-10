@@ -160,7 +160,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['psnr'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
-    batch_size = 4
+    batch_size = 13
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
@@ -1126,7 +1126,7 @@ class SPVC(nn.Module):
         bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        print(ref_frame.size(),float(ref_est),mv_tensors.size(),float(mv_est),res_tensors.size(),float(res_est))
+        #print(ref_frame.size(),float(ref_est),mv_tensors.size(),float(mv_est),res_tensors.size(),float(res_est))
         # auxilary loss
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
