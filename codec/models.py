@@ -647,7 +647,7 @@ class OpticalFlowNet(nn.Module):
         im2_1 = self.pool(im2_2)
         im2_0 = self.pool(im2_1)
 
-        flow_zero = torch.zeros(batch, 2, h//16, w//16).cuda()
+        flow_zero = torch.zeros(batch, 2, h//16, w//16).to(im1_4.device)
 
         loss_0, flow_0 = self.loss(flow_zero, im1_0, im2_0, upsample=False)
         loss_1, flow_1 = self.loss(flow_0, im1_1, im2_1, upsample=True)
