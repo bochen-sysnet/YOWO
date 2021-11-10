@@ -96,7 +96,7 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['SPVC','SCVC']:
+    elif cfg.TRAIN.CODEC_NAME in ['SCVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"
@@ -169,7 +169,7 @@ else:
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
         train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, best_codec_score)
-        if epoch >= 1:
+        if epoch >= 2:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
             

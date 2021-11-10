@@ -198,7 +198,7 @@ def parallel_compression(model, _range, cache):
         if i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
-            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x, None)
+            x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss/n
@@ -1071,14 +1071,15 @@ class SPVC(nn.Module):
         self.split()
 
     def split(self):
+        # too much on cuda:0
         self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
-        self.optical_flow.cuda(0)
-        self.mv_codec.cuda(0)
+        self.optical_flow.cuda(1)
+        self.mv_codec.cuda(1)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def forward(self, raw_frames, hidden_states, use_psnr=True):
+    def forward(self, raw_frames, use_psnr=True):
         bs, c, h, w = raw_frames.size()
         
         # derive ref frame
@@ -1094,17 +1095,17 @@ class SPVC(nn.Module):
         ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames, bs, h, w)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep.cuda(1), raw_frames.cuda(1), bs, h, w)
         
         # compress optical flow
         mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
         
         # motion compensation
-        loc = get_grid_locations(bs, h, w).cuda(0)
+        loc = get_grid_locations(bs, h, w).cuda(1)
         warped_frames = F.grid_sample(ref_frame_hat_rep, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
         MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
-        MC_frames = self.MC_network(MC_input.cuda(1))
+        MC_frames = self.MC_network(MC_input.cuda)
         mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
         
         # compress residual
@@ -1190,7 +1191,7 @@ class SCVC(nn.Module):
         self.entropy_bottleneck.cuda(1)
         self.ctx_decoder.cuda(1)
         
-    def forward(self, x, hidden_states, use_psnr=True):
+    def forward(self, x, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x.size()
         
@@ -1242,16 +1243,16 @@ class SCVC(nn.Module):
                 x_hat = m(x_hat)
         
         # estimated bits
-        bpp_est = (ref_est + y_est.cuda(0))/(h * w * bs)
+        bpp_est = (ref_est + y_est.to(ref_est.device))/(h * w * bs)
         # actual bits
-        bpp_act = (ref_act + y_act.cuda(0))/(h * w * bs)
+        bpp_act = (ref_act + y_act.to(ref_act.device))/(h * w * bs)
         #print(bs,h,w,float(bpp_est),float(bpp_act))
         # auxilary loss
-        aux_loss = (ref_aux + y_aux.cuda(0))/2
+        aux_loss = (ref_aux + y_aux.to(ref_aux.device))/2
         # calculate metrics/loss
-        psnr = PSNR(x, x_hat.cuda(0), use_list=True)
-        msssim = MSSSIM(x, x_hat.cuda(0), use_list=True)
-        rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
+        psnr = PSNR(x, x_hat.to(x.device), use_list=True)
+        msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
+        rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
         # flow loss
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
