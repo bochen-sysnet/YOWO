@@ -1092,7 +1092,7 @@ class SPVC(nn.Module):
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
         
         # calculate ref frame loss
-        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
+        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep.to(raw_frames.device), self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
