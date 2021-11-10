@@ -127,14 +127,14 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # check if the last frame of a clip or the last frame of a batch
         # it tells whether to split the processing for action detection
         if index == len(self)-1:
-            self.last_frame = True and end_of_batch
+            self.last_frame = True or end_of_batch
         else:
             imgpath = self.lines[index+1].rstrip()
             im_split = imgpath.split('/')
             num_parts = len(im_split)
             nxt_im_ind = int(im_split[num_parts-1][0:5])
             nxt_video = im_split[1]
-            self.last_frame = (cur_video != nxt_video) and end_of_batch
+            self.last_frame = (cur_video != nxt_video) or end_of_batch
         
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
