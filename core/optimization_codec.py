@@ -151,7 +151,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, batch_size-j)
+            train_dataset.preprocess(data_idx, model_codec)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             frame_idx.append(f-1)
@@ -169,7 +169,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 data = torch.stack(data, dim=0).cuda()
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
-                print('AD:',frame_idx,train_dataset.last_frame)
                 with autocast():
                     reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
@@ -406,7 +405,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            test_dataset.preprocess(data_idx, model_codec, batch_size-j)
+            test_dataset.preprocess(data_idx, model_codec)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = test_dataset[data_idx]
             frame_idx.append(f)

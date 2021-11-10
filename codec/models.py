@@ -40,13 +40,13 @@ def get_codec_model(name):
         exit(1)
     return model_codec
 
-def compress_video(model, frame_idx, cache, startNewClip, max_len):
+def compress_video(model, frame_idx, cache, startNewClip):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
         end_of_batch = compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         end_of_batch = compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC']:
-        end_of_batch = compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
+        end_of_batch = compress_video_batch(model, frame_idx, cache, startNewClip)
     return end_of_batch
         
 # depending on training or testing
@@ -145,7 +145,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
     cache['max_seen'] = frame_idx-1
     return True
         
-def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
+def compress_video_batch(model, frame_idx, cache, startNewClip):
     # process the involving GOP
     # how to deal with backward P frames?
     # if process in order, some frames need later frames to compress
@@ -160,7 +160,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
         cache['psnr'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
-    batch_size = 8
+    batch_size = 13
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
@@ -203,7 +203,6 @@ def parallel_compression(model, _range, cache):
         if i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
-            print('compressing',idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
