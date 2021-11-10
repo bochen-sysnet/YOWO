@@ -167,7 +167,6 @@ def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
         end_idx = ((frame_idx-1)//batch_size+1)*batch_size-1
         end_idx = min(len(cache['clip'])-1, end_idx)
         cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
-        print('compressing',frame_idx-1,end_idx)
         parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
     return (frame_idx-1)%batch_size == batch_size-1
       
@@ -204,6 +203,7 @@ def parallel_compression(model, _range, cache):
         if i == _range[-1]:
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
+            print('compressing',idx_list)
             x_hat, _, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim = model(x)
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
