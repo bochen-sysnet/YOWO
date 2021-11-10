@@ -596,7 +596,8 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
     return ranges, max_seen, max_proc
     
 def PSNR(Y1_raw, Y1_com, use_list=False):
-    log10 = torch.log(torch.FloatTensor([10])).squeeze(0).cuda()
+    Y1_com = Y1_com.to(Y1_raw.device)
+    log10 = torch.log(torch.FloatTensor([10])).squeeze(0).to(Y1_raw.device)
     if not use_list:
         train_mse = torch.mean(torch.pow(Y1_raw - Y1_com, 2))
         quality = 10.0*torch.log(1/train_mse)/log10
@@ -610,6 +611,7 @@ def PSNR(Y1_raw, Y1_com, use_list=False):
     return quality
 
 def MSSSIM(Y1_raw, Y1_com, use_list=False):
+    Y1_com = Y1_com.to(Y1_raw.device)
     if not use_list:
         quality = pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
     else:
@@ -621,9 +623,9 @@ def MSSSIM(Y1_raw, Y1_com, use_list=False):
     
 def calc_loss(Y1_raw, Y1_com, r, use_psnr):
     if use_psnr:
-        loss = torch.mean(torch.pow(Y1_raw - Y1_com, 2))*r
+        loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*r
     else:
-        metrics = MSSSIM(Y1_raw, Y1_com)
+        metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
         loss = r*(1-metrics)
     return loss
 
@@ -1092,7 +1094,7 @@ class SPVC(nn.Module):
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
         
         # calculate ref frame loss
-        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep.to(raw_frames.device), self.r, use_psnr)
+        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
@@ -1106,7 +1108,7 @@ class SPVC(nn.Module):
         warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
         MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input.cuda)
-        mc_loss = calc_loss(raw_frames, MC_frames.to(raw_frames.device), self.r, use_psnr)
+        mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
@@ -1122,9 +1124,9 @@ class SPVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
-        psnr = PSNR(raw_frames, com_frames.cuda(0), use_list=True)
-        msssim = MSSSIM(raw_frames, com_frames.cuda(0), use_list=True)
-        rec_loss = calc_loss(raw_frames, com_frames.cuda(0), self.r, use_psnr)
+        psnr = PSNR(raw_frames, com_frames, use_list=True)
+        msssim = MSSSIM(raw_frames, com_frames, use_list=True)
+        rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         flow_loss = (l0+l1+l2+l3+l4)/5*1024
         return com_frames.cuda(0), None, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
