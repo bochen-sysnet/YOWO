@@ -667,8 +667,8 @@ class LossNet(nn.Module):
         if upsample:
             flow = self.upsample(flow)
         batch_size, _, H, W = flow.shape
-        loc = get_grid_locations(batch_size, H, W).type(im1.type())
-        flow = flow.type(im1.type())
+        loc = get_grid_locations(batch_size, H, W).to(im1.device)
+        flow = flow.to(im1.device)
         im1_warped = F.grid_sample(im1, loc + flow.permute(0,2,3,1), align_corners=True)
         res = self.convnet(im1_warped, im2, flow)
         flow_fine = res + flow # N,2,H,W
