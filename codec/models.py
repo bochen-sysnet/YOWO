@@ -1168,7 +1168,7 @@ class SPVC(nn.Module):
         # compress residual
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
-        res_hat,rae_mv_hidden, rpm_mv_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
         #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
         #print('RS entropy:',t_res)
