@@ -1436,7 +1436,7 @@ class ResBlockB(nn.Module):
         return out
         
 def test_batch_proc(name = 'SPVC'):
-    batch_size = 4
+    batch_size = 8
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1459,7 +1459,6 @@ def test_batch_proc(name = 'SPVC'):
         t_0 = time.perf_counter()
         com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x)
         d = time.perf_counter() - t_0
-        print(d)
         timer.update(d/batch_size)
         # measure end
         
