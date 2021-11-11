@@ -1149,7 +1149,6 @@ class SPVC(nn.Module):
         bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         #print(ref_frame.size(),float(ref_est),mv_tensors.size(),float(mv_est),res_tensors.size(),float(res_est))
         # auxilary loss
-        print(float(ref_aux),float(mv_aux),float(res_aux))
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
         psnr = PSNR(raw_frames, com_frames, use_list=True)
