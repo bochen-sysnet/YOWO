@@ -387,7 +387,7 @@ class ConvLSTM(nn.Module):
 def test(name = 'RPM'):
     channels = 128
     if name =='RPM':
-        net = RecProbModel(channels,True)
+        net = RecProbModel(channels,useAttention=True)
     else:
         net = JointAutoregressiveHierarchicalPriors(channels)
     x = torch.rand(4, channels, 14, 14)
