@@ -390,7 +390,7 @@ def test(name = 'RPM'):
         net = RecProbModel(channels,True)
     else:
         net = JointAutoregressiveHierarchicalPriors(channels)
-    x = torch.rand(1, channels, 14, 14)
+    x = torch.rand(4, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in net.named_parameters())
@@ -430,7 +430,7 @@ def test(name = 'RPM'):
                 mse2 = torch.mean(torch.pow(x_hat-x_q,2))
             
         bits_act = net.get_actual_bits(string)
-        mse = torch.mean(torch.pow(x-x_hat,2))
+        mse = torch.mean(torch.pow(x-x_hat,2))*1024
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)
