@@ -138,6 +138,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
     def __init__(
         self,
         channels,
+        useAttention=False,
     ):
         super().__init__(channels)
 
@@ -163,13 +164,24 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)]
         )
 
-        self.entropy_parameters = nn.Sequential(
-            nn.Conv2d(channels * 2, channels * 5 // 3, 1),
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(channels * 2, channels, 1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 5 // 3, channels * 4 // 3, 1),
+            nn.Conv2d(channels, channels, 1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 4 // 3, channels * 2, 1),
         )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(channels, channels, 1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels * 2, 1),
+        )
+        
+        self.useAttention = useAttention
+        
+        if self.useAttention:
+            self.s_attn = Attention(channels)
+            self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
         if scale_table is None:
@@ -196,9 +208,18 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
                 params = m(params,output_size=sz)
             else:
                 params = m(params)
-        gaussian_params = self.entropy_parameters(
+        g = self.conv1(
             torch.cat((params, ctx_params), dim=1)
         )
+        if self.useAttention:
+            # use attention
+            B,C,H,W = g.size()
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.conv2(g)
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
         self.sigma = torch.exp(self.sigma)/10
@@ -384,12 +405,12 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'RPM'):
+def test(name = 'Joint'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels,useAttention=True)
     else:
-        net = JointAutoregressiveHierarchicalPriors(channels)
+        net = JointAutoregressiveHierarchicalPriors(channels,useAttention=True)
     x = torch.rand(4, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
