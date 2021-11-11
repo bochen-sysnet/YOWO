@@ -1528,5 +1528,5 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    #test_batch_proc()
-    test_seq_proc()
+    test_batch_proc()
+    #test_seq_proc()
