@@ -1477,7 +1477,7 @@ def test_batch_proc(name = 'SPVC'):
             f"duration: {timer.avg:.3f}. ")
             
 def test_seq_proc(name='RLVC'):
-    print('test','name)
+    print('test',name)
     batch_size = 1
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
