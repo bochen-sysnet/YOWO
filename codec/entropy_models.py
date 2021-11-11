@@ -93,7 +93,10 @@ class RecProbModel(CompressionModel):
     # there should be a validattion for speed
     # RPM will be executed twice on both encoder and decoder
     def set_prior(self, x):
-        self.prior_latent = torch.round(x).detach()
+        if x is not None:
+            self.prior_latent = torch.round(x).detach()
+        else:
+            self.prior_latent = None
         
     # we should only use one hidden from compression or decompression
     def compress_slow(self, x, rpm_hidden):

@@ -155,14 +155,16 @@ def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
         cache['bpp_act'] = {}
         cache['msssim'] = {}
         cache['psnr'] = {}
-        cache['hidden'] = None
+        # frame shape
+        _,h,w = cache['clip'][0].shape
+        cache['hidden'] = model.init_hidden(h,w)
         cache['max_proc'] = -1
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
         end_idx = min(len(cache['clip'])-1, frame_idx-1+max_len-1)
         cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
-        parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
+        parallel_compression(model, range(frame_idx-1,end_idx+1), cache, not startNewClip)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -187,25 +189,23 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
-def parallel_compression(model, _range, cache):
+def parallel_compression(model, _range, cache, RPM_flag):
     # we can summarize the result for each index to study error propagation
     img_list = []; idx_list = []
     for i in _range:
         img_list.append(cache['clip'][i])
         idx_list.append(i)
-        if i == _range[-1]:
-            x = torch.stack(img_list, dim=0)
-            n = len(idx_list)
-            x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-            for pos,j in enumerate(idx_list):
-                cache['clip'][j] = x_hat[pos].squeeze(0).detach()
-                cache['img_loss'][j] = img_loss
-                cache['aux'][j] = aux_loss/n
-                cache['bpp_est'][j] = bpp_est
-                cache['psnr'][j] = psnr[pos]
-                cache['msssim'][j] = msssim[pos]
-                cache['bpp_act'][j] = bpp_act.cpu()
-            img_list = []; idx_list = []
+    x = torch.stack(img_list, dim=0)
+    n = len(idx_list)
+    x_hat, cache['hidden'], bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x, cache['hidden'], RPM_flag)
+    for pos,j in enumerate(idx_list):
+        cache['clip'][j] = x_hat[pos].squeeze(0).detach()
+        cache['img_loss'][j] = img_loss
+        cache['aux'][j] = aux_loss/n
+        cache['bpp_est'][j] = bpp_est
+        cache['psnr'][j] = psnr[pos]
+        cache['msssim'][j] = msssim[pos]
+        cache['bpp_act'][j] = bpp_act.cpu()
     
 # DVC,RLVC,MLVC
 # Need to measure time and implement decompression for demo
@@ -1118,21 +1118,22 @@ class SPVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def forward(self, raw_frames, use_psnr=True):
+    def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
         t_spvc = time.perf_counter()
         bs, c, h, w = raw_frames.size()
+        (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
         # derive ref frame
         t_0 = time.perf_counter()
         ref_frame = self.kfnet(raw_frames)
         t_ref = time.perf_counter() - t_0
-        print('Key gen:',t_ref)
+        #print('Key gen:',t_ref)
         
         # compress ref frame
         t_0 = time.perf_counter()
-        ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden,RPM_flag)
         t_ref = time.perf_counter() - t_0
-        print('REF entropy:',t_ref)
+        #print('REF entropy:',t_ref)
         
         # repeat ref frame for parallelization
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
@@ -1144,14 +1145,14 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
         t_flow = time.perf_counter() - t_0
-        print('Flow:',t_flow)
+        #print('Flow:',t_flow)
         
         # compress optical flow
         t_0 = time.perf_counter()
-        #mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
-        mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        #mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
-        print('MV entropy:',t_mv)
+        #print('MV entropy:',t_mv)
         
         # motion compensation
         t_0 = time.perf_counter()
@@ -1162,15 +1163,15 @@ class SPVC(nn.Module):
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        print('Compensation:',t_comp)
+        #print('Compensation:',t_comp)
         
         # compress residual
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
-        #res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
-        res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        res_hat,rae_mv_hidden, rpm_mv_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
-        print('RS entropy:',t_res)
+        #print('RS entropy:',t_res)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
@@ -1188,14 +1189,25 @@ class SPVC(nn.Module):
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
-        print(time.perf_counter() - t_spvc)
-        return com_frames.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        #print(time.perf_counter() - t_spvc)
+        
+        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
+        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
         if app_loss is not None:
             loss += self.gamma_app*app_loss.cuda(0)
         return loss
+        
+    def init_hidden(self, h, w, b=4):
+        rae_mv_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
+        rae_res_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
+        rae_ref_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+        rpm_res_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+        rpm_ref_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
          
 # conditional coding
 class SCVC(nn.Module):
@@ -1239,7 +1251,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1256,21 +1268,24 @@ class SCVC(nn.Module):
         self.entropy_bottleneck.cuda(1)
         self.ctx_decoder.cuda(1)
         
-    def forward(self, x, use_psnr=True):
+    def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x.size()
+        
+        # hidden states
+        rae_mv_hidden, rpm_mv_hidden = hidden_states
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
         ref_frame = self.kfnet(x)
         t_key = time.perf_counter() - t_0
-        print('Key gen:',t_key)
+        #print('Key gen:',t_key)
         
         # compress ref frame, use cheng2020?
         t_0 = time.perf_counter()
-        ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        ref_frame_hat,rae_res_hidden, rpm_res_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_res_hidden, rpm_res_hidden, RPM_flag)
         t_ref = time.perf_counter() - t_0
-        print('REF entropy:',t_ref)
+        #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
         ref_loss = calc_loss(x, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
@@ -1288,7 +1303,7 @@ class SCVC(nn.Module):
         # contextual encoder
         y = self.ctx_encoder(torch.cat((x.cuda(1), context_rep), axis=1))
         t_ctx = time.perf_counter() - t_0
-        print('Context:',t_ctx)
+        #print('Context:',t_ctx)
         
         # entropy model
         t_0 = time.perf_counter()
@@ -1299,7 +1314,7 @@ class SCVC(nn.Module):
         y_act = self.entropy_bottleneck.get_actual_bits(y_string)
         y_aux = self.entropy_bottleneck.loss()/self.channels
         t_y = time.perf_counter() - t_0
-        print('Y entropy:',t_y)
+        #print('Y entropy:',t_y)
         
         # contextual decoder
         t_0 = time.perf_counter()
@@ -1320,7 +1335,7 @@ class SCVC(nn.Module):
             else:
                 x_hat = m(x_hat)
         t_ctx_dec = time.perf_counter() - t_0
-        print('Context dec:',t_ctx_dec)
+        #print('Context dec:',t_ctx_dec)
         
         # estimated bits
         bpp_est = (ref_est + y_est.to(ref_est.device))/(h * w * bs)
@@ -1334,13 +1349,18 @@ class SCVC(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
-        return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
         if app_loss is not None:
             loss += self.gamma_app*app_loss.cuda(0)
         return loss
+        
+    def init_hidden(self, h, w, b=4):
+        rae_mv_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+        return (rae_mv_hidden, rpm_mv_hidden)
         
 class AE3D(nn.Module):
     def __init__(self, name):
@@ -1500,13 +1520,14 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
+    hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,2))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
         # measure start
         t_0 = time.perf_counter()
-        com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x)
+        com_frames, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x,hidden_states,i>=1)
         d = time.perf_counter() - t_0
         timer.update(d/batch_size)
         # measure end
