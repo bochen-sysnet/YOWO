@@ -869,6 +869,7 @@ class ComprNet(nn.Module):
         x_hat_list = []
         for frame_idx in range(bs):
             x_i = x[frame_idx,:,:,:].unsqueeze(0)
+            print(x_i.size())
             x_hat_i,rae_hidden,rpm_hidden,x_act_i,x_est_i,x_aux_i = self.forward(x_i, rae_hidden, rpm_hidden, frame_idx>=1)
             x_hat_list.append(x_hat_i)
             
@@ -1124,7 +1125,6 @@ class SPVC(nn.Module):
         # compress optical flow
         # mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
         mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
-        print(mv_hat.size())
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).cuda(1)
