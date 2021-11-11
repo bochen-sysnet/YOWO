@@ -1436,6 +1436,7 @@ class ResBlockB(nn.Module):
         return out
         
 def test_batch_proc(name = 'SPVC'):
+    print('test batch')
     batch_size = 8
     h = w = 224
     channels = 64
@@ -1451,7 +1452,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,10000))
+    train_iter = tqdm(range(0,30))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
@@ -1459,7 +1460,6 @@ def test_batch_proc(name = 'SPVC'):
         t_0 = time.perf_counter()
         com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x)
         d = time.perf_counter() - t_0
-        print(d)
         timer.update(d/batch_size)
         # measure end
         
@@ -1477,6 +1477,7 @@ def test_batch_proc(name = 'SPVC'):
             f"duration: {timer.avg:.3f}. ")
             
 def test_seq_proc(name='RLVC'):
+    print('test sequential')
     batch_size = 1
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
@@ -1490,7 +1491,7 @@ def test_seq_proc(name='RLVC'):
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
-    train_iter = tqdm(range(0,10000))
+    train_iter = tqdm(range(0,30))
     x_hat_prev = x
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
@@ -1529,4 +1530,4 @@ def test_seq_proc(name='RLVC'):
         
 if __name__ == '__main__':
     test_batch_proc()
-    #test_seq_proc()
+    test_seq_proc()
