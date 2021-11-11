@@ -59,8 +59,8 @@ class RecProbModel(CompressionModel):
             if not self.useAttention:
                 assert self.prior_latent is not None, 'prior latent is none!'
             rpm_in = x if self.useAttention else self.prior_latent
-            self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(self.prior_latent.device))
-            self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
+            self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(x.device))
+            self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
             self.sigma = torch.exp(self.sigma)/10
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             rpm_hidden = rpm_hidden.detach()
