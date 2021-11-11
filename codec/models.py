@@ -1124,8 +1124,8 @@ class SPVC(nn.Module):
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
         
         # compress optical flow
-        # mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
-        mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
+        #mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).cuda(1)
@@ -1137,8 +1137,8 @@ class SPVC(nn.Module):
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
-        #res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
-        res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
+        #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
@@ -1437,7 +1437,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 8
+    batch_size = 4
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1452,7 +1452,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,10))
+    train_iter = tqdm(range(0,5))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
