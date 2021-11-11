@@ -52,7 +52,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
         target = {'cls': cls, 'boxes': boxes}
         
         with autocast():
-            reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
+            reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else None
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
@@ -164,7 +164,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
                 with autocast():
-                    reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else torch.FloatTensor([0]).cuda(0)
+                    reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else None
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
