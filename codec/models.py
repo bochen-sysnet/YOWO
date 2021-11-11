@@ -1436,7 +1436,7 @@ class ResBlockB(nn.Module):
         return out
         
 def test_batch_proc(name = 'SPVC'):
-    print('test batch')
+    print('test',name)
     batch_size = 8
     h = w = 224
     channels = 64
@@ -1452,7 +1452,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,30))
+    train_iter = tqdm(range(0,10))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
@@ -1529,5 +1529,6 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc()
-    test_seq_proc()
+    test_batch_proc('SPVC')
+    test_batch_proc('SCVC')
+    test_seq_proc('RLVC')
