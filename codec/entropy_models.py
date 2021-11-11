@@ -58,7 +58,9 @@ class RecProbModel(CompressionModel):
             self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
             self.sigma = torch.exp(self.sigma)/10
+            print('in')
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
+            print('o')
             rpm_hidden = rpm_hidden.detach()
         else:
             x_hat,likelihood = self.entropy_bottleneck(x,training=training)
@@ -195,9 +197,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
         self.sigma = torch.exp(self.sigma)/10
-        print('before')
         x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
-        print('after')
         return x_hat, (x_likelihood,z_likelihood)
         
     def get_actual_bits(self, string):
