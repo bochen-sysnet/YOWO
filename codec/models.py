@@ -1122,13 +1122,16 @@ class SPVC(nn.Module):
         bs, c, h, w = raw_frames.size()
         
         # derive ref frame
+        t_0 = time.perf_counter()
         ref_frame = self.kfnet(raw_frames)
+        t_ref = time.perf_counter() - t_0
+        print('Key gen:',t_ref)
         
         # compress ref frame
         t_0 = time.perf_counter()
         ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
         t_ref = time.perf_counter() - t_0
-        print('Key gen:',t_ref)
+        print('REF entropy:',t_ref)
         
         # repeat ref frame for parallelization
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
