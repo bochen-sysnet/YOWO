@@ -1124,6 +1124,7 @@ class SPVC(nn.Module):
         # compress optical flow
         # mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
         mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        print(mv_hat.size())
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).cuda(1)
