@@ -1433,8 +1433,7 @@ def test_batch_proc(name = 'SPVC'):
         t_0 = time.perf_counter()
         com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x)
         d = time.perf_counter() - t_0
-        print(d)
-        timer.update(d,batch_size)
+        timer.update(d/batch_size)
         # measure end
         
         loss = model.loss(img_loss,bpp_est,aux_loss)
@@ -1473,7 +1472,6 @@ def test_seq_proc(name='RLVC'):
         t_0 = time.perf_counter()
         x_hat, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, p,m = model(x, x_hat_prev.detach(), hidden_states, i%13!=0)
         d = time.perf_counter() - t_0
-        print(d)
         timer.update(d)
         # measure end
         
