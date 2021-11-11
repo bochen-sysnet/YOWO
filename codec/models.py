@@ -1273,7 +1273,7 @@ class SCVC(nn.Module):
         bs, c, h, w = x.size()
         
         # hidden states
-        rae_mv_hidden, rpm_mv_hidden = hidden_states
+        rae_ref_hidden, rpm_ref_hidden = hidden_states
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
@@ -1283,7 +1283,7 @@ class SCVC(nn.Module):
         
         # compress ref frame, use cheng2020?
         t_0 = time.perf_counter()
-        ref_frame_hat,rae_res_hidden, rpm_res_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        ref_frame_hat,rae_ref_hidden, rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
@@ -1349,6 +1349,8 @@ class SCVC(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
+        
+        hidden_states = (rae_ref_hidden, rpm_ref_hidden)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
