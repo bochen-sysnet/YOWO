@@ -863,25 +863,25 @@ class ComprNet(nn.Module):
             
     def compress_sequence(self,x):
         bs,c,h,w = x.size()
-        mv_est = mv_act = mv_aux_i = torch.FloatTensor([0]).squeeze(0).cuda()
-        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
-        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
-        mv_hat_list = []
+        x_est = x_act = x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
+        rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
+        rae_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
+        x_hat_list = []
         for frame_idx in range(bs):
-            mv_i = mv_tensors[frame_idx,:,:,:].unsqueeze(0)
-            mv_hat_i,rae_mv_hidden,rpm_mv_hidden,mv_act_i,mv_est_i,mv_aux_i = self.mv_codec(mv_i, rae_mv_hidden, rpm_mv_hidden, frame_idx>=1)
-            mv_hat_list.append(mv_hat_i)
+            x_i = x[frame_idx,:,:,:].unsqueeze(0)
+            x_hat_i,rae_hidden,rpm_hidden,x_act_i,x_est_i,x_aux_i = self.forward(x_i, rae_hidden, rpm_hidden, frame_idx>=1)
+            x_hat_list.append(x_hat_i)
             
             # calculate bpp (estimated) if it is training else it will be set to 0
-            mv_est += mv_est_i.cuda()
+            x_est += x_est_i.cuda()
             
             # calculate bpp (actual)
-            mv_act += mv_act_i.cuda()
+            x_act += x_act_i.cuda()
             
             # aux
-            mv_aux += mv_aux_i.cuda()
-        mv_hat = torch.stack(mv_hat_list, dim=0)
-        return mv_hat,mv_act,mv_est,mv_aux
+            x_aux += x_aux_i.cuda()
+        x_hat = torch.stack(x_hat_list, dim=0)
+        return x_hat,x_act,x_est,x_aux
 
 class MCNet(nn.Module):
     def __init__(self):
