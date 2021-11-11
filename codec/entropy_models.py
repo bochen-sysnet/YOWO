@@ -440,7 +440,6 @@ def test(name = 'RPM'):
                 f"bits_est: {float(bits_est):.2f}. "
                 f"bits_act: {float(bits_act):.2f}. "
                 f"MSE: {float(mse):.2f}. "
-                f"MSE2: {float(mse2):.4f}. "
                 f"ENC: {float(duration_e):.3f}. "
                 f"DEC: {float(duration_d):.3f}. ")
         else:
