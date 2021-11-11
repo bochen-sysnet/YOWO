@@ -1410,7 +1410,7 @@ class ResBlockB(nn.Module):
         return out
         
 def test_batch_proc(name = 'SPVC'):
-    batch_size = 2
+    batch_size = 4
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1499,5 +1499,5 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    #test_batch_proc()
-    test_seq_proc()
+    test_batch_proc()
+    #test_seq_proc()
