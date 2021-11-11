@@ -531,7 +531,7 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 10:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,0,1,1,0,1,1,1,1
     else:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,.1,0,1,0,0,0
     
@@ -1129,8 +1129,8 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = ComprNet(device, 'rec', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = ComprNet(device, 'attn', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, 'attn', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
