@@ -25,13 +25,14 @@ class RecProbModel(CompressionModel):
     def __init__(
         self,
         channels,
+        useAttention=False,
     ):
         super().__init__(channels)
 
         self.channels = int(channels)
         
         self.sigma = self.mu = self.prior_latent = None
-        self.RPM = RPM(channels)
+        self.RPM = RPM(channels, useAttention)
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
@@ -270,10 +271,51 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         duration = time.perf_counter() - t_0
         return x_hat, duration
         
+def attention(q, k, v, d_model, dropout=None):
+    
+    scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_model)
+        
+    scores = F.softmax(scores, dim=-1)
+    
+    if dropout is not None:
+        scores = dropout(scores)
+        
+    output = torch.matmul(scores, v)
+    return output
+        
+class Attention(nn.Module):
+    def __init__(self, d_model, dropout = 0.1):
+        super().__init__()
+        
+        self.d_model = d_model
+        
+        self.q_linear = nn.Linear(d_model, d_model)
+        self.v_linear = nn.Linear(d_model, d_model)
+        self.k_linear = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(d_model, d_model)
+    
+    def forward(self, q, k, v):
+        
+        bs = q.size(0)
+        
+        # perform linear operation
+        
+        k = self.k_linear(k)
+        q = self.q_linear(q)
+        v = self.v_linear(v)
+        
+        # calculate attention using function we will define next
+        scores = attention(q, k, v, self.d_model, self.dropout)
+        
+        output = self.out(scores) # bs * sl * d_model
+    
+        return output
+        
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
-    def __init__(self, channels=128, act=torch.tanh):
+    def __init__(self, channels=128, act=torch.tanh, useAttention=False):
         super(RPM, self).__init__()
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
@@ -285,6 +327,10 @@ class RPM(nn.Module):
         self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
         self.channels = channels
+        self.useAttention = useAttention
+        if self.useAttention:
+            self.s_attn = Attention(channels)
+            self.t_attn = Attention(channels)
 
     def forward(self, x, hidden):
         # [B,C,H//16,W//16]
@@ -292,7 +338,19 @@ class RPM(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        x, hidden = self.lstm(x, hidden.to(x.device))
+        
+        if not self.useAttention:
+            # just use LSTM
+            x, hidden = self.lstm(x, hidden.to(x.device))
+        else:
+            # use attention
+            B,C,H,W = x.size()
+            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            x = self.s_attn(x,x,x)
+            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.t_attn(x,x,x)
+            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+            
         x = F.relu(self.conv5(x))
         x = F.relu(self.conv6(x))
         x = F.relu(self.conv7(x))
@@ -321,10 +379,10 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'Joint'):
+def test(name = 'RPM'):
     channels = 128
     if name =='RPM':
-        net = RecProbModel(channels)
+        net = RecProbModel(channels,True)
     else:
         net = JointAutoregressiveHierarchicalPriors(channels)
     x = torch.rand(1, channels, 14, 14)
@@ -333,7 +391,7 @@ def test(name = 'Joint'):
     parameters = set(p for n, p in net.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     rpm_hidden = torch.zeros(1,channels*2,14,14)
-    isTrain = False
+    isTrain = True
     rpm_flag = True
     if name == 'RPM':
         net.set_RPM(False)

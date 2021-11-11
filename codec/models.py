@@ -1101,7 +1101,7 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = ComprNet(device, 'rec', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.res_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
