@@ -1132,6 +1132,7 @@ class SPVC(nn.Module):
         return com_frames.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
+        print(pix_loss, bpp_loss, aux_loss)
         loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
         if app_loss is not None:
             loss += self.gamma_app*app_loss.cuda(0)
@@ -1472,7 +1473,7 @@ def test_seq_proc(name='RLVC'):
         
         x_hat_prev = x_hat
         
-        loss = model.loss(0,img_loss,bpp_est,aux_loss)
+        loss = model.loss(img_loss,bpp_est,aux_loss)
         loss.backward()
         optimizer.step()
         
