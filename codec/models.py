@@ -185,7 +185,6 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
-    print(aux_loss,'.')
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
 def parallel_compression(model, _range, cache):
@@ -198,6 +197,7 @@ def parallel_compression(model, _range, cache):
             x = torch.stack(img_list, dim=0)
             n = len(idx_list)
             x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
+            print(aux_loss,'.')
             for pos,j in enumerate(idx_list):
                 cache['clip'][j] = x_hat[pos].squeeze(0).detach()
                 cache['img_loss'][j] = img_loss
