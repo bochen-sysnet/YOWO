@@ -869,9 +869,8 @@ class ComprNet(nn.Module):
         x_hat_list = []
         for frame_idx in range(bs):
             x_i = x[frame_idx,:,:,:].unsqueeze(0)
-            print(x_i.size())
             x_hat_i,rae_hidden,rpm_hidden,x_act_i,x_est_i,x_aux_i = self.forward(x_i, rae_hidden, rpm_hidden, frame_idx>=1)
-            x_hat_list.append(x_hat_i)
+            x_hat_list.append(x_hat_i.squeeze(0))
             
             # calculate bpp (estimated) if it is training else it will be set to 0
             x_est += x_est_i.cuda()
