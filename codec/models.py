@@ -263,19 +263,31 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
         # estimate optical flow
+        t_0 = time.perf_counter()
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        t_flow = time.perf_counter() - t_0
+        print('flow estimation:,t_flow)
         # compress optical flow
+        t_0 = time.perf_counter()
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        t_mv_entropy = time.perf_counter() - t_0
+        print('mv entropy:,t_mv_entropy)
         # motion compensation
+        t_0 = time.perf_counter()
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
+        t_comp = time.perf_counter() - t_0
+        print('compensation:,t_comp)
         # compress residual
+        t_0 = time.perf_counter()
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        t_res_entropy = time.perf_counter() - t_0
+        print('res entropy:,t_res_entropy)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -1125,8 +1137,8 @@ class SPVC(nn.Module):
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
         
         # compress optical flow
-        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
-        #mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        #mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
+        mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).cuda(1)
@@ -1138,8 +1150,8 @@ class SPVC(nn.Module):
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
-        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
-        #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        #res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
+        res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
