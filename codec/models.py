@@ -863,7 +863,9 @@ class ComprNet(nn.Module):
             
     def compress_sequence(self,x):
         bs,c,h,w = x.size()
-        x_est = x_act = x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
+        x_est = torch.FloatTensor([0]).squeeze(0).cuda()
+        x_act = torch.FloatTensor([0]).squeeze(0).cuda()
+        x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
         rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
         rae_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
         x_hat_list = []
@@ -880,9 +882,7 @@ class ComprNet(nn.Module):
             
             # aux
             x_aux += x_aux_i.cuda()
-            print(float(x_aux_i),float(x_aux))
         x_hat = torch.stack(x_hat_list, dim=0)
-        print('?',x_aux)
         return x_hat,x_act,x_est,x_aux
 
 class MCNet(nn.Module):
