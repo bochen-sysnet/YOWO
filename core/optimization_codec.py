@@ -12,7 +12,6 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
     img_loss_module = AverageMeter()
-    flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
     psnr_module = AverageMeter()
@@ -28,7 +27,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
-        data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+        data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []
         bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
@@ -42,7 +41,6 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             bpp_est_list.append(be)
             aux_loss_list.append(a)
             img_loss_list.append(il)
-            flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             psnr_list.append(p)
             msssim_list.append(m)
@@ -58,14 +56,12 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
             msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -90,7 +86,6 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             loss_module.reset_meters()
             img_loss_module.reset()
             aux_loss_module.reset()
-            flow_loss_module.reset()
             be_loss_module.reset()
             all_loss_module.reset()
             ba_loss_module.reset()
@@ -113,7 +108,6 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
             f"AX: {aux_loss_module.val:.2f} ({aux_loss_module.avg:.2f}). "
-            f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
@@ -129,7 +123,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
     img_loss_module = AverageMeter()
-    flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
     psnr_module = AverageMeter()
@@ -146,12 +139,14 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     for batch_idx,_ in enumerate(train_iter):
         # start compression
-        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
         bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
+            comp_batch_size = 8
+            end_of_comp_batch = (data_idx//comp_batch_size+1)*comp_batch_size-data_idx
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, batch_size-j)
+            train_dataset.preprocess(data_idx, model_codec, end_of_comp_batch)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             frame_idx.append(f-1)
@@ -160,7 +155,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             bpp_est_list.append(be)
             aux_loss_list.append(a)
             img_loss_list.append(il)
-            flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             psnr_list.append(p)
             msssim_list.append(m)
@@ -174,14 +168,12 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-                    flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
-                    loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+                    loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
                     ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
                     psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
                     msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
                     aux_loss_module.update(aux_loss.cpu().data.item(), l)
                     img_loss_module.update(img_loss.cpu().data.item(), l)
-                    flow_loss_module.update(flow_loss.cpu().data.item(), l)
                     be_loss_module.update(be_loss.cpu().data.item(), l)
                     ba_loss_module.update(ba_loss.cpu().data.item(), l)
                     all_loss_module.update(loss.cpu().data.item(), l)
@@ -194,7 +186,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     if i != n_optimizers-1:
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
-                        scalers[i].scale(loss).backward()
+                        # finish graph if it is the last frame or data_idx is at the end of a batch
+                        scalers[i].scale(loss).backward(retain_graph=not(train_dataset.last_frame or (data_idx+1)%comp_batch_size==0))
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
@@ -202,7 +195,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                         scalers[i].update()
                         optimizers[i].zero_grad()
                 # init batch
-                frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+                frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
                 bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
 
         # save result every 1000 batches
@@ -210,7 +203,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             loss_module.reset_meters()
             img_loss_module.reset()
             aux_loss_module.reset()
-            flow_loss_module.reset()
             be_loss_module.reset()
             all_loss_module.reset()
             ba_loss_module.reset()
@@ -233,7 +225,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
             f"AX: {aux_loss_module.val:.2f} ({aux_loss_module.avg:.2f}). "
-            f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
@@ -261,7 +252,6 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
     img_loss_module = AverageMeter()
-    flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
     psnr_module = AverageMeter()
@@ -273,7 +263,7 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
     test_iter = tqdm(range(0,nbatch*batch_size,batch_size))
     for batch_idx,_ in enumerate(test_iter):
         # start compression
-        data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+        data = []; cls = []; boxes = []; img_loss_list = []; aux_loss_list = []
         bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
@@ -287,7 +277,6 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             bpp_est_list.append(be)
             aux_loss_list.append(a)
             img_loss_list.append(il)
-            flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             psnr_list.append(p)
             msssim_list.append(m)
@@ -320,15 +309,13 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             reg_loss = loss_module(output, target, epoch, batch_idx, nbatch)
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
             msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
@@ -341,7 +328,6 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             f"IL: {img_loss_module.val:.2f} ({img_loss_module.avg:.2f}). "
             f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
             f"AX: {aux_loss_module.val:.2f} ({aux_loss_module.avg:.2f}). "
-            f"FL: {flow_loss_module.val:.2f} ({flow_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
@@ -390,7 +376,6 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
     img_loss_module = AverageMeter()
-    flow_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
     ba_loss_module = AverageMeter()
     psnr_module = AverageMeter()
@@ -400,7 +385,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
     test_iter = tqdm(range(0,nbatch*batch_size,batch_size))
     for batch_idx,_ in enumerate(test_iter):
         # process/compress each frame in a batch
-        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []; flow_loss_list = []
+        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
         bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
@@ -414,7 +399,6 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             bpp_est_list.append(be)
             aux_loss_list.append(a)
             img_loss_list.append(il)
-            flow_loss_list.append(fl)
             bpp_act_list.append(ba)
             psnr_list.append(p)
             msssim_list.append(m)
@@ -491,15 +475,13 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             reg_loss = loss_module(output, target, epoch, batch_idx, nbatch)
             aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
             img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
-            flow_loss = torch.stack(flow_loss_list,dim=0).mean(dim=0)
             be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
-            loss = model_codec.loss(reg_loss,img_loss,be_loss,aux_loss,flow_loss)
+            loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
             ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
             psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
             msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
             aux_loss_module.update(aux_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             img_loss_module.update(img_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
-            flow_loss_module.update(flow_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             be_loss_module.update(be_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             ba_loss_module.update(ba_loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             all_loss_module.update(loss.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
