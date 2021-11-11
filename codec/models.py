@@ -757,6 +757,7 @@ class ComprNet(nn.Module):
         else:
             print('Bottleneck not implemented for:',codec_name)
             exit(1)
+        print('Entropy model:'self.entropy_type)
         self.channels = channels
         self.encoder_type = 'rec' if codec_name in ['MLVC', 'RLVC'] else 'non-rec'
         if self.encoder_type == 'rec':
