@@ -434,7 +434,7 @@ def test(name = 'RPM'):
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)
-            loss = bits_est + net.loss()
+            loss = bits_est + net.loss() + mse
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(),1)
             optimizer.step()
