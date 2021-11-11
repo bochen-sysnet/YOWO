@@ -880,6 +880,7 @@ class ComprNet(nn.Module):
             
             # aux
             x_aux += x_aux_i.cuda()
+            print(float(x_aux_i))
         x_hat = torch.stack(x_hat_list, dim=0)
         return x_hat,x_act,x_est,x_aux
 
