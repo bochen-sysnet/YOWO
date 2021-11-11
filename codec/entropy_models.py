@@ -413,6 +413,7 @@ def test(name = 'RPM'):
                 string, _, duration_e = net.compress_slow(x,rpm_hidden)
                 x_hat, rpm_hidden, duration_d = net.decompress_slow(string, x.size()[-2:], rpm_hidden)
                 net.set_prior(x)
+                mse2 = torch.mean(torch.pow(x_hat-x_q,2))
         else:
             if isTrain:
                 x_hat, likelihoods = net(x,x,training=True)
@@ -421,10 +422,10 @@ def test(name = 'RPM'):
                 x_q, _ = net(x,x,training=False)
                 string, shape, duration_e = net.compress_slow(x, x)
                 x_hat, duration_d = net.decompress_slow(string, shape, x)
+                mse2 = torch.mean(torch.pow(x_hat-x_q,2))
             
         bits_act = net.get_actual_bits(string)
         mse = torch.mean(torch.pow(x-x_hat,2))
-        mse2 = torch.mean(torch.pow(x_hat-x_q,2))
         
         if isTrain:
             bits_est = net.get_estimate_bits(likelihoods)
