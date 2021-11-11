@@ -1359,9 +1359,9 @@ class SCVC(nn.Module):
             loss += self.gamma_app*app_loss.cuda(0)
         return loss
         
-    def init_hidden(self, h, w, b=4):
-        rae_mv_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
-        rpm_mv_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+    def init_hidden(self, h, w):
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
 class AE3D(nn.Module):
