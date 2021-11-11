@@ -191,11 +191,9 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
-                        print('before')
                         scalers[i].step(optimizers[i])
                         scalers[i].update()
                         optimizers[i].zero_grad()
-                        print('after')
                 # init batch
                 frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
                 bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
