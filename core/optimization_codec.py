@@ -151,7 +151,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec)
+            train_dataset.preprocess(data_idx, model_codec, batch_size-j)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = train_dataset[data_idx]
             frame_idx.append(f-1)
@@ -194,7 +194,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     if i != n_optimizers-1:
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
-                        scalers[i].scale(loss).backward(retain_graph=not train_dataset.last_frame)
+                        scalers[i].scale(loss).backward()
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
@@ -405,7 +405,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            test_dataset.preprocess(data_idx, model_codec)
+            test_dataset.preprocess(data_idx, model_codec, batch_size-j)
             # read one clip
             f,d,t,be,il,a,fl,ba,p,m = test_dataset[data_idx]
             frame_idx.append(f)

@@ -104,7 +104,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
 
         return (frame_idx, clip, label, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim)
             
-    def preprocess(self, index, model_codec):
+    def preprocess(self, index, model_codec, max_len):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
@@ -122,19 +122,19 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        end_of_batch = compress_video(model_codec, im_ind, self.cache, startNewClip)
+        compress_video(model_codec, im_ind, self.cache, startNewClip, max_len)
         self.prev_video = cur_video
         # check if the last frame of a clip or the last frame of a batch
         # it tells whether to split the processing for action detection
         if index == len(self)-1:
-            self.last_frame = True or end_of_batch
+            self.last_frame = True
         else:
             imgpath = self.lines[index+1].rstrip()
             im_split = imgpath.split('/')
             num_parts = len(im_split)
             nxt_im_ind = int(im_split[num_parts-1][0:5])
             nxt_video = im_split[1]
-            self.last_frame = (cur_video != nxt_video) or end_of_batch
+            self.last_frame = (cur_video != nxt_video)
         
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):

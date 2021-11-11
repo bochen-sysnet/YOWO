@@ -23,6 +23,7 @@ from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors
 import pytorch_msssim
 from datasets.clip import *
+from core.utils import *
 
 def get_codec_model(name):
     if name in ['MLVC','RLVC','DVC','RAW']:
@@ -42,14 +43,13 @@ def get_codec_model(name):
         exit(1)
     return model_codec
 
-def compress_video(model, frame_idx, cache, startNewClip):
+def compress_video(model, frame_idx, cache, startNewClip, max_len):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
-        end_of_batch = compress_video_sequential(model, frame_idx, cache, startNewClip)
+        compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
-        end_of_batch = compress_video_group(model, frame_idx, cache, startNewClip)
+        compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC','AE3D']:
-        end_of_batch = compress_video_batch(model, frame_idx, cache, startNewClip)
-    return end_of_batch
+        compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
         
 # depending on training or testing
 # the compression time should be recorded accordinglly
@@ -78,7 +78,6 @@ def compress_video_sequential(model, frame_idx, cache, startNewClip):
             for loc,j in enumerate(_range):
                 progressive_compression(model, j, prev_j, cache, loc==1, loc>=2)
                 prev_j = j
-    return True
         
 def compress_video_group(model, frame_idx, cache, startNewClip):
     if startNewClip:
@@ -147,7 +146,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
     cache['max_seen'] = frame_idx-1
     return True
         
-def compress_video_batch(model, frame_idx, cache, startNewClip):
+def compress_video_batch(model, frame_idx, cache, startNewClip, max_len):
     # process the involving GOP
     # how to deal with backward P frames?
     # if process in order, some frames need later frames to compress
@@ -162,15 +161,12 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['psnr'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
-    batch_size = 13
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
-        end_idx = ((frame_idx-1)//batch_size+1)*batch_size-1
-        end_idx = min(len(cache['clip'])-1, end_idx)
+        end_idx = min(len(cache['clip'])-1, frame_idx-1+max_len-1)
         cache['max_seen'], cache['max_proc'] = frame_idx-1, end_idx
         parallel_compression(model, range(frame_idx-1,end_idx+1), cache)
-    return (frame_idx-1)%batch_size == batch_size-1
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -1293,16 +1289,13 @@ class AE3D(nn.Module):
             ResBlockA(),
         )
         self.conv3 = nn.Sequential(
-            nn.Conv3d(128, 128, kernel_size=5, stride=(1,2,2), padding=2), 
-            nn.BatchNorm3d(128),
+            nn.Conv3d(128, 32, kernel_size=5, stride=(1,2,2), padding=2), 
+            nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
-        from compressai.entropy_models import EntropyBottleneck
-        EntropyBottleneck.get_actual_bits = get_actual_bits
-        EntropyBottleneck.get_estimate_bits = get_estimate_bits
-        self.entropy_bottleneck = EntropyBottleneck(128)
+        self.entropy_bottleneck = RecProbModel(32)
         self.deconv1 = nn.Sequential( 
-            nn.ConvTranspose3d(128, 128, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2),
             nn.BatchNorm3d(128),
             nn.ReLU(inplace=True),
         )
@@ -1339,37 +1332,41 @@ class AE3D(nn.Module):
         
     def forward(self, x, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
-        x = x.permute(1,0,2,3).unsqueeze(0)
+        x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
         bs, c, t, h, w = x.size()
         
         # encoder
-        x = self.conv1(x)
-        x = self.conv2(x) + x
-        latent = self.conv3(x)
+        x1 = self.conv1(x)
+        x2 = self.conv2(x1) + x1
+        latent = self.conv3(x2)
         
         # entropy
-        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-        latent_string = self.entropy_bottleneck.compress(latent)
+        # compress each frame sequentially
+        bits_est = bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
+        latent_hat_list = []
+        for frame_idx in range(t):
+            latent_i = latent[:,:,frame_idx,:,:]
+            self.entropy_bottleneck.set_RPM(frame_idx>=1)
+            latent_i_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent_i, rpm_hidden, training=self.training)
+            latent_i_string = self.entropy_bottleneck.compress(latent_i)
+            self.entropy_bottleneck.set_prior(latent_i)
+            latent_hat_list.append(latent_i_hat)
+            
+            # calculate bpp (estimated) if it is training else it will be set to 0
+            bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
+            
+            # calculate bpp (actual)
+            bits_act += self.entropy_bottleneck.get_actual_bits(latent_string)
+        latent_hat = torch.stack(data, dim=2)
         
         # decoder
-        x = self.deconv1(latent_hat.cuda(1))
-        print(latent_hat.size(),x.size())
-        x = self.deconv2(x) + x
-        x_hat = self.deconv3(x)
-        
-        # calculate bpp (estimated) if it is training else it will be set to 0
-        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        
-        # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
-        
-        # estimated bits
-        bpp_est = bits_est/(h * w * t)
-        # actual bits
-        bpp_act = bits_act/(h * w * t)
+        x3 = self.deconv1(latent_hat.cuda(1))
+        x4 = self.deconv2(x3) + x3
+        x_hat = self.deconv3(x4)
         
         # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()/128
+        aux_loss = self.entropy_bottleneck.loss()/32
         
         # calculate metrics/loss
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
@@ -1380,11 +1377,13 @@ class AE3D(nn.Module):
         
         # flow loss
         flow_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        
+        x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, msssim
         
 class ResBlockA(nn.Module):
     "A ResNet-like block with the GroupNorm normalization providing optional bottle-neck functionality"
-    def __init__(self, ch=128, k_size=3, stride=(1,2,2), p=1):
+    def __init__(self, ch=128, k_size=3, stride=1, p=1):
         super(ResBlockA, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv3d(ch, ch, kernel_size=k_size, stride=stride, padding=p), 
@@ -1400,7 +1399,7 @@ class ResBlockA(nn.Module):
         return out
         
 class ResBlockB(nn.Module):
-    def __init__(self, ch=128, k_size=3, stride=(1,2,2), p=1):
+    def __init__(self, ch=128, k_size=3, stride=1, p=1):
         super(ResBlockB, self).__init__()
         self.conv = nn.Sequential(
             ResBlockA(ch, k_size, stride, p), 
@@ -1412,7 +1411,7 @@ class ResBlockB(nn.Module):
         out = self.conv(x) + x
         return out
         
-def test_batch_proc(name = 'AE3D'):
+def test_batch_proc(name = 'SPVC'):
     batch_size = 2
     h = w = 224
     channels = 64
@@ -1427,11 +1426,16 @@ def test_batch_proc(name = 'AE3D'):
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
+    timer = AverageMeter()
     train_iter = tqdm(range(0,10000))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
+        # measure start
+        t_0 = time.perf_counter()
         com_frames, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, psnr, sim = model(x)
+        timer.update(time.perf_counter() - t_0,batch_size)
+        # measure end
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
         loss.backward()
@@ -1444,7 +1448,8 @@ def test_batch_proc(name = 'AE3D'):
             f"bits_est: {float(bpp_est):.2f}. "
             f"bits_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
-            f"flow_loss: {float(flow_loss):.2f}. ")
+            f"flow_loss: {float(flow_loss):.2f}. "
+            f"duration: {timer.avg:.3f}. ")
             
 def test_seq_proc(name='RLVC'):
     batch_size = 1
@@ -1458,13 +1463,19 @@ def test_seq_proc(name='RLVC'):
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
+    timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,10000))
     x_hat_prev = x
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
-        x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, p,m = model(x, x_hat_prev.detach(), hidden_states, i>=1)
+        # measure start
+        t_0 = time.perf_counter()
+        x_hat, hidden_states, bpp_est, img_loss, aux_loss, flow_loss, bpp_act, p,m = model(x, x_hat_prev.detach(), hidden_states, i%13!=0)
+        timer.update(time.perf_counter() - t_0)
+        # measure end
+        
         x_hat_prev = x_hat
         
         loss = model.loss(0,img_loss,bpp_est,aux_loss,flow_loss)
@@ -1479,7 +1490,8 @@ def test_seq_proc(name='RLVC'):
             f"bpp_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"flow_loss: {float(flow_loss):.2f}. "
-            f"psnr: {float(p):.2f}. ")
+            f"psnr: {float(p):.2f}. "
+            f"duration: {timer.avg:.3f}. ")
             
 # integrate all codec models
 # measure the speed of all codecs
@@ -1487,8 +1499,8 @@ def test_seq_proc(name='RLVC'):
 # 1. (de)compress random images, faster
 # 2. (de)compress whole datasets, record time during testing 
 # need to implement 3D-CNN compression
-def test_speed(name='RLVC'):
-    net = get_codec_model(name)
+# each model can have a timer member that counts enc/dec time
+# in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
     test_batch_proc()
