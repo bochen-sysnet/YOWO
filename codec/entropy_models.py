@@ -32,7 +32,7 @@ class RecProbModel(CompressionModel):
         self.channels = int(channels)
         
         self.sigma = self.mu = self.prior_latent = None
-        self.RPM = RPM(channels, useAttention)
+        self.RPM = RPM(channels, useAttention=useAttention)
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
