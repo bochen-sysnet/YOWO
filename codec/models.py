@@ -1258,7 +1258,7 @@ class SCVC(nn.Module):
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
         ref_frame = self.kfnet(x)
-        t_kry = time.perf_counter() - t_0
+        t_key = time.perf_counter() - t_0
         print('Key gen:',t_key)
         
         # compress ref frame, use cheng2020?
