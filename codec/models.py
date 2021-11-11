@@ -1495,7 +1495,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,5))
+    train_iter = tqdm(range(0,2))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
