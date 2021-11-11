@@ -1119,6 +1119,7 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, use_psnr=True):
+        t_spvc = time.perf_counter()
         bs, c, h, w = raw_frames.size()
         
         # derive ref frame
@@ -1187,6 +1188,7 @@ class SPVC(nn.Module):
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
+        print(time.perf_counter() - t_spvc)
         return com_frames.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
