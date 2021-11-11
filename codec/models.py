@@ -1206,7 +1206,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.ref_codec = ComprNet(device, name, in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1528,5 +1528,5 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc()
-    #test_seq_proc()
+    #test_batch_proc()
+    test_seq_proc()
