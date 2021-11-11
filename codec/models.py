@@ -266,12 +266,12 @@ class LearnedVideoCodecs(nn.Module):
         t_0 = time.perf_counter()
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
         t_flow = time.perf_counter() - t_0
-        print('flow estimation:',t_flow)
+        #print('flow estimation:',t_flow)
         # compress optical flow
         t_0 = time.perf_counter()
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         t_mv_entropy = time.perf_counter() - t_0
-        print('mv entropy:',t_mv_entropy)
+        #print('mv entropy:',t_mv_entropy)
         # motion compensation
         t_0 = time.perf_counter()
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
@@ -281,13 +281,13 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        print('compensation:',t_comp)
+        #print('compensation:',t_comp)
         # compress residual
         t_0 = time.perf_counter()
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
         t_res_entropy = time.perf_counter() - t_0
-        print('res entropy:',t_res_entropy)
+        #print('res entropy:',t_res_entropy)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -1125,7 +1125,10 @@ class SPVC(nn.Module):
         ref_frame = self.kfnet(raw_frames)
         
         # compress ref frame
+        t_0 = time.perf_counter()
         ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        t_ref = time.perf_counter() - t_0
+        print('Key gen:',t_ref)
         
         # repeat ref frame for parallelization
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
@@ -1134,24 +1137,36 @@ class SPVC(nn.Module):
         ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
+        t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
+        t_flow = time.perf_counter() - t_0
+        print('Flow:',t_flow)
         
         # compress optical flow
+        t_0 = time.perf_counter()
         #mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
         mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        t_mv = time.perf_counter() - t_0
+        print('MV entropy:',t_mv)
         
         # motion compensation
+        t_0 = time.perf_counter()
         loc = get_grid_locations(bs, h, w).cuda(1)
         warped_frames = F.grid_sample(ref_frame_hat_rep, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
         MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
+        t_comp = time.perf_counter() - t_0
+        print('Compensation:',t_comp)
         
         # compress residual
+        t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
         #res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
         res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        t_res = time.perf_counter() - t_0
+        print('RS entropy:',t_res)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
@@ -1241,14 +1256,21 @@ class SCVC(nn.Module):
         bs, c, h, w = x.size()
         
         # extract ref frame, which is close to all frames in a sense
+        t_0 = time.perf_counter()
         ref_frame = self.kfnet(x)
+        t_kry = time.perf_counter() - t_0
+        print('Key gen:',t_key)
         
         # compress ref frame, use cheng2020?
+        t_0 = time.perf_counter()
         ref_frame_hat,_,_,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, None, None, False)
+        t_ref = time.perf_counter() - t_0
+        print('REF entropy:',t_ref)
         
         # calculate ref frame loss
         ref_loss = calc_loss(x, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
         
+        t_0 = time.perf_counter()
         # extract context
         context = self.feature_extract(ref_frame_hat).cuda(1)
         
@@ -1260,16 +1282,22 @@ class SCVC(nn.Module):
         
         # contextual encoder
         y = self.ctx_encoder(torch.cat((x.cuda(1), context_rep), axis=1))
+        t_ctx = time.perf_counter() - t_0
+        print('Context:',t_ctx)
         
         # entropy model
+        t_0 = time.perf_counter()
         self.entropy_bottleneck.update()
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_string = self.entropy_bottleneck.compress(y)
         y_act = self.entropy_bottleneck.get_actual_bits(y_string)
         y_aux = self.entropy_bottleneck.loss()/self.channels
+        t_y = time.perf_counter() - t_0
+        print('Y entropy:',t_y)
         
         # contextual decoder
+        t_0 = time.perf_counter()
         x_hat = y_hat
         for i,m in enumerate(self.ctx_decoder):
             if i in [0,2,5,8]:
@@ -1286,6 +1314,8 @@ class SCVC(nn.Module):
                 x_hat = m(torch.cat((x_hat, context_rep), axis=1))
             else:
                 x_hat = m(x_hat)
+        t_ctx_dec = time.perf_counter() - t_0
+        print('Context dec:',t_ctx_dec)
         
         # estimated bits
         bpp_est = (ref_est + y_est.to(ref_est.device))/(h * w * bs)
