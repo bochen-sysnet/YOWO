@@ -321,7 +321,7 @@ class RPM(nn.Module):
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.lstm = ConvLSTM(channels)
+        
         self.conv5 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv6 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
@@ -331,6 +331,8 @@ class RPM(nn.Module):
         if self.useAttention:
             self.s_attn = Attention(channels)
             self.t_attn = Attention(channels)
+        else:
+            self.lstm = ConvLSTM(channels)
 
     def forward(self, x, hidden):
         # [B,C,H//16,W//16]

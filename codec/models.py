@@ -741,7 +741,7 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class ComprNet(nn.Module):
-    def __init__(self, device, codec_name, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+    def __init__(self, device, keyword, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
         super(ComprNet, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -757,24 +757,37 @@ class ComprNet(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if codec_name in ['MLVC','RLVC','DCVC','DCVC_v2','rec']:
+        if keyword in ['MLVC','RLVC','rec']:
+            # for recurrent sequential model
             self.entropy_bottleneck = RecProbModel(channels)
             self.entropy_type = 'rec'
-        elif codec_name in ['DVC','non-rec']:
+            self.encoder_type = 'rec'
+        elif keyword in ['attn']:
+            # for batch model
+            self.entropy_bottleneck = RecProbModel(channels,True)
+            self.entropy_type = 'attn'
+            self.encoder_type = 'attn'
+        elif keyword in ['DVC','non-rec','DCVC','DCVC_v2']:
+            # for sequential model with no recurrent network
             from compressai.entropy_models import EntropyBottleneck
             EntropyBottleneck.get_actual_bits = get_actual_bits
             EntropyBottleneck.get_estimate_bits = get_estimate_bits
             self.entropy_bottleneck = EntropyBottleneck(channels)
             self.entropy_type = 'non-rec'
+            self.encoder_type = 'non-rec'
         else:
-            print('Bottleneck not implemented for:',codec_name)
+            print('Bottleneck not implemented for:',keyword)
             exit(1)
         print('Entropy model:',self.entropy_type)
         self.channels = channels
-        self.encoder_type = 'rec' if codec_name in ['MLVC', 'RLVC'] else 'non-rec'
         if self.encoder_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
+        elif self.encoder_type == 'attn':
+            self.s_attn_enc = Attention(channels)
+            self.t_attn_enc = Attention(channels)
+            self.s_attn_dec = Attention(channels)
+            self.t_attn_dec = Attention(channels)
             
         # might need residual struct to avoid PE vanishing?
         
@@ -795,8 +808,18 @@ class ComprNet(nn.Module):
         # compress
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
+        
         if self.encoder_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
+        elif self.encoder_type == 'attn':
+            # use attention
+            B,C,H,W = x.size()
+            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            x = self.s_attn_enc(x,x,x)
+            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.t_attn_enc(x,x,x)
+            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+            
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
 
@@ -853,8 +876,18 @@ class ComprNet(nn.Module):
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
+        
         if self.encoder_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
+        elif self.encoder_type == 'attn':
+            # use attention
+            B,C,H,W = x.size()
+            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            x = self.s_attn_dec(x,x,x)
+            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.t_attn_dec(x,x,x)
+            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+            
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
         
@@ -1099,9 +1132,9 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = ComprNet(device, 'rec', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        self.ref_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = ComprNet(device, 'attn', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = ComprNet(device, 'attn', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1150,9 +1183,9 @@ class SPVC(nn.Module):
         # compress optical flow
         t_0 = time.perf_counter()
         # option 1
-        #mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         # option 2
-        mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        #mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
         #print('MV entropy:',t_mv)
         
@@ -1171,9 +1204,9 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
         # option 1
-        #res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
         # option 2
-        res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
         #print('RS entropy:',t_res)
         
@@ -1255,7 +1288,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.ref_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
