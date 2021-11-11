@@ -766,7 +766,6 @@ class ComprNet(nn.Module):
         # might need residual struct to avoid PE vanishing?
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag, fast=True):
-        print('before')
         # whether to measure time
         noMeasure = (self.training or fast)
         if not noMeasure:
@@ -856,7 +855,7 @@ class ComprNet(nn.Module):
         
         if self.encoder_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
-        print('after')
+            
         if noMeasure:
             return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
         else:
