@@ -860,6 +860,28 @@ class ComprNet(nn.Module):
             return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
         else:
             return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss, duration_enc, duration_dec
+            
+    def compress_sequence(self,x):
+        bs,c,h,w = x.size()
+        mv_est = mv_act = mv_aux_i = torch.FloatTensor([0]).squeeze(0).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
+        mv_hat_list = []
+        for frame_idx in range(bs):
+            mv_i = mv_tensors[frame_idx,:,:,:].unsqueeze(0)
+            mv_hat_i,rae_mv_hidden,rpm_mv_hidden,mv_act_i,mv_est_i,mv_aux_i = self.mv_codec(mv_i, rae_mv_hidden, rpm_mv_hidden, frame_idx>=1)
+            mv_hat_list.append(mv_hat_i)
+            
+            # calculate bpp (estimated) if it is training else it will be set to 0
+            mv_est += mv_est_i.cuda()
+            
+            # calculate bpp (actual)
+            mv_act += mv_act_i.cuda()
+            
+            # aux
+            mv_aux += mv_aux_i.cuda()
+        mv_hat = torch.stack(mv_hat_list, dim=0)
+        return mv_hat,mv_act,mv_est,mv_aux
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -1100,7 +1122,8 @@ class SPVC(nn.Module):
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
         
         # compress optical flow
-        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
+        # mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None, False)
+        mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).cuda(1)
@@ -1112,7 +1135,8 @@ class SPVC(nn.Module):
         
         # compress residual
         res_tensors = raw_frames.cuda(1) - MC_frames
-        res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
+        #res_hat,_,_,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None, False)
+        res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
