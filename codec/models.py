@@ -848,6 +848,7 @@ class ComprNet(nn.Module):
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
             if noMeasure:
+                print(latent.size())
                 latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
                 latent_string = self.entropy_bottleneck.compress(latent)
             else:
