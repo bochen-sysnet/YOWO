@@ -760,30 +760,27 @@ class ComprNet(nn.Module):
         if keyword in ['MLVC','RLVC','rec']:
             # for recurrent sequential model
             self.entropy_bottleneck = RecProbModel(channels)
-            self.entropy_type = 'rec'
-            self.encoder_type = 'rec'
+            self.model_type = 'rec'
         elif keyword in ['attn']:
             # for batch model
             self.entropy_bottleneck = RecProbModel(channels,True)
-            self.entropy_type = 'attn'
-            self.encoder_type = 'attn'
+            self.model_type = 'attn'
         elif keyword in ['DVC','non-rec','DCVC','DCVC_v2']:
             # for sequential model with no recurrent network
             from compressai.entropy_models import EntropyBottleneck
             EntropyBottleneck.get_actual_bits = get_actual_bits
             EntropyBottleneck.get_estimate_bits = get_estimate_bits
             self.entropy_bottleneck = EntropyBottleneck(channels)
-            self.entropy_type = 'non-rec'
-            self.encoder_type = 'non-rec'
+            self.model_type = 'non-rec'
         else:
             print('Bottleneck not implemented for:',keyword)
             exit(1)
-        print('Entropy model:',self.entropy_type)
+        print('Entropy model:',self.model_type)
         self.channels = channels
-        if self.encoder_type == 'rec':
+        if self.model_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
-        elif self.encoder_type == 'attn':
+        elif self.model_type == 'attn':
             self.s_attn_enc = Attention(channels)
             self.t_attn_enc = Attention(channels)
             self.s_attn_dec = Attention(channels)
@@ -798,7 +795,7 @@ class ComprNet(nn.Module):
             duration_enc = duration_dec = 0
         
         # latent states
-        if self.encoder_type == 'rec':
+        if self.model_type == 'rec':
             state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
             
         # Time measurement: start
@@ -809,9 +806,9 @@ class ComprNet(nn.Module):
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
         
-        if self.encoder_type == 'rec':
+        if self.model_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
-        elif self.encoder_type == 'attn':
+        elif self.model_type == 'attn':
             # use attention
             B,C,H,W = x.size()
             x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
@@ -832,7 +829,7 @@ class ComprNet(nn.Module):
             duration_enc += duration
         
         # quantization + entropy coding
-        if self.entropy_type == 'non-rec':
+        if self.model_type == 'non-rec':
             if noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 latent_string = self.entropy_bottleneck.compress(latent)
@@ -877,9 +874,9 @@ class ComprNet(nn.Module):
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
         
-        if self.encoder_type == 'rec':
+        if self.model_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
-        elif self.encoder_type == 'attn':
+        elif self.model_type == 'attn':
             # use attention
             B,C,H,W = x.size()
             x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
@@ -899,7 +896,7 @@ class ComprNet(nn.Module):
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
         
-        if self.encoder_type == 'rec':
+        if self.model_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
         if noMeasure:
@@ -1182,10 +1179,12 @@ class SPVC(nn.Module):
         
         # compress optical flow
         t_0 = time.perf_counter()
-        # option 1
-        mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag=True)
-        # option 2
-        #mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        if self.mv_codec.model_type == 'attn':
+            # option 1
+            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag=True)
+        else:
+            # option 2
+            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
         #print('MV entropy:',t_mv)
         
@@ -1203,10 +1202,12 @@ class SPVC(nn.Module):
         # compress residual
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
-        # option 1: attention
-        res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag=True)
-        # option 2: only used when codec is recurrent
-        #res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        if self.res_codec.model_type == 'attn':
+            # option 1: attention
+            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag=True)
+        else:
+            # option 2: only used when codec is recurrent
+            res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
         #print('RS entropy:',t_res)
         
@@ -1544,7 +1545,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 4
+    batch_size = 2
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
