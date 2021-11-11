@@ -300,6 +300,7 @@ class LearnedVideoCodecs(nn.Module):
         if self.name in ['MLVC','RAW']:
             if app_loss is not None:
                 loss += self.gamma_app*app_loss
+        return loss
     
     def init_hidden(self, h, w):
         rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
@@ -1132,10 +1133,10 @@ class SPVC(nn.Module):
         return com_frames.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        print(pix_loss, bpp_loss, aux_loss)
         loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
         if app_loss is not None:
             loss += self.gamma_app*app_loss.cuda(0)
+        return loss
          
 # conditional coding
 class SCVC(nn.Module):
@@ -1265,6 +1266,7 @@ class SCVC(nn.Module):
         loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
         if app_loss is not None:
             loss += self.gamma_app*app_loss.cuda(0)
+        return loss
         
 class AE3D(nn.Module):
     def __init__(self, name):
