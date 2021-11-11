@@ -1288,7 +1288,7 @@ class SCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
+        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
         self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
@@ -1638,6 +1638,6 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc('SPVC')
-    #test_batch_proc('SCVC')
+    #test_batch_proc('SPVC')
+    test_batch_proc('SCVC')
     #test_seq_proc('RLVC')
