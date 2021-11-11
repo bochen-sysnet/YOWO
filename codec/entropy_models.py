@@ -35,6 +35,7 @@ class RecProbModel(CompressionModel):
         self.RPM = RPM(channels, useAttention=useAttention)
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
+        self.useAttention = useAttention
         
     def set_RPM(self, RPM_flag):
         self.RPM_flag = RPM_flag
@@ -55,8 +56,10 @@ class RecProbModel(CompressionModel):
         self, x, rpm_hidden, training = None
     ):
         if self.RPM_flag:
-            assert self.prior_latent is not None, 'prior latent is none!'
-            self.sigma, self.mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
+            if not self.useAttention:
+                assert self.prior_latent is not None, 'prior latent is none!'
+            rpm_in = x if self.useAttention else self.prior_latent
+            self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(self.prior_latent.device))
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(self.sigma.device))
             self.sigma = torch.exp(self.sigma)/10
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
