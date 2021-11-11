@@ -1128,7 +1128,7 @@ class SPVC(nn.Module):
         msssim = MSSSIM(raw_frames, com_frames, use_list=True)
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
-        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.gamma_flow
+        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
         return com_frames.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
