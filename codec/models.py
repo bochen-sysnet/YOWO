@@ -185,6 +185,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
+    print(aux_loss,'.')
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
 def parallel_compression(model, _range, cache):
