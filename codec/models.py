@@ -229,8 +229,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = ComprNet(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = LatentCoder(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = LatentCoder(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -368,7 +368,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = ComprNet(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = LatentCoder(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -740,9 +740,9 @@ def get_estimate_bits(self, likelihoods):
     bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
     return bits_est
 
-class ComprNet(nn.Module):
+class LatentCoder(nn.Module):
     def __init__(self, device, keyword, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
-        super(ComprNet, self).__init__()
+        super(LatentCoder, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
@@ -780,11 +780,6 @@ class ComprNet(nn.Module):
         if self.model_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
-        elif self.model_type == 'attn':
-            self.s_attn_enc = Attention(channels)
-            self.t_attn_enc = Attention(channels)
-            self.s_attn_dec = Attention(channels)
-            self.t_attn_dec = Attention(channels)
             
         # might need residual struct to avoid PE vanishing?
         
@@ -808,14 +803,6 @@ class ComprNet(nn.Module):
         
         if self.model_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
-        elif self.model_type == 'attn':
-            # use attention
-            B,C,H,W = x.size()
-            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            x = self.s_attn_enc(x,x,x)
-            x = x.transpose(0,1).contiguous() #[HW,B,C]
-            x = self.t_attn_enc(x,x,x)
-            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
@@ -876,14 +863,6 @@ class ComprNet(nn.Module):
         
         if self.model_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
-        elif self.model_type == 'attn':
-            # use attention
-            B,C,H,W = x.size()
-            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            x = self.s_attn_dec(x,x,x)
-            x = x.transpose(0,1).contiguous() #[HW,B,C]
-            x = self.t_attn_dec(x,x,x)
-            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
@@ -1129,9 +1108,9 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = ComprNet(device, 'rec', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = ComprNet(device, 'rec', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = LatentCoder(device, 'rec', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.res_codec = LatentCoder(device, 'rec', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1289,7 +1268,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = ComprNet(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1

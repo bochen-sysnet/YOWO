@@ -25,7 +25,6 @@ class RecProbModel(CompressionModel):
     def __init__(
         self,
         channels,
-        useAttention=False,
     ):
         super().__init__(channels)
 
@@ -35,7 +34,6 @@ class RecProbModel(CompressionModel):
         self.RPM = RPM(channels, useAttention=useAttention)
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
-        self.useAttention = useAttention
         
     def set_RPM(self, RPM_flag):
         self.RPM_flag = RPM_flag
@@ -56,9 +54,8 @@ class RecProbModel(CompressionModel):
         self, x, rpm_hidden, training = None
     ):
         if self.RPM_flag:
-            if not self.useAttention:
-                assert self.prior_latent is not None, 'prior latent is none!'
-            rpm_in = x if self.useAttention else self.prior_latent
+            assert self.prior_latent is not None, 'prior latent is none!'
+            rpm_in = self.prior_latent
             self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(x.device))
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
             self.sigma = torch.exp(self.sigma)/10
@@ -132,6 +129,175 @@ class RecProbModel(CompressionModel):
             x_hat = self.entropy_bottleneck.decompress(string, shape)
         duration = time.perf_counter() - t_0
         return x_hat, rpm_hidden, duration
+        
+class MeanScaleHyperPriors(CompressionModel):
+
+    def __init__(
+        self,
+        channels,
+        useAttention=False,
+    ):
+        super().__init__(channels)
+
+        self.channels = int(channels)
+        
+        self.sigma = self.mu = self.z_string = None
+        h = w = 224
+        self.gaussian_conditional = GaussianConditional(None)
+        
+        self.h_a1 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+        )
+        
+        self.h_a2 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+        )
+        
+        self.h_s1 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+        )
+        
+        self.h_s2 = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
+        )
+        
+        self.useAttention = useAttention
+        
+        if self.useAttention:
+            self.s_attn_a = Attention(channels)
+            self.t_attn_a = Attention(channels)
+            self.s_attn_s = Attention(channels)
+            self.t_attn_s = Attention(channels)
+        
+    def update(self, scale_table=None, force=False):
+        if scale_table is None:
+            scale_table = get_scale_table()
+        updated = self.gaussian_conditional.update_scale_table(scale_table, force=force)
+        updated |= super().update(force=force)
+        return updated
+
+    def loss(self):
+        return self.aux_loss()
+
+    def forward(
+        self, x, training = None
+    ):
+        B,C,H,W = x.size()
+        z = self.h_a1(x)
+        if self.useAttention:
+            # use attention
+            z = z.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            z = self.s_attn_a(z,z,z)
+            z = z.transpose(0,1).contiguous() #[HW,B,C]
+            z = self.t_attn_a(z,z,z)
+            z = z.permute(1,2,0).view(B,C,H,W).contiguous()
+        z = self.h_a2(z)
+        z_hat, z_likelihood = self.entropy_bottleneck(z)
+        self.z = z # for fast compression
+        
+        g = self.h_s1(z_hat)
+        if self.useAttention:
+            # use attention
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.h_s2(g)
+            
+        self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
+        # post-process sigma to stablize training
+        self.sigma = torch.exp(self.sigma)/10
+        x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
+        return x_hat, (x_likelihood,z_likelihood)
+        
+    def get_actual_bits(self, string):
+        (x_string,z_string) = string
+        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
+        return bits_act
+        
+    def get_estimate_bits(self, likelihoods):
+        (x_likelihood,z_likelihood) = likelihoods
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
+        bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
+        return bits_est
+        
+    def compress(self, x):
+        # a fast implementation of compression
+        z_string = self.entropy_bottleneck.compress(self.z)
+        indexes = self.gaussian_conditional.build_indexes(self.sigma)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=self.mu)
+        return (x_string,z_string)
+
+    def decompress(self, string, shape):
+        indexes = self.gaussian_conditional.build_indexes(self.sigma)
+        x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=self.mu)
+        return x_hat
+        
+    # we should only use one hidden from compression or decompression
+    def compress_slow(self, x):
+        # shouldnt be used together with forward()
+        t_0 = time.perf_counter()
+        B,C,H,W = x.size()
+        z = self.h_a1(x)
+        if self.useAttention:
+            # use attention
+            z = z.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            z = self.s_attn_a(z,z,z)
+            z = z.transpose(0,1).contiguous() #[HW,B,C]
+            z = self.t_attn_a(z,z,z)
+            z = z.permute(1,2,0).view(B,C,H,W).contiguous()
+        z = self.h_a2(z)
+        z_string = self.entropy_bottleneck.compress(z)
+        z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
+        
+        g = self.h_s1(z_hat)
+        if self.useAttention:
+            # use attention
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.h_s2(g)
+        
+        sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
+        sigma = torch.exp(sigma)/10
+        indexes = self.gaussian_conditional.build_indexes(sigma)
+        x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
+        duration = time.perf_counter() - t_0
+        return (x_string, z_string), x.size()[-2:], duration
+        
+    def decompress_slow(self, string, shape):
+        t_0 = time.perf_counter()
+        B,C,H,W = x.size()
+        z_hat = self.entropy_bottleneck.decompress(string[1], shape)
+        g = self.h_s1(z_hat)
+        if self.useAttention:
+            # use attention
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.h_s2(g)
+        
+        sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
+        sigma = torch.exp(sigma)/10
+        indexes = self.gaussian_conditional.build_indexes(sigma)
+        x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
+        duration = time.perf_counter() - t_0
+        return x_hat, duration
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
@@ -405,12 +571,14 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'Joint'):
+def test(name = 'MSH'):
     channels = 128
     if name =='RPM':
-        net = RecProbModel(channels,useAttention=True)
-    else:
+        net = RecProbModel(channels)
+    elif name == 'Joint':
         net = JointAutoregressiveHierarchicalPriors(channels,useAttention=True)
+    else:
+        net = MeanScaleHyperPriors(channels,useAttention=True)
     x = torch.rand(4, channels, 14, 14)
     import torch.optim as optim
     from tqdm import tqdm
@@ -440,7 +608,7 @@ def test(name = 'Joint'):
                 x_hat, rpm_hidden, duration_d = net.decompress_slow(string, x.size()[-2:], rpm_hidden)
                 net.set_prior(x)
                 mse2 = torch.mean(torch.pow(x_hat-x_q,2))
-        else:
+        elif name == 'Joint':
             if isTrain:
                 x_hat, likelihoods = net(x,x,training=True)
                 string = net.compress(x)
@@ -448,6 +616,15 @@ def test(name = 'Joint'):
                 x_q, _ = net(x,x,training=False)
                 string, shape, duration_e = net.compress_slow(x, x)
                 x_hat, duration_d = net.decompress_slow(string, shape, x)
+                mse2 = torch.mean(torch.pow(x_hat-x_q,2))
+        else:
+            if isTrain:
+                x_hat, likelihoods = net(x,training=True)
+                string = net.compress(x)
+            else:
+                x_q,_ = net(x,training=False)
+                string, shape, duration_e = net.compress_slow(x)
+                x_hat, duration_d = net.decompress_slow(string, shape)
                 mse2 = torch.mean(torch.pow(x_hat-x_q,2))
             
         bits_act = net.get_actual_bits(string)
