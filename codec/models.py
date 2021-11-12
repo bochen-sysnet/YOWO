@@ -1474,7 +1474,10 @@ class AE3D(nn.Module):
         x3 = self.deconv1(latent_hat.cuda(1))
         x4 = self.deconv2(x3) + x3
         x_hat = self.deconv3(x4)
-        print(x_hat.size())
+        
+        # reshape
+        x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
+        x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/32
@@ -1486,7 +1489,6 @@ class AE3D(nn.Module):
         # calculate img loss
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         
-        x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def init_hidden(self, h, w):
