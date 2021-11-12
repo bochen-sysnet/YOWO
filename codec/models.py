@@ -1249,20 +1249,21 @@ class SCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.ctx_decoder = nn.ModuleList([nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1),
+        self.ctx_decoder1 = nn.Sequential(nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                         GDN(channels, inverse=True),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
-                                        GDN(channels, inverse=True),
-                                        ResidualBlock(channels,channels),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                         GDN(channels, inverse=True),
                                         ResidualBlock(channels,channels),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
-                                        nn.Conv2d(channels*2, channels, kernel_size=3, stride=1, padding=1),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                        GDN(channels, inverse=True),
+                                        ResidualBlock(channels,channels),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                        )
+        self.ctx_decoder2 = nn.Sequential(nn.Conv2d(channels*2, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels),
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
-                                        ])
+                                        )
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
                                         )
@@ -1342,22 +1343,8 @@ class SCVC(nn.Module):
         
         # contextual decoder
         t_0 = time.perf_counter()
-        x_hat = y_hat
-        for i,m in enumerate(self.ctx_decoder):
-            if i in [0,2,5,8]:
-                if i==0:
-                    sz = torch.Size([bs,c,h//8,w//8])
-                elif i==2:
-                    sz = torch.Size([bs,c,h//4,w//4])
-                elif i==5:
-                    sz = torch.Size([bs,c,h//2,w//2])
-                else:
-                    sz = torch.Size([bs,c,h,w])
-                x_hat = m(x_hat,output_size=sz)
-            elif i==9:
-                x_hat = m(torch.cat((x_hat, context_rep), axis=1))
-            else:
-                x_hat = m(x_hat)
+        x_hat = self.ctx_decoder1(y_hat)
+        x_hat = self.ctx_decoder2(torch.cat((x_hat, context_rep), axis=1))
         t_ctx_dec = time.perf_counter() - t_0
         #print('Context dec:',t_ctx_dec)
         
@@ -1624,6 +1611,6 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc('SPVC')
-    #test_batch_proc('SCVC')
+    #test_batch_proc('SPVC')
+    test_batch_proc('SCVC')
     #test_seq_proc('RLVC')
