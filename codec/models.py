@@ -224,7 +224,6 @@ class LearnedVideoCodecs(nn.Module):
         else:
             print('I frame compression not implemented:',name)
             exit(1)
-        print('I-frame compression:',self.image_coder_name)
         if self.image_coder_name == 'deepcod':
             self._image_coder = DeepCOD()
         else:
@@ -1592,7 +1591,7 @@ def test_seq_proc(name='RLVC'):
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
-    train_iter = tqdm(range(0,30))
+    train_iter = tqdm(range(0,26))
     x_hat_prev = x
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
