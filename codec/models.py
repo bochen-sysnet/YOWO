@@ -750,10 +750,10 @@ class LatentCoder(nn.Module):
         self.gdn1 = GDN(channels)
         self.gdn2 = GDN(channels)
         self.gdn3 = GDN(channels)
-        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
+        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1)
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
@@ -1624,6 +1624,6 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    #test_batch_proc('SPVC')
-    test_batch_proc('SCVC')
+    test_batch_proc('SPVC')
+    #test_batch_proc('SCVC')
     #test_seq_proc('RLVC')
