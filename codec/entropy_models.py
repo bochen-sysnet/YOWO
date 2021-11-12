@@ -209,9 +209,9 @@ class MeanScaleHyperPriors(CompressionModel):
         if self.useAttention:
             # use attention
             g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            g = self.s_attn(g,g,g)
+            g = self.s_attn_s(g,g,g)
             g = g.transpose(0,1).contiguous() #[HW,B,C]
-            g = self.t_attn(g,g,g)
+            g = self.t_attn_s(g,g,g)
             g = g.permute(1,2,0).view(B,C,H,W).contiguous()
         gaussian_params = self.h_s2(g)
             
@@ -265,9 +265,9 @@ class MeanScaleHyperPriors(CompressionModel):
         if self.useAttention:
             # use attention
             g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            g = self.s_attn(g,g,g)
+            g = self.s_attn_s(g,g,g)
             g = g.transpose(0,1).contiguous() #[HW,B,C]
-            g = self.t_attn(g,g,g)
+            g = self.t_attn_s(g,g,g)
             g = g.permute(1,2,0).view(B,C,H,W).contiguous()
         gaussian_params = self.h_s2(g)
         
@@ -286,9 +286,9 @@ class MeanScaleHyperPriors(CompressionModel):
         if self.useAttention:
             # use attention
             g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            g = self.s_attn(g,g,g)
+            g = self.s_attn_s(g,g,g)
             g = g.transpose(0,1).contiguous() #[HW,B,C]
-            g = self.t_attn(g,g,g)
+            g = self.t_attn_s(g,g,g)
             g = g.permute(1,2,0).view(B,C,H,W).contiguous()
         gaussian_params = self.h_s2(g)
         
