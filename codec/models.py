@@ -1501,6 +1501,12 @@ class AE3D(nn.Module):
     def init_hidden(self, h, w):
         return None
         
+    def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
+        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
+        if app_loss is not None:
+            loss += self.gamma_app*app_loss.cuda(0)
+        return loss
+        
 class ResBlockA(nn.Module):
     "A ResNet-like block with the GroupNorm normalization providing optional bottle-neck functionality"
     def __init__(self, ch=128, k_size=3, stride=1, p=1):
