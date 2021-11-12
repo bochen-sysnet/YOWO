@@ -1486,6 +1486,9 @@ class AE3D(nn.Module):
         
         x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+    
+    def init_hidden(self, h, w):
+        return None
         
 class ResBlockA(nn.Module):
     "A ResNet-like block with the GroupNorm normalization providing optional bottle-neck functionality"
