@@ -318,12 +318,12 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
             nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
         )
 
-        self.h_s = nn.ModuleList([
+        self.h_s = nn.Sequential(
             nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)]
+            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)
         )
 
         self.conv1 = nn.Sequential(
@@ -362,17 +362,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         z = self.h_a(x)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
         self.z = z # for fast compression
-        
-        params = z_hat
-        for i,m in enumerate(self.h_s):
-            if i in [0,2]:
-                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size([bs,c,h,w])
-                params = m(params,output_size=sz)
-            else:
-                params = m(params)
-        g = self.conv1(
-            torch.cat((params, ctx_params), dim=1)
-        )
+        params = self.h_s(z_hat)
+        g = self.conv1(torch.cat((params, ctx_params), dim=1))
         if self.useAttention:
             # use attention
             B,C,H,W = g.size()
@@ -419,16 +410,17 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         z = self.h_a(x)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
-        params = z_hat
-        for i,m in enumerate(self.h_s):
-            if i in [0,2]:
-                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size([bs,c,h,w])
-                params = m(params,output_size=sz)
-            else:
-                params = m(params)
-        gaussian_params = self.entropy_parameters(
-            torch.cat((params, ctx_params), dim=1)
-        )
+        params = self.h_s(z_hat)
+        g = self.conv1(torch.cat((params, ctx_params), dim=1))
+        if self.useAttention:
+            # use attention
+            B,C,H,W = g.size()
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.conv2(g)
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
@@ -440,16 +432,17 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         t_0 = time.perf_counter()
         bs,c,h,w = shape
         z_hat = self.entropy_bottleneck.decompress(string[1], [4,4])
-        params = z_hat
-        for i,m in enumerate(self.h_s):
-            if i in [0,2]:
-                sz = torch.Size([bs,c,h//2,w//2]) if i==0 else torch.Size([bs,c,h,w])
-                params = m(params,output_size=sz)
-            else:
-                params = m(params)
-        gaussian_params = self.entropy_parameters(
-            torch.cat((params, ctx_params), dim=1)
-        )
+        params = self.h_s(z_hat)
+        g = self.conv1(torch.cat((params, ctx_params), dim=1))
+        if self.useAttention:
+            # use attention
+            B,C,H,W = g.size()
+            g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            g = self.s_attn(g,g,g)
+            g = g.transpose(0,1).contiguous() #[HW,B,C]
+            g = self.t_attn(g,g,g)
+            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+        gaussian_params = self.conv2(g)
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
@@ -567,7 +560,7 @@ class ConvLSTM(nn.Module):
 
         return h, torch.cat((c, h),dim=1)
         
-def test(name = 'MSH'):
+def test(name = 'Joint'):
     channels = 128
     if name =='RPM':
         net = RecProbModel(channels)
