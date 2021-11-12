@@ -145,7 +145,7 @@ class MeanScaleHyperPriors(CompressionModel):
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
-        lite = True
+        lite = False
         
         if lite:
             self.h_a1 = nn.Sequential(

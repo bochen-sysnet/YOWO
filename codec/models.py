@@ -1582,8 +1582,8 @@ def test_seq_proc(name='RLVC'):
     batch_size = 1
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
-    if name == 'DCVC':
-        model = DCVC('DCVC')
+    if name == 'DCVC' or name == 'DCVC_v2':
+        model = DCVC(name)
     else:
         model = LearnedVideoCodecs(name)
     import torch.optim as optim
