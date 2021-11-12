@@ -1632,7 +1632,7 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    #test_batch_proc('SPVC')
-    #test_batch_proc('SCVC')
+    test_batch_proc('SPVC')
+    test_batch_proc('SCVC')
     test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
