@@ -101,7 +101,8 @@ if cfg.TRAIN.RESUME_PATH:
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_SPVC_ckpt.pth"
         checkpoint = torch.load(pretrained_model_path)
-        print(checkpoint['state_dict'])
+        for name, param in checkpoint['state_dict'].items():
+            print(name,param.size())
         exit(0)
         load_state_dict_whatever(model_codec, checkpoint['state_dict'])
         del checkpoint
