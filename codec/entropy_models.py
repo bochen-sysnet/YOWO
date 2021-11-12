@@ -145,27 +145,56 @@ class MeanScaleHyperPriors(CompressionModel):
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
-        self.h_a1 = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
-            nn.LeakyReLU(inplace=True),
-        )
+        lite = False
         
-        self.h_a2 = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
-        )
-        
-        self.h_s1 = nn.Sequential(
-            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
-            nn.LeakyReLU(inplace=True),
-        )
-        
-        self.h_s2 = nn.Sequential(
-            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
-        )
+        if lite:
+            self.h_a1 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+                nn.LeakyReLU(inplace=True),
+            )
+            
+            self.h_a2 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            )
+            
+            self.h_s1 = nn.Sequential(
+                nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
+                nn.LeakyReLU(inplace=True),
+            )
+            
+            self.h_s2 = nn.Sequential(
+                nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2, output_padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
+            )
+        else:
+            self.h_a1 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+            )
+            
+            self.h_a2 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            )
+            
+            self.h_s1 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+            )
+            
+            self.h_s2 = nn.Sequential(
+                nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.LeakyReLU(inplace=True),
+                nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
+            )
         
         self.useAttention = useAttention
         
