@@ -1467,7 +1467,7 @@ class AE3D(nn.Module):
             bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
             
             # calculate bpp (actual)
-            bits_act += self.entropy_bottleneck.get_actual_bits(latent_string)
+            bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
         latent_hat = torch.stack(data, dim=2)
         
         # decoder
