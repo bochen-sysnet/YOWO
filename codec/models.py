@@ -1404,7 +1404,7 @@ class AE3D(nn.Module):
         )
         self.entropy_bottleneck = RecProbModel(32)
         self.deconv1 = nn.Sequential( 
-            nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(128),
             nn.ReLU(inplace=True),
         )
@@ -1417,10 +1417,10 @@ class AE3D(nn.Module):
             ResBlockA(),
         )
         self.deconv3 = nn.Sequential( 
-            nn.ConvTranspose3d(128, 64, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.ConvTranspose3d(128, 64, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(64),
             nn.ReLU(inplace=True),
-            nn.ConvTranspose3d(64, 3, kernel_size=5, stride=(1,2,2), padding=2),
+            nn.ConvTranspose3d(64, 3, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(3),
         )
         self.channels = 128
@@ -1439,7 +1439,7 @@ class AE3D(nn.Module):
         self.deconv3.cuda(1)
         self.entropy_bottleneck.cuda(0)
         
-    def forward(self, x, use_psnr=True):
+    def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
         x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
         bs, c, t, h, w = x.size()
@@ -1485,7 +1485,7 @@ class AE3D(nn.Module):
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         
         x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
-        return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
 class ResBlockA(nn.Module):
     "A ResNet-like block with the GroupNorm normalization providing optional bottle-neck functionality"
@@ -1613,5 +1613,6 @@ def test_seq_proc(name='RLVC'):
         
 if __name__ == '__main__':
     #test_batch_proc('SPVC')
-    test_batch_proc('SCVC')
+    #test_batch_proc('SCVC')
+    test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
