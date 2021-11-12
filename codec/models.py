@@ -1135,7 +1135,6 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
-        t_spvc = time.perf_counter()
         bs, c, h, w = raw_frames.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
@@ -1143,13 +1142,13 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         ref_frame = self.kfnet(raw_frames)
         t_ref = time.perf_counter() - t_0
-        #print('Key gen:',t_ref)
+        print('Key gen:',t_ref)
         
         # compress ref frame
         t_0 = time.perf_counter()
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden,RPM_flag)
         t_ref = time.perf_counter() - t_0
-        #print('REF entropy:',t_ref)
+        print('REF entropy:',t_ref)
         
         # repeat ref frame for parallelization
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
@@ -1161,7 +1160,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
         t_flow = time.perf_counter() - t_0
-        #print('Flow:',t_flow)
+        print('Flow:',t_flow)
         
         # compress optical flow
         t_0 = time.perf_counter()
@@ -1172,7 +1171,7 @@ class SPVC(nn.Module):
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
-        #print('MV entropy:',t_mv)
+        print('MV entropy:',t_mv)
         
         # motion compensation
         t_0 = time.perf_counter()
@@ -1183,7 +1182,7 @@ class SPVC(nn.Module):
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        #print('Compensation:',t_comp)
+        print('Compensation:',t_comp)
         
         # compress residual
         t_0 = time.perf_counter()
@@ -1195,7 +1194,7 @@ class SPVC(nn.Module):
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
-        #print('RS entropy:',t_res)
+        print('RS entropy:',t_res)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
@@ -1213,7 +1212,6 @@ class SPVC(nn.Module):
         rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
-        #print(time.perf_counter() - t_spvc)
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
