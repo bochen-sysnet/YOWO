@@ -1451,7 +1451,8 @@ class AE3D(nn.Module):
         
         # entropy
         # compress each frame sequentially
-        bits_est = bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bits_est = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
         rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
         latent_hat_list = []
         self.entropy_bottleneck.update(force=True)
@@ -1478,6 +1479,12 @@ class AE3D(nn.Module):
         # reshape
         x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
+        
+        # estimated bits
+        bpp_est = bits_est/(h * w * t)
+        
+        # actual bits
+        bpp_act = bits_act/(h * w * t)
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/32
