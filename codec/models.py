@@ -1291,7 +1291,8 @@ class SCVC(nn.Module):
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
         self.entropy_bottleneck.cuda(1)
-        self.ctx_decoder.cuda(1)
+        self.ctx_decoder1.cuda(1)
+        self.ctx_decoder2.cuda(1)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
         # x=[B,C,H,W]: input sequence of frames
