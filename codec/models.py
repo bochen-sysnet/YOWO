@@ -866,13 +866,17 @@ class LatentCoder(nn.Module):
             
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
+        print(x.size())
         x = self.igdn2(self.dec_conv2(x))
+        print(x.size())
         
         if self.model_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
             
         x = self.igdn3(self.dec_conv3(x))
+        print(x.size())
         hat = self.dec_conv4(x)
+        print(x.size())
         
         # Time measurement: end
         if not noMeasure:
