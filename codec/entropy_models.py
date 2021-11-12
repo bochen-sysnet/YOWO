@@ -148,25 +148,21 @@ class MeanScaleHyperPriors(CompressionModel):
         self.h_a1 = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
         )
         
         self.h_a2 = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
         )
         
         self.h_s1 = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
         )
         
         self.h_s2 = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
             nn.Conv2d(channels, channels*2, kernel_size=3, stride=1, padding=1),
         )
