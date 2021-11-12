@@ -202,7 +202,6 @@ class MeanScaleHyperPriors(CompressionModel):
         self.z = z # for fast compression
         
         g = self.h_s1(z_hat)
-        print(g.size(),x.size())
         if self.useAttention:
             # use attention
             g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
@@ -211,6 +210,7 @@ class MeanScaleHyperPriors(CompressionModel):
             g = self.t_attn_s(g,g,g)
             g = g.permute(1,2,0).view(B,C,H//2,W//2).contiguous()
         gaussian_params = self.h_s2(g)
+        print(gaussian_params.size(),x.size())
             
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
