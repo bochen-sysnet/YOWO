@@ -1625,7 +1625,7 @@ def test_seq_proc(name='RLVC'):
 # 1. (de)compress random images, faster
 # 2. (de)compress whole datasets, record time during testing 
 # need to implement 3D-CNN compression
-# each model can have a timer member that counts enc/dec time
+# ***************each model can have a timer member that counts enc/dec time
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
