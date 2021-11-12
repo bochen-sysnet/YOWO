@@ -20,7 +20,7 @@ from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock
-from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors
+from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors,MeanScaleHyperPriors
 import pytorch_msssim
 from datasets.clip import *
 from core.utils import *
@@ -763,7 +763,7 @@ class LatentCoder(nn.Module):
             self.model_type = 'rec'
         elif keyword in ['attn']:
             # for batch model
-            self.entropy_bottleneck = RecProbModel(channels,True)
+            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
             self.model_type = 'attn'
         elif keyword in ['DVC','non-rec','DCVC','DCVC_v2']:
             # for sequential model with no recurrent network
@@ -829,6 +829,13 @@ class LatentCoder(nn.Module):
                 t_0 = time.perf_counter()
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
                 duration_d = time.perf_counter() - t_0
+        elif self.model_type == 'attn':
+            if noMeasure:
+                latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+                latent_string = self.entropy_bottleneck.compress(latent)
+            else:
+                print('Not implemented now')
+                exit(1)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
             if noMeasure:
