@@ -196,7 +196,7 @@ class MeanScaleHyperPriors(CompressionModel):
             z = self.s_attn_a(z,z,z)
             z = z.transpose(0,1).contiguous() #[HW,B,C]
             z = self.t_attn_a(z,z,z)
-            z = z.permute(1,2,0).view(B,C,H,W).contiguous()
+            z = z.permute(1,2,0).view(B,C,H//2,W//2).contiguous()
         z = self.h_a2(z)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
         self.z = z # for fast compression
@@ -208,7 +208,7 @@ class MeanScaleHyperPriors(CompressionModel):
             g = self.s_attn_s(g,g,g)
             g = g.transpose(0,1).contiguous() #[HW,B,C]
             g = self.t_attn_s(g,g,g)
-            g = g.permute(1,2,0).view(B,C,H,W).contiguous()
+            g = g.permute(1,2,0).view(B,C,H//2,W//2).contiguous()
         gaussian_params = self.h_s2(g)
             
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
