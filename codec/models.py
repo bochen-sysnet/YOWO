@@ -751,7 +751,7 @@ class LatentCoder(nn.Module):
         self.gdn2 = GDN(channels)
         self.gdn3 = GDN(channels)
         self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1)
         self.igdn1 = GDN(channels, inverse=True)
