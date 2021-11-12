@@ -31,7 +31,7 @@ class RecProbModel(CompressionModel):
         self.channels = int(channels)
         
         self.sigma = self.mu = self.prior_latent = None
-        self.RPM = RPM(channels, useAttention=useAttention)
+        self.RPM = RPM(channels)
         h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
@@ -494,7 +494,7 @@ class Attention(nn.Module):
 # conditional probability
 # predict y_t based on parameters computed from y_t-1
 class RPM(nn.Module):
-    def __init__(self, channels=128, act=torch.tanh, useAttention=False):
+    def __init__(self, channels=128, act=torch.tanh):
         super(RPM, self).__init__()
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
@@ -506,12 +506,7 @@ class RPM(nn.Module):
         self.conv7 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.conv8 = nn.Conv2d(channels, 2*channels, kernel_size=3, stride=1, padding=1)
         self.channels = channels
-        self.useAttention = useAttention
-        if self.useAttention:
-            self.s_attn = Attention(channels)
-            self.t_attn = Attention(channels)
-        else:
-            self.lstm = ConvLSTM(channels)
+        self.lstm = ConvLSTM(channels)
 
     def forward(self, x, hidden):
         # [B,C,H//16,W//16]
@@ -520,17 +515,7 @@ class RPM(nn.Module):
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
         
-        if not self.useAttention:
-            # just use LSTM
-            x, hidden = self.lstm(x, hidden.to(x.device))
-        else:
-            # use attention
-            B,C,H,W = x.size()
-            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            x = self.s_attn(x,x,x)
-            x = x.transpose(0,1).contiguous() #[HW,B,C]
-            x = self.t_attn(x,x,x)
-            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+        x, hidden = self.lstm(x, hidden.to(x.device))
             
         x = F.relu(self.conv5(x))
         x = F.relu(self.conv6(x))
