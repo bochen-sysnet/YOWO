@@ -210,7 +210,6 @@ class MeanScaleHyperPriors(CompressionModel):
             g = self.t_attn_s(g,g,g)
             g = g.permute(1,2,0).view(B,C,H//2,W//2).contiguous()
         gaussian_params = self.h_s2(g)
-        print(gaussian_params.size(),x.size())
             
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
