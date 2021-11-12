@@ -414,7 +414,7 @@ class DCVC(nn.Module):
             
             # motion compensation
             x_feat_warp = F.grid_sample(x_feat, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
-            x_tilde = F.grid_sample(x_hat_prev, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True)
+            x_tilde = F.grid_sample(x_hat_prev.cuda(1), loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True)
             warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
         else:
             # motion compensation
@@ -1635,3 +1635,5 @@ if __name__ == '__main__':
     test_batch_proc('AE3D')
     test_seq_proc('RLVC')
     test_seq_proc('DCVC')
+    test_seq_proc('DCVC_v2')
+    test_seq_proc('DVC')
