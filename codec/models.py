@@ -1454,6 +1454,7 @@ class AE3D(nn.Module):
         bits_est = bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
         rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
         latent_hat_list = []
+        self.entropy_bottleneck.update(force=True)
         for frame_idx in range(t):
             latent_i = latent[:,:,frame_idx,:,:]
             self.entropy_bottleneck.set_RPM(frame_idx>=1)
