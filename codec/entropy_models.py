@@ -233,7 +233,7 @@ class MeanScaleHyperPriors(CompressionModel):
         g = self.h_s1(z_hat)
         if self.useAttention:
             # use attention
-            B,C,H,W = z.size()
+            B,C,H,W = g.size()
             g = g.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
             g = self.s_attn_s(g,g,g)
             g = g.transpose(0,1).contiguous() #[HW,B,C]
