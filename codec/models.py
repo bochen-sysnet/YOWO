@@ -752,7 +752,7 @@ class LatentCoder(nn.Module):
         self.gdn3 = GDN(channels)
         self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1)
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
@@ -866,9 +866,7 @@ class LatentCoder(nn.Module):
             
         # decompress
         x = self.igdn1(self.dec_conv1(latent_hat))
-        print(x.size())
         x = self.igdn2(self.dec_conv2(x))
-        print(x.size())
         
         if self.model_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
