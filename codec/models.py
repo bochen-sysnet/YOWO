@@ -1095,7 +1095,10 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = CoderWrapper(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = CoderWrapper(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
+        if name == 'SPVC':
+            self.ref_codec = CoderWrapper(device, 'base', in_channels=3, channels=channels, kernel=3, padding=1)
+        elif name == 'SPVC_v2':
+            self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1536,7 +1539,7 @@ def test_batch_proc(name = 'SPVC'):
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
-    train_iter = tqdm(range(0,2))
+    train_iter = tqdm(range(0,20))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
@@ -1614,9 +1617,10 @@ def test_seq_proc(name='RLVC'):
         
 if __name__ == '__main__':
     test_batch_proc('SPVC')
-    test_batch_proc('SCVC')
-    test_batch_proc('AE3D')
-    test_seq_proc('RLVC')
-    test_seq_proc('DCVC')
-    test_seq_proc('DCVC_v2')
-    test_seq_proc('DVC')
+    test_batch_proc('SPVC_v2')
+    #test_batch_proc('SCVC')
+    #test_batch_proc('AE3D')
+    #test_seq_proc('RLVC')
+    #test_seq_proc('DCVC')
+    #test_seq_proc('DCVC_v2')
+    #test_seq_proc('DVC')

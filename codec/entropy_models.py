@@ -31,7 +31,6 @@ class RecProbModel(CompressionModel):
         
         self.sigma = self.mu = self.prior_latent = None
         self.RPM = RPM(channels)
-        h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
     def set_RPM(self, RPM_flag):
@@ -141,7 +140,6 @@ class MeanScaleHyperPriors(CompressionModel):
         self.channels = int(channels)
         
         self.sigma = self.mu = self.z_string = None
-        h = w = 224
         self.gaussian_conditional = GaussianConditional(None)
         
         lite = False
