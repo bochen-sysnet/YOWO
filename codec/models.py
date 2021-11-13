@@ -765,7 +765,7 @@ class CoderWrapper(nn.Module):
         elif keyword in ['attn']:
             # for batch model
             self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
-            self.conv_type = 'rec'
+            self.conv_type = 'non-rec'
             self.entropy_type = 'mshp'
         elif keyword in ['mshp']:
             # for image codec, single frame
@@ -1196,7 +1196,7 @@ class SPVC(nn.Module):
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
         
-        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden.detach(), rpm_res_hidden.detach(), rae_ref_hidden.detach(), rpm_ref_hidden.detach())
+        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1205,13 +1205,13 @@ class SPVC(nn.Module):
             loss += self.gamma_app*app_loss.cuda(0)
         return loss
         
-    def init_hidden(self, h, w, b=4):
-        rae_mv_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
-        rae_res_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
-        rae_ref_hidden = torch.zeros(b,self.channels*4,h//4,w//4).cuda()
-        rpm_mv_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
-        rpm_res_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
-        rpm_ref_hidden = torch.zeros(b,self.channels*2,h//16,w//16).cuda()
+    def init_hidden(self, h, w):
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rae_ref_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        rpm_ref_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
          
 # conditional coding
@@ -1535,7 +1535,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    hidden_states = model.init_hidden(h,w,batch_size)
+    hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,2))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
