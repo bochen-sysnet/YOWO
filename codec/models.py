@@ -810,6 +810,7 @@ class CoderWrapper(nn.Module):
         x = self.gdn2(self.enc_conv2(x))
         
         if self.conv_type == 'rec':
+            print(x.size(),state_enc.size())
             x, state_enc = self.enc_lstm(x, state_enc)
             
         x = self.gdn3(self.enc_conv3(x))
