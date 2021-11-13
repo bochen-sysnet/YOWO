@@ -1527,12 +1527,14 @@ def test_batch_proc(name = 'SPVC'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    if name == 'SPVC':
+    if name == 'SPVC' or name == 'SPVC_v2':
         model = SPVC(name,channels)
     elif name == 'SCVC':
         model = SCVC(name,channels)
-    else:
+    elif name == 'AE3D':
         model = AE3D(name)
+    else:
+        print('Not implemented.')
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
