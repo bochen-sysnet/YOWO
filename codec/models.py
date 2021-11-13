@@ -947,20 +947,39 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
         
         # compress
         self.update(force=True)
-        ret = super().compress(x)
-        y_strings, z_strings = ret['strings']
+        y_strings, z_strings = self.compress(x)
         
         # estimated bits
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x.device)
         bits_est = torch.sum(torch.log(y_likelihoods)) / (-log2) + torch.sum(torch.log(z_likelihoods)) / (-log2)
         
         # actual bits
-        bits_act = torch.FloatTensor([len(b''.join(y_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
+        bits_act = torch.FloatTensor([len(b''.join(y_strings))*8 + len(b''.join(z_strings))*8]).squeeze(0)
         
         # auxilary loss
         aux_loss = self.aux_loss()/self.channels
         
         return x_hat, bits_act, bits_est, aux_loss
+        
+    def compress(self, x):
+        y = self.g_a(x)
+        z = self.h_a(y)
+
+        z_strings = self.entropy_bottleneck.compress(z)
+        z_hat = self.entropy_bottleneck.decompress(z_strings, z.size()[-2:])
+
+        params = self.h_s(z_hat)
+        
+        ctx_params = self.context_prediction(y_hat)
+        gaussian_params = self.entropy_parameters(
+            torch.cat((params, ctx_params), dim=1)
+        )
+        
+        sigma, mu = torch.split(gaussian_params, self.channels, dim=1)
+        
+        indexes = self.gaussian_conditional.build_indexes(sigma)
+        y_strings = self.gaussian_conditional.compress(x, indexes, means=mu)
+        return y_strings,z_strings
 
 class MCNet(nn.Module):
     def __init__(self):
