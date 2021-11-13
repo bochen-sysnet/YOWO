@@ -1095,7 +1095,7 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = CoderWrapper(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = CoderWrapper(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderWrapper(device, 'base', in_channels=3, channels=channels, kernel=3, padding=1)
+        self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1196,7 +1196,7 @@ class SPVC(nn.Module):
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
         
-        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
+        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden.detach(), rpm_res_hidden.detach(), rae_ref_hidden.detach(), rpm_ref_hidden.detach())
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
