@@ -21,6 +21,7 @@ from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock
 from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors,MeanScaleHyperPriors
+from compressai.models.waseda import Cheng2020Attention
 import pytorch_msssim
 from datasets.clip import *
 from core.utils import *
@@ -228,8 +229,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = LatentCoder(device, self.name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = LatentCoder(device, self.name, in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
+        self.mv_codec = LatentCoder(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = LatentCoder(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -367,7 +368,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = LatentCoder(device, name, in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = LatentCoder(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -740,19 +741,19 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class LatentCoder(nn.Module):
-    def __init__(self, device, keyword, in_channels=2, channels=128, kernel1=3, padding1=1, kernel2=4, padding2=1):
+    def __init__(self, device, keyword, in_channels=2, channels=128, kernel=3, padding=1):
         super(LatentCoder, self).__init__()
-        self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1)
-        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
-        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
-        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
+        self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
+        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
+        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
+        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, bias=False)
         self.gdn1 = GDN(channels)
         self.gdn2 = GDN(channels)
         self.gdn3 = GDN(channels)
-        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
@@ -782,7 +783,7 @@ class LatentCoder(nn.Module):
             
         # might need residual struct to avoid PE vanishing?
         
-    def forward(self, x, hidden, rpm_hidden, RPM_flag, fast=True):
+    def forward(self, x, hidden, rpm_hidden, RPM_flag=False, fast=True):
         # whether to measure time
         noMeasure = (self.training or fast)
         if not noMeasure:
@@ -912,6 +913,53 @@ class LatentCoder(nn.Module):
             x_aux += x_aux_i.cuda()
         x_hat = torch.stack(x_hat_list, dim=0)
         return x_hat,x_act,x_est,x_aux
+        
+# image compression codec
+class AttentionImageCodecWrapper(Cheng2020Attention):
+
+    def __init__(
+        self,
+        channels=192,
+    ):
+        super().__init__(channels)
+        self.h_a = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+        )
+
+        self.h_s = nn.Sequential(
+            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)
+        )
+        self.channels = channels
+        
+    def forward(self, x):
+        # forward
+        ret = super().forward(x)
+        x_hat = ret['x_hat']
+        y_likelihoods,z_likelihoods = ret['likelihoods']['y'],ret['likelihoods']['z']
+        
+        # compress
+        ret = super().compress(x)
+        y_strings, z_strings = ret['strings']
+        
+        # estimated bits
+        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x.device)
+        bits_est = torch.sum(torch.log(y_likelihoods)) / (-log2) + torch.sum(torch.log(z_likelihoods)) / (-log2)
+        
+        # actual bits
+        bits_act = torch.FloatTensor([len(b''.join(y_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
+        
+        # auxilary loss
+        aux_loss = self.aux_loss()/self.channels
+        
+        return x_hat, bits_act, bits_est, aux_loss
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -953,36 +1001,6 @@ def get_grid_locations(b, h, w):
     grid  = grid.unsqueeze(0)
     grid = grid.repeat(b,1,1,1)
     return grid
-    
-class PositionalEncoding(nn.Module):
-    # max_len: longest sequence length
-    # d_model: dimension for positional encoding
-    # this encoding is not integrated into the model itself
-    # enhance the model’s input to inject the order of words.
-    # need residual to avoid vanishing?
-
-    def __init__(self, d_model, max_len=100):
-        super(PositionalEncoding, self).__init__()       
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(2).unsqueeze(3)
-        pe.requires_grad = False
-        self.register_buffer('pe', pe)
-
-    def forward(self, x, start):
-        return x + self.pe[start:x.size(0)+start, :]
-        
-def test_PE():
-    batch_size = 4
-    d_model = 128
-    h,w = 14,14
-    PE = PositionalEncoding(d_model)
-    x = torch.randn(batch_size,d_model,h,w)
-    y = PE(x,1)
-    print(x.size(),y.size())
 
 def attention(q, k, v, d_model, dropout=None):
     
@@ -1114,9 +1132,10 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = LatentCoder(device, 'attn', in_channels=2, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
-        self.res_codec = LatentCoder(device, 'attn', in_channels=3, channels=channels, kernel1=5, padding1=2, kernel2=6, padding2=2)
-        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.mv_codec = LatentCoder(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = LatentCoder(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        #self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel=3, padding=1)
+        self.ref_codec = AttentionImageCodecWrapper()
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1145,7 +1164,12 @@ class SPVC(nn.Module):
         
         # compress ref frame
         t_0 = time.perf_counter()
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden,RPM_flag)
+        # one option
+        #ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden)
+        # second option: other image codecs? Cheng2020Attention
+        # cant use bpg here because it is not differentiable
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame)
+        # but we can compare with it in ablation study
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
@@ -1165,7 +1189,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         if self.mv_codec.model_type == 'attn':
             # option 1
-            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden, RPM_flag=True)
+            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
         else:
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1188,7 +1212,7 @@ class SPVC(nn.Module):
         res_tensors = raw_frames.cuda(1) - MC_frames
         if self.res_codec.model_type == 'attn':
             # option 1: attention
-            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag=True)
+            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
         else:
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
@@ -1273,7 +1297,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel1=3, padding1=1, kernel2=4, padding2=1)
+        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1630,9 +1654,9 @@ def test_seq_proc(name='RLVC'):
         
 if __name__ == '__main__':
     test_batch_proc('SPVC')
-    test_batch_proc('SCVC')
-    test_batch_proc('AE3D')
-    test_seq_proc('RLVC')
-    test_seq_proc('DCVC')
-    test_seq_proc('DCVC_v2')
-    test_seq_proc('DVC')
+    #test_batch_proc('SCVC')
+    #test_batch_proc('AE3D')
+    #test_seq_proc('RLVC')
+    #test_seq_proc('DCVC')
+    #test_seq_proc('DCVC_v2')
+    #test_seq_proc('DVC')

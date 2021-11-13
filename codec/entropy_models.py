@@ -10,7 +10,6 @@ from compressai.entropy_models import EntropyModel,GaussianConditional,EntropyBo
 from compressai.models import CompressionModel
 import sys, os, math, time
 sys.path.append('..')
-import codec.arithmeticcoding as arithmeticcoding
         
 SCALES_MIN = 0.11
 SCALES_MAX = 256
@@ -479,6 +478,7 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
         duration = time.perf_counter() - t_0
         return x_hat, duration
+        
         
 def attention(q, k, v, d_model, dropout=None):
     
