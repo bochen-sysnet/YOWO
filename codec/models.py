@@ -935,11 +935,9 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
             nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2, output_padding=1),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)
+            nn.Conv2d(channels * 3 // 2, channels * 2, kernel_size=3, stride=1, padding=1)
         )
         self.channels = channels
-        print(self.entropy_parameters)
-        exit(0)
         
     def forward(self, x):
         # forward
