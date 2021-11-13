@@ -229,8 +229,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = LatentCoder(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = LatentCoder(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = CoderWrapper(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = CoderWrapper(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -368,7 +368,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = LatentCoder(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.mv_codec = CoderWrapper(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -740,9 +740,9 @@ def get_estimate_bits(self, likelihoods):
     bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
     return bits_est
 
-class LatentCoder(nn.Module):
+class CoderWrapper(nn.Module):
     def __init__(self, device, keyword, in_channels=2, channels=128, kernel=3, padding=1):
-        super(LatentCoder, self).__init__()
+        super(CoderWrapper, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
@@ -757,27 +757,35 @@ class LatentCoder(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if keyword in ['MLVC','RLVC','rec']:
+        if keyword in ['MLVC','RLVC']:
             # for recurrent sequential model
             self.entropy_bottleneck = RecProbModel(channels)
-            self.model_type = 'rec'
+            self.conv_type = 'rec'
+            self.entropy_type = 'rpm'
         elif keyword in ['attn']:
             # for batch model
             self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
-            self.model_type = 'attn'
-        elif keyword in ['DVC','non-rec','DCVC','DCVC_v2']:
+            self.conv_type = 'rec'
+            self.entropy_type = 'mshp'
+        elif keyword in ['mshp']:
+            # for image codec, single frame
+            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
+            self.conv_type = 'non-rec' # not need for single image compression
+            self.entropy_type = 'mshp'
+        elif keyword in ['DVC','base','DCVC','DCVC_v2']:
             # for sequential model with no recurrent network
             from compressai.entropy_models import EntropyBottleneck
             EntropyBottleneck.get_actual_bits = get_actual_bits
             EntropyBottleneck.get_estimate_bits = get_estimate_bits
             self.entropy_bottleneck = EntropyBottleneck(channels)
-            self.model_type = 'non-rec'
+            self.conv_type = 'non-rec'
+            self.entropy_type = 'base'
         else:
             print('Bottleneck not implemented for:',keyword)
             exit(1)
-        print('Entropy model:',self.model_type)
+        print('Codec wrapper:',self.conv_type,self.entropy_type)
         self.channels = channels
-        if self.model_type == 'rec':
+        if self.conv_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
             
@@ -790,7 +798,7 @@ class LatentCoder(nn.Module):
             duration_enc = duration_dec = 0
         
         # latent states
-        if self.model_type == 'rec':
+        if self.conv_type == 'rec':
             state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
             
         # Time measurement: start
@@ -801,7 +809,7 @@ class LatentCoder(nn.Module):
         x = self.gdn1(self.enc_conv1(x))
         x = self.gdn2(self.enc_conv2(x))
         
-        if self.model_type == 'rec':
+        if self.conv_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
             
         x = self.gdn3(self.enc_conv3(x))
@@ -816,7 +824,7 @@ class LatentCoder(nn.Module):
             duration_enc += duration
         
         # quantization + entropy coding
-        if self.model_type == 'non-rec':
+        if self.entropy_type == 'base':
             if noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 latent_string = self.entropy_bottleneck.compress(latent)
@@ -829,12 +837,12 @@ class LatentCoder(nn.Module):
                 t_0 = time.perf_counter()
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
                 duration_d = time.perf_counter() - t_0
-        elif self.model_type == 'attn':
+        elif self.entropy_type == 'mshp':
             if noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 latent_string = self.entropy_bottleneck.compress(latent)
             else:
-                print('Not implemented now')
+                print('Not implemented now.')
                 exit(1)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
@@ -868,7 +876,7 @@ class LatentCoder(nn.Module):
         x = self.igdn1(self.dec_conv1(latent_hat))
         x = self.igdn2(self.dec_conv2(x))
         
-        if self.model_type == 'rec':
+        if self.conv_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
             
         x = self.igdn3(self.dec_conv3(x))
@@ -882,7 +890,7 @@ class LatentCoder(nn.Module):
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
         
-        if self.model_type == 'rec':
+        if self.conv_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
         if noMeasure:
@@ -913,73 +921,6 @@ class LatentCoder(nn.Module):
             x_aux += x_aux_i.cuda()
         x_hat = torch.stack(x_hat_list, dim=0)
         return x_hat,x_act,x_est,x_aux
-        
-# image compression codec
-class AttentionImageCodecWrapper(Cheng2020Attention):
-
-    def __init__(
-        self,
-        channels=192,
-    ):
-        super(AttentionImageCodecWrapper,self).__init__(channels)
-        self.h_a = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
-        )
-
-        self.h_s = nn.Sequential(
-            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
-            nn.LeakyReLU(inplace=True),
-            nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(channels * 3 // 2, channels * 2, kernel_size=3, stride=1, padding=1)
-        )
-        self.channels = channels
-        
-    def forward(self, x):
-        # forward
-        ret = super().forward(x)
-        x_hat = ret['x_hat']
-        y_likelihoods,z_likelihoods = ret['likelihoods']['y'],ret['likelihoods']['z']
-        
-        # compress
-        self.update(force=True)
-        y_strings, z_strings = self.compress(x)
-        
-        # estimated bits
-        log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x.device)
-        bits_est = torch.sum(torch.log(y_likelihoods)) / (-log2) + torch.sum(torch.log(z_likelihoods)) / (-log2)
-        
-        # actual bits
-        bits_act = torch.FloatTensor([len(b''.join(y_strings))*8 + len(b''.join(z_strings))*8]).squeeze(0)
-        
-        # auxilary loss
-        aux_loss = self.aux_loss()/self.channels
-        
-        return x_hat, bits_act, bits_est, aux_loss
-        
-    def compress(self, x):
-        y = self.g_a(x)
-        z = self.h_a(y)
-
-        z_strings = self.entropy_bottleneck.compress(z)
-        z_hat = self.entropy_bottleneck.decompress(z_strings, z.size()[-2:])
-
-        params = self.h_s(z_hat)
-        
-        ctx_params = self.context_prediction(y_hat)
-        gaussian_params = self.entropy_parameters(
-            torch.cat((params, ctx_params), dim=1)
-        )
-        
-        sigma, mu = torch.split(gaussian_params, self.channels, dim=1)
-        
-        indexes = self.gaussian_conditional.build_indexes(sigma)
-        y_strings = self.gaussian_conditional.compress(x, indexes, means=mu)
-        return y_strings,z_strings
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -1152,10 +1093,9 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = LatentCoder(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = LatentCoder(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        #self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel=3, padding=1)
-        self.ref_codec = AttentionImageCodecWrapper()
+        self.mv_codec = CoderWrapper(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = CoderWrapper(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1317,7 +1257,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = LatentCoder(device, 'non-rec', in_channels=3, channels=channels, kernel=3, padding=1)
+        self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
