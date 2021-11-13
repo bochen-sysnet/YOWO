@@ -810,7 +810,6 @@ class CoderWrapper(nn.Module):
         x = self.gdn2(self.enc_conv2(x))
         
         if self.conv_type == 'rec':
-            print(x.size(),state_enc.size())
             x, state_enc = self.enc_lstm(x, state_enc)
             
         x = self.gdn3(self.enc_conv3(x))
@@ -1521,7 +1520,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 2
+    batch_size = 4
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1536,7 +1535,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    hidden_states = model.init_hidden(h,w)
+    hidden_states = model.init_hidden(h,w,batch_size)
     train_iter = tqdm(range(0,2))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
