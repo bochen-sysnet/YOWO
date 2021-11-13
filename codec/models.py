@@ -938,6 +938,8 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
             nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)
         )
         self.channels = channels
+        print(self.entropy_parameters)
+        exit(0)
         
     def forward(self, x):
         # forward
