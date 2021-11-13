@@ -1147,7 +1147,7 @@ class SPVC(nn.Module):
         
         # compress optical flow
         t_0 = time.perf_counter()
-        if self.mv_codec.model_type == 'mshp':
+        if self.mv_codec.entropy_type == 'mshp':
             # option 1
             mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
         else:
@@ -1170,7 +1170,7 @@ class SPVC(nn.Module):
         # compress residual
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
-        if self.res_codec.model_type == 'mshp':
+        if self.res_codec.entropy_type == 'mshp':
             # option 1: attention
             res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
         else:
