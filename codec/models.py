@@ -946,6 +946,7 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
         y_likelihoods,z_likelihoods = ret['likelihoods']['y'],ret['likelihoods']['z']
         
         # compress
+        self.update(True)
         ret = super().compress(x)
         y_strings, z_strings = ret['strings']
         
