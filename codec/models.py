@@ -1615,8 +1615,8 @@ def test_seq_proc(name='RLVC'):
 if __name__ == '__main__':
     test_batch_proc('SPVC')
     test_batch_proc('SCVC')
-    #test_batch_proc('AE3D')
-    #test_seq_proc('RLVC')
-    #test_seq_proc('DCVC')
-    #test_seq_proc('DCVC_v2')
-    #test_seq_proc('DVC')
+    test_batch_proc('AE3D')
+    test_seq_proc('RLVC')
+    test_seq_proc('DCVC')
+    test_seq_proc('DCVC_v2')
+    test_seq_proc('DVC')
