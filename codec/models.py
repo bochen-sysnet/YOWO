@@ -1128,7 +1128,7 @@ class SPVC(nn.Module):
         #ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden)
         # second option: other image codecs? Cheng2020Attention
         # cant use bpg here because it is not differentiable
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame)
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
         # but we can compare with it in ablation study
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
@@ -1147,7 +1147,7 @@ class SPVC(nn.Module):
         
         # compress optical flow
         t_0 = time.perf_counter()
-        if self.mv_codec.model_type == 'attn':
+        if self.mv_codec.model_type == 'mshp':
             # option 1
             mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
         else:
@@ -1170,7 +1170,7 @@ class SPVC(nn.Module):
         # compress residual
         t_0 = time.perf_counter()
         res_tensors = raw_frames.cuda(1) - MC_frames
-        if self.res_codec.model_type == 'attn':
+        if self.res_codec.model_type == 'mshp':
             # option 1: attention
             res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
         else:
