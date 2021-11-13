@@ -783,7 +783,7 @@ class CoderWrapper(nn.Module):
         else:
             print('Bottleneck not implemented for:',keyword)
             exit(1)
-        print('Codec wrapper:',self.conv_type,self.entropy_type)
+        print('Conv type:',self.conv_type,'entropy type:',self.entropy_type)
         self.channels = channels
         if self.conv_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
