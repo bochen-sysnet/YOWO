@@ -921,8 +921,8 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
         self,
         channels=192,
     ):
-        super().__init__(channels)
-        super().h_a = nn.Sequential(
+        super(AttentionImageCodecWrapper,self).__init__(channels)
+        self.h_a = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(inplace=True),
             nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
@@ -930,7 +930,7 @@ class AttentionImageCodecWrapper(Cheng2020Attention):
             nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
         )
 
-        super().h_s = nn.Sequential(
+        self.h_s = nn.Sequential(
             nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2, output_padding=1),
