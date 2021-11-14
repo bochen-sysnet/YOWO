@@ -198,7 +198,7 @@ def parallel_compression(model, _range, cache, RPM_flag):
     for i in _range:
         img_list.append(cache['clip'][i])
         idx_list.append(i)
-    while len(idx_list)<4:
+    while len(img_list)<4:
         img_list.append(cache['clip'][_range[-1]])
     x = torch.stack(img_list, dim=0)
     n = len(idx_list)
