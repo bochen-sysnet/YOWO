@@ -1397,7 +1397,17 @@ class Coder3D(nn.Module):
         y = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         
         # entropy
-        y_hat,bits_act,bits_est,aux = self.entropy_bottleneck(y, None, None)
+        y_hat, likelihoods = self.entropy_bottleneck(y, training=self.training)
+        latent_string = self.entropy_bottleneck.compress(y)
+        
+        # calculate bpp (estimated)
+        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        
+        # calculate bpp (actual)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         # 3D decoder
         y_hat = y_hat.permute(1,0,2,3).contiguous().unsqueeze(0)
@@ -1407,7 +1417,7 @@ class Coder3D(nn.Module):
         # 2D decoder
         x_hat = self.dec2d(y_hat)
         
-        return x_hat,ref_act,ref_est,ref_aux
+        return x_hat,bits_act,bits_est,aux_loss
         
 # Gonna use 3D CNN here
 class SVC(nn.Module):
