@@ -299,6 +299,7 @@ def st_attention(z, s_attn, t_attn):
     z = z.transpose(0,1).contiguous() #[HW,B,C]
     z = t_attn(z,z,z)
     z = z.permute(1,2,0).view(B,C,H,W).contiguous()
+    return z
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
