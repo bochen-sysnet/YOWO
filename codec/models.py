@@ -229,8 +229,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = CoderWrapper(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = CoderWrapper(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = Coder2D(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -368,7 +368,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = CoderWrapper(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.mv_codec = Coder2D(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -740,9 +740,9 @@ def get_estimate_bits(self, likelihoods):
     bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
     return bits_est
 
-class CoderWrapper(nn.Module):
+class Coder2D(nn.Module):
     def __init__(self, device, keyword, in_channels=2, channels=128, kernel=3, padding=1):
-        super(CoderWrapper, self).__init__()
+        super(Coder2D, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
@@ -1050,13 +1050,13 @@ class KFNet(nn.Module):
                                 GDN(channels),
                                 nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
                                 )
-        self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+        self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, channels, kernel_size=4, stride=2, padding=1),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, in_channels, kernel_size=4, stride=2, padding=1)
+                                nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
                                 )
         self.s_attn = Attention(channels)
         self.t_avg = AVGNet(channels)
@@ -1093,12 +1093,12 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = CoderWrapper(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = CoderWrapper(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
         if name == 'SPVC':
-            self.ref_codec = CoderWrapper(device, 'base', in_channels=3, channels=channels, kernel=3, padding=1)
+            self.ref_codec = Coder2D(device, 'base', in_channels=3, channels=channels, kernel=3, padding=1)
         elif name == 'SPVC_v2':
-            self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
+            self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1119,7 +1119,10 @@ class SPVC(nn.Module):
         bs, c, h, w = raw_frames.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
-        # derive ref frame
+        # derive ref frame(s)
+        # ref frame should be as close to original frames as possible
+        # it is innevitable that the motion and residual needs to carry more info
+        # how to allow different position to have different ref_frame?
         t_0 = time.perf_counter()
         ref_frame = self.kfnet(raw_frames)
         t_ref = time.perf_counter() - t_0
@@ -1127,16 +1130,12 @@ class SPVC(nn.Module):
         
         # compress ref frame
         t_0 = time.perf_counter()
-        # one option
-        #ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame,rae_ref_hidden,rpm_ref_hidden)
-        # second option: other image codecs? Cheng2020Attention
-        # cant use bpg here because it is not differentiable
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
-        # but we can compare with it in ablation study
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # repeat ref frame for parallelization
+        # can we use a network to replace this?
         ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
         
         # calculate ref frame loss
@@ -1260,7 +1259,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = CoderWrapper(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
+        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
         self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
@@ -1359,6 +1358,171 @@ class SCVC(nn.Module):
         rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
+        
+class Coder3D(nn.Module):
+    def __init__(self, device, name, channels=128):
+        super(Coder3D, self).__init__()
+        self.enc3d = nn.Sequential(
+            nn.Conv3d(channels, channels, kernel_size=3, stride=2, padding=1), 
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(channels, channels, kernel_size=3, stride=2, padding=1), 
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+        )
+        self.dec3d = nn.Sequential( 
+            nn.ConvTranspose3d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm3d(channels),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose3d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm3d(channels),
+        )
+        self.enc2d = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1),
+                                GDN(channels),
+                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                )
+        self.dec2d = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                GDN(channels, inverse=True),
+                                nn.ConvTranspose2d(channels, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                )
+        self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
+                                
+    def forward(self,x):   
+        # 2D encoder
+        x = self.enc2d(x)
+        
+        # 3D encoder
+        x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
+        x = self.enc3d(x)
+        y = x.permute(0,2,1,3,4).contiguous().squeeze(0)
+        
+        # entropy
+        y_hat,bits_act,bits_est,aux = self.ref_codec(y, None, None)
+        
+        # 3D decoder
+        y_hat = y_hat.permute(1,0,2,3).contiguous().unsqueeze(0)
+        y_hat = self.dec3d(y_hat)
+        y_hat = y_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
+        
+        # 2D decoder
+        x_hat = self.dec2d(y_hat)
+        
+        return x_hat,ref_act,ref_est,ref_aux
+        
+# Gonna use 3D CNN here
+class SVC(nn.Module):
+    def __init__(self, name, channels=128):
+        super(SVC, self).__init__()
+        self.name = name 
+        device = torch.device('cuda')
+        self.optical_flow = OpticalFlowNet()
+        self.MC_network = MCNet()
+        self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.ref_codec = Coder3D(device, 'mshp', channels=channels)
+        self.kfnet = KFNet(channels)
+        self.channels = channels
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+        # split on multi-gpus
+        self.split()
+
+    def split(self):
+        # too much on cuda:0
+        self.kfnet.cuda(0)
+        self.ref_codec.cuda(0)
+        self.optical_flow.cuda(1)
+        self.mv_codec.cuda(1)
+        self.MC_network.cuda(1)
+        self.res_codec.cuda(1)
+        
+    def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
+        bs, c, h, w = raw_frames.size()
+        (rae_mv_hidden, rpm_mv_hidden, rae_res_hidden, rpm_res_hidden) = hidden_states
+        
+        # derive ref frame(s)
+        # ref frame should be as close to original frames as possible
+        t_0 = time.perf_counter()
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames)
+        t_ref = time.perf_counter() - t_0
+        #print('REF entropy:',t_ref)
+        
+        # calculate ref frame loss
+        ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
+        
+        # use the derived ref frame to compute optical flow
+        t_0 = time.perf_counter()
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, raw_frames.cuda(1), bs, h, w)
+        t_flow = time.perf_counter() - t_0
+        #print('Flow:',t_flow)
+        
+        # compress optical flow
+        t_0 = time.perf_counter()
+        if self.mv_codec.entropy_type == 'mshp':
+            # option 1
+            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
+        else:
+            # option 2
+            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
+        t_mv = time.perf_counter() - t_0
+        #print('MV entropy:',t_mv)
+        
+        # motion compensation
+        t_0 = time.perf_counter()
+        loc = get_grid_locations(bs, h, w).cuda(1)
+        warped_frames = F.grid_sample(ref_frame_hat, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
+        MC_input = torch.cat((mv_hat, ref_frame_hat, warped_frames), axis=1)
+        MC_frames = self.MC_network(MC_input)
+        mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
+        t_comp = time.perf_counter() - t_0
+        #print('Compensation:',t_comp)
+        
+        # compress residual
+        t_0 = time.perf_counter()
+        res_tensors = raw_frames.cuda(1) - MC_frames
+        if self.res_codec.entropy_type == 'mshp':
+            # option 1: attention
+            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
+        else:
+            # option 2: only used when codec is recurrent
+            res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
+        t_res = time.perf_counter() - t_0
+        #print('RS entropy:',t_res)
+        
+        # reconstruction
+        com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
+        ##### compute bits
+        # estimated bits
+        bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
+        # actual bits
+        bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
+        #print(float(ref_est),float(mv_est),float(res_est),float(ref_act),float(mv_act),float(res_act))
+        # auxilary loss
+        aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
+        # calculate metrics/loss
+        psnr = PSNR(raw_frames, com_frames, use_list=True)
+        msssim = MSSSIM(raw_frames, com_frames, use_list=True)
+        rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
+        img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
+        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
+        
+        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+    
+    def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
+        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
+        if app_loss is not None:
+            loss += self.gamma_app*app_loss.cuda(0)
+        return loss
+        
+    def init_hidden(self, h, w):
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+         
         
 class AE3D(nn.Module):
     def __init__(self, name):
@@ -1531,6 +1695,8 @@ def test_batch_proc(name = 'SPVC'):
         model = SPVC(name,channels)
     elif name == 'SCVC':
         model = SCVC(name,channels)
+    elif name == 'SVC':
+        model = SVC(name,channels)
     elif name == 'AE3D':
         model = AE3D(name)
     else:
@@ -1618,8 +1784,8 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc('SPVC')
-    test_batch_proc('SPVC_v2')
+    test_batch_proc('SVC')
+    #test_batch_proc('SPVC')
     #test_batch_proc('SCVC')
     #test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
