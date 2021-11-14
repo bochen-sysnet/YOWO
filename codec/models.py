@@ -1432,7 +1432,6 @@ class SVC(nn.Module):
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
         self.ref_codec = Coder3D(device, 'mshp', channels=channels)
-        self.kfnet = KFNet(channels)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1441,7 +1440,6 @@ class SVC(nn.Module):
 
     def split(self):
         # too much on cuda:0
-        self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(1)
         self.mv_codec.cuda(1)
@@ -1464,7 +1462,7 @@ class SVC(nn.Module):
         
         # use the derived ref frame to compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, raw_frames.cuda(1), bs, h, w)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat.cuda(1), raw_frames.cuda(1), bs, h, w)
         t_flow = time.perf_counter() - t_0
         #print('Flow:',t_flow)
         
