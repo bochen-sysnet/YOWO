@@ -1397,7 +1397,7 @@ class Coder3D(nn.Module):
         y = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         
         # entropy
-        y_hat,bits_act,bits_est,aux = self.ref_codec(y, None, None)
+        y_hat,bits_act,bits_est,aux = self.entropy_bottleneck(y, None, None)
         
         # 3D decoder
         y_hat = y_hat.permute(1,0,2,3).contiguous().unsqueeze(0)
