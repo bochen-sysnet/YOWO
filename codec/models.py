@@ -1397,6 +1397,7 @@ class Coder3D(nn.Module):
         y = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         
         # entropy
+        self.entropy_bottleneck.update(force=True)
         y_hat, likelihoods = self.entropy_bottleneck(y, training=self.training)
         latent_string = self.entropy_bottleneck.compress(y)
         
