@@ -51,7 +51,7 @@ def compress_video(model, frame_idx, cache, startNewClip, max_len):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D']:
+    elif model.name in ['SPVC','SCVC','AE3D','SVC']:
         compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
         
 # depending on training or testing
