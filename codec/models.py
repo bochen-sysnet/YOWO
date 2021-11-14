@@ -1377,7 +1377,7 @@ class Coder3D(nn.Module):
             nn.ConvTranspose3d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm3d(channels),
         )
-        self.enc2d = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1),
+        self.enc2d = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=2, padding=1),
                                 GDN(channels),
                                 nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
                                 )
