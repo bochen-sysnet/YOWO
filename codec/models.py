@@ -198,8 +198,6 @@ def parallel_compression(model, _range, cache, RPM_flag):
     for i in _range:
         img_list.append(cache['clip'][i])
         idx_list.append(i)
-    while len(img_list)<4:
-        img_list.append(cache['clip'][_range[-1]])
     x = torch.stack(img_list, dim=0)
     n = len(idx_list)
     x_hat, cache['hidden'], bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x, cache['hidden'], RPM_flag)
@@ -1479,7 +1477,7 @@ class SVC(nn.Module):
         # derive ref frame(s)
         # ref frame should be as close to original frames as possible
         t_0 = time.perf_counter()
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames, None, None)
+        ref_frame_hat,_, _,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames, None, None)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
