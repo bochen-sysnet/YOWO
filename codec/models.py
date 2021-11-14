@@ -795,8 +795,6 @@ class Coder2D(nn.Module):
             self.t_attn_a = Attention(channels)
             self.s_attn_s = Attention(channels)
             self.t_attn_s = Attention(channels)
-            
-        # might need residual struct to avoid PE vanishing?
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag=False, fast=True):
         # whether to measure time
@@ -1476,12 +1474,17 @@ class SVC(nn.Module):
         
         # derive ref frame(s)
         # ref frame should be as close to original frames as possible
+        # can we design this filter to only pass most important information?
         t_0 = time.perf_counter()
         ref_frame_hat,_, _,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames, None, None)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
+        # its difficult to know the best ref frame to train on
+        # it should carry the common instead of unique information
+        # however, each reference frame should be unique to each other to minimize motion and residual
+        # it is good to let the reference frame similar to the original one, but this will cost more bits
         ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
