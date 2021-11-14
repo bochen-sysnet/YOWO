@@ -772,7 +772,7 @@ class Coder2D(nn.Module):
         elif keyword in ['mshp']:
             # for image codec, single frame
             self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
-            self.conv_type = 'attn' # not need for single image compression
+            self.conv_type = 'non-rec' # not need for single image compression
             self.entropy_type = 'mshp'
         elif keyword in ['DVC','base','DCVC','DCVC_v2']:
             # for sequential model with no recurrent network
@@ -1060,9 +1060,9 @@ class AVGNet(nn.Module):
     
         return output
         
-class KFNet(nn.Module):
+class CoderMean(nn.Module):
     def __init__(self, channels=128, in_channels=3):
-        super(KFNet, self).__init__()
+        super(CoderMean, self).__init__()
         self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1),
                                 GDN(channels),
                                 nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
@@ -1082,6 +1082,7 @@ class KFNet(nn.Module):
         self.s_attn = Attention(channels)
         self.t_avg = AVGNet(channels)
         self.channels = channels
+        self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
         
     def forward(self, raw_frames):
         # input: sequence of frames=[B,3,H,W]
@@ -1100,11 +1101,26 @@ class KFNet(nn.Module):
         features = features.transpose(0,1).contiguous() # fH*fW,B,128
         features = self.t_avg(features,features,features) # fH*fW,128
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
+        
+        # encode
+        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+        latent_string = self.entropy_bottleneck.compress(latent)
+        
+        # calculate bpp (estimated)
+        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+        
+        # calculate bpp (actual)
+        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()/self.channels
 
         # decode features to original size [1,3,H,W]
         x_hat = self.dec(features)
         
-        return x_hat
+        x_hat = x_hat.repeat(B,1,1,1)
+        
+        return x_hat, bits_act, bits_est, aux_loss
     
 # predictive coding     
 class SPVC(nn.Module):
@@ -1116,11 +1132,7 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        if name == 'SPVC':
-            self.ref_codec = Coder2D(device, 'base', in_channels=3, channels=channels, kernel=3, padding=1)
-        elif name == 'SPVC_v2':
-            self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
-        self.kfnet = KFNet(channels)
+        self.ref_codec = CoderMean()
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1129,9 +1141,8 @@ class SPVC(nn.Module):
 
     def split(self):
         # too much on cuda:0
-        self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
-        self.optical_flow.cuda(1)
+        self.optical_flow.cuda(0)
         self.mv_codec.cuda(1)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
@@ -1145,26 +1156,16 @@ class SPVC(nn.Module):
         # it is innevitable that the motion and residual needs to carry more info
         # how to allow different position to have different ref_frame?
         t_0 = time.perf_counter()
-        ref_frame = self.kfnet(raw_frames)
-        t_ref = time.perf_counter() - t_0
-        #print('Key gen:',t_ref)
-        
-        # compress ref frame
-        t_0 = time.perf_counter()
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
-        # repeat ref frame for parallelization
-        # can we use a network to replace this?
-        ref_frame_hat_rep = ref_frame_hat.repeat(bs,1,1,1).cuda(1) # we can also extend it with network, would that be too complex?
-        
         # calculate ref frame loss
-        ref_loss = calc_loss(raw_frames, ref_frame_hat_rep, self.r, use_psnr)
+        ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat_rep, raw_frames.cuda(1), bs, h, w)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, raw_frames, bs, h, w)
         t_flow = time.perf_counter() - t_0
         #print('Flow:',t_flow)
         
@@ -1172,7 +1173,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
-            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
+            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden)
         else:
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1182,9 +1183,9 @@ class SPVC(nn.Module):
         # motion compensation
         t_0 = time.perf_counter()
         loc = get_grid_locations(bs, h, w).cuda(1)
-        warped_frames = F.grid_sample(ref_frame_hat_rep, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        warped_frames = F.grid_sample(ref_frame_hat, loc + mv_hat.permute(0,2,3,1), align_corners=True)
         warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
-        MC_input = torch.cat((mv_hat, ref_frame_hat_rep, warped_frames), axis=1)
+        MC_input = torch.cat((mv_hat, ref_frame_hat, warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
