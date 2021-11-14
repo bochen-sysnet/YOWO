@@ -67,7 +67,7 @@ if cfg.TRAIN.CODEC_NAME in ['DVC']:
     parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     optimizers += [optimizer]
-elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC','DCVC_v2','SPVC','SCVC']:
+elif cfg.TRAIN.CODEC_NAME in ['MLVC','RLVC','DCVC','SCVC','DCVC_v2','SPVC','SCVC','SVC']:
     #parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
     #optimizer = torch.optim.Adam([{'params': parameters}], lr=1, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
     #optimizers += [optimizer]
@@ -96,7 +96,7 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC']:
+    elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC','SVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_SPVC_ckpt.pth"
