@@ -35,6 +35,8 @@ def get_codec_model(name):
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
+    elif name in ['SVC']:
+        model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
     elif name in ['x264','x265']:
