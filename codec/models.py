@@ -1386,6 +1386,7 @@ class Coder3D(nn.Module):
                                 nn.ConvTranspose2d(channels, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
                                 )
         self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
+        self.channels = channels
                                 
     def forward(self,x):   
         # 2D encoder
