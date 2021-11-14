@@ -533,7 +533,7 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 10:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,0
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
     else:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,.1,0,1,0,0,0
     
@@ -1284,8 +1284,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=3, padding=1)
-        self.kfnet = KFNet(channels)
+        self.ref_codec = CoderMean()
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1293,7 +1292,6 @@ class SCVC(nn.Module):
         self.split()
 
     def split(self):
-        self.kfnet.cuda(0)
         self.ref_codec.cuda(0)
         self.feature_extract.cuda(0)
         self.tmp_prior_encoder.cuda(1)
@@ -1311,31 +1309,22 @@ class SCVC(nn.Module):
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
-        ref_frame = self.kfnet(x)
-        t_key = time.perf_counter() - t_0
-        #print('Key gen:',t_key)
-        
-        # compress ref frame, use cheng2020?
-        t_0 = time.perf_counter()
-        ref_frame_hat,rae_ref_hidden, rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(x)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
-        ref_loss = calc_loss(x, ref_frame_hat.repeat(bs,1,1,1), self.r, use_psnr)
+        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
         
         t_0 = time.perf_counter()
         # extract context
         context = self.feature_extract(ref_frame_hat).cuda(1)
         
-        # repeat context to match the size of all frames
-        context_rep = context.repeat(bs,1,1,1)
-        
         # temporal prior
-        prior = self.tmp_prior_encoder(context_rep)
+        prior = self.tmp_prior_encoder(context)
         
         # contextual encoder
-        y = self.ctx_encoder(torch.cat((x.cuda(1), context_rep), axis=1))
+        y = self.ctx_encoder(torch.cat((x.cuda(1), context), axis=1))
         t_ctx = time.perf_counter() - t_0
         #print('Context:',t_ctx)
         
@@ -1353,7 +1342,7 @@ class SCVC(nn.Module):
         # contextual decoder
         t_0 = time.perf_counter()
         x_hat = self.ctx_decoder1(y_hat)
-        x_hat = self.ctx_decoder2(torch.cat((x_hat, context_rep), axis=1))
+        x_hat = self.ctx_decoder2(torch.cat((x_hat, context), axis=1))
         t_ctx_dec = time.perf_counter() - t_0
         #print('Context dec:',t_ctx_dec)
         
@@ -1447,122 +1436,7 @@ class Coder3D(nn.Module):
         x_hat = self.dec2d(y_hat)
         
         return x_hat,bits_act,bits_est,aux_loss
-        
-# Gonna use 3D CNN here
-class SVC(nn.Module):
-    def __init__(self, name, channels=128):
-        super(SVC, self).__init__()
-        self.name = name 
-        device = torch.device('cuda')
-        self.optical_flow = OpticalFlowNet()
-        self.MC_network = MCNet()
-        self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
-        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
-        # split on multi-gpus
-        self.split()
 
-    def split(self):
-        # too much on cuda:0
-        self.ref_codec.cuda(0)
-        self.optical_flow.cuda(1)
-        self.mv_codec.cuda(1)
-        self.MC_network.cuda(1)
-        self.res_codec.cuda(1)
-        
-    def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
-        bs, c, h, w = raw_frames.size()
-        
-        # derive ref frame(s)
-        # ref frame should be as close to original frames as possible
-        # can we design this filter to only pass most important information?
-        t_0 = time.perf_counter()
-        ref_frame_hat,_, _,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames, None, None)
-        t_ref = time.perf_counter() - t_0
-        #print('REF entropy:',t_ref)
-        
-        # calculate ref frame loss
-        # its difficult to know the best ref frame to train on
-        # it should carry the common instead of unique information
-        # however, each reference frame should be unique to each other to minimize motion and residual
-        # it is good to let the reference frame similar to the original one, but this will cost more bits
-        ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
-        
-        # use the derived ref frame to compute optical flow
-        t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat.cuda(1), raw_frames.cuda(1), bs, h, w)
-        t_flow = time.perf_counter() - t_0
-        #print('Flow:',t_flow)
-        
-        # compress optical flow
-        t_0 = time.perf_counter()
-        if self.mv_codec.entropy_type == 'mshp':
-            # option 1
-            mv_hat,_, _,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None)
-        else:
-            # option 2
-            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
-        t_mv = time.perf_counter() - t_0
-        #print('MV entropy:',t_mv)
-        
-        # motion compensation
-        t_0 = time.perf_counter()
-        loc = get_grid_locations(bs, h, w).to(mv_hat.device)
-        warped_frames = F.grid_sample(ref_frame_hat.cuda(1), loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
-        MC_input = torch.cat((mv_hat, ref_frame_hat.cuda(1), warped_frames), axis=1)
-        MC_frames = self.MC_network(MC_input)
-        mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
-        t_comp = time.perf_counter() - t_0
-        #print('Compensation:',t_comp)
-        
-        # compress residual
-        t_0 = time.perf_counter()
-        res_tensors = raw_frames.cuda(1) - MC_frames
-        if self.res_codec.entropy_type == 'mshp':
-            # option 1: attention
-            res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None)
-        else:
-            # option 2: only used when codec is recurrent
-            res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
-        t_res = time.perf_counter() - t_0
-        #print('RS entropy:',t_res)
-        
-        # reconstruction
-        com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
-        ##### compute bits
-        # estimated bits
-        bpp_est = (ref_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
-        # actual bits
-        bpp_act = (ref_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        #print(float(ref_est),float(mv_est),float(res_est),float(ref_act),float(mv_act),float(res_act))
-        # auxilary loss
-        aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
-        # calculate metrics/loss
-        psnr = PSNR(raw_frames, com_frames, use_list=True)
-        msssim = MSSSIM(raw_frames, com_frames, use_list=True)
-        rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
-        img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
-        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
-        
-        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
-    
-    def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
-        if app_loss is not None:
-            loss += self.gamma_app*app_loss.cuda(0)
-        return loss
-        
-    def init_hidden(self, h, w):
-        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
-        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
-        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-         
 class AE3D(nn.Module):
     def __init__(self, name):
         super(AE3D, self).__init__()
@@ -1823,9 +1697,8 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    test_batch_proc('SVC')
     #test_batch_proc('SPVC')
-    #test_batch_proc('SCVC')
+    test_batch_proc('SCVC')
     #test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
     #test_seq_proc('DCVC')
