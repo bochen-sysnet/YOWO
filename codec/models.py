@@ -1102,6 +1102,9 @@ class CoderMean(nn.Module):
         features = self.t_avg(features,features,features) # fH*fW,128
         latent = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
         
+        # update CDF
+        self.entropy_bottleneck.update(force=True)
+        
         # encode
         latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
         latent_string = self.entropy_bottleneck.compress(latent)
