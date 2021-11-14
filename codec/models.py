@@ -1100,7 +1100,7 @@ class CoderMean(nn.Module):
         # temporal attention average
         features = features.transpose(0,1).contiguous() # fH*fW,B,128
         features = self.t_avg(features,features,features) # fH*fW,128
-        features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
+        latent = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
         
         # encode
         latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
@@ -1116,7 +1116,7 @@ class CoderMean(nn.Module):
         aux_loss = self.entropy_bottleneck.loss()/self.channels
 
         # decode features to original size [1,3,H,W]
-        x_hat = self.dec(features)
+        x_hat = self.dec(latent_hat)
         
         x_hat = x_hat.repeat(B,1,1,1)
         
