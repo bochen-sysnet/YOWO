@@ -774,7 +774,7 @@ class Coder2D(nn.Module):
         elif keyword in ['mshp']:
             # for image codec, single frame
             self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
-            self.conv_type = 'non-rec' # not need for single image compression
+            self.conv_type = 'attn' # not need for single image compression
             self.entropy_type = 'mshp'
         elif keyword in ['DVC','base','DCVC','DCVC_v2']:
             # for sequential model with no recurrent network
@@ -792,6 +792,11 @@ class Coder2D(nn.Module):
         if self.conv_type == 'rec':
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
+        elif self.conv_type == 'attn':
+            self.s_attn_a = Attention(channels)
+            self.t_attn_a = Attention(channels)
+            self.s_attn_s = Attention(channels)
+            self.t_attn_s = Attention(channels)
             
         # might need residual struct to avoid PE vanishing?
         
@@ -815,6 +820,14 @@ class Coder2D(nn.Module):
         
         if self.conv_type == 'rec':
             x, state_enc = self.enc_lstm(x, state_enc)
+        elif self.conv_type == 'attn':
+            # use attention
+            B,C,H,W = x.size()
+            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            x = self.s_attn_a(x,x,x)
+            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.t_attn_a(x,x,x)
+            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
@@ -882,6 +895,14 @@ class Coder2D(nn.Module):
         
         if self.conv_type == 'rec':
             x, state_dec = self.enc_lstm(x, state_dec)
+        elif self.conv_type == 'attn':
+            # use attention
+            B,C,H,W = x.size()
+            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
+            x = self.s_attn_s(x,x,x)
+            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.t_attn_s(x,x,x)
+            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
@@ -1366,6 +1387,8 @@ class SCVC(nn.Module):
 class Coder3D(nn.Module):
     def __init__(self, device, name, channels=128):
         super(Coder3D, self).__init__()
+        # another option is to use 2D to scale with 2^4:1
+        # then use 3D to only deal with the time axis
         self.enc3d = nn.Sequential(
             nn.Conv3d(channels, channels, kernel_size=3, stride=2, padding=1), 
             nn.BatchNorm3d(channels),
@@ -1435,7 +1458,7 @@ class SVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = Coder3D(device, 'mshp', channels=channels)
+        self.ref_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1452,12 +1475,11 @@ class SVC(nn.Module):
         
     def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
         bs, c, h, w = raw_frames.size()
-        (rae_mv_hidden, rpm_mv_hidden, rae_res_hidden, rpm_res_hidden) = hidden_states
         
         # derive ref frame(s)
         # ref frame should be as close to original frames as possible
         t_0 = time.perf_counter()
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames)
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames, None, None)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
@@ -1474,7 +1496,7 @@ class SVC(nn.Module):
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
-            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, rae_mv_hidden, rpm_mv_hidden)
+            mv_hat,_, _,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors, None, None)
         else:
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1497,7 +1519,7 @@ class SVC(nn.Module):
         res_tensors = raw_frames.cuda(1) - MC_frames
         if self.res_codec.entropy_type == 'mshp':
             # option 1: attention
-            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
+            res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors, None, None)
         else:
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
@@ -1521,7 +1543,6 @@ class SVC(nn.Module):
         img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
         
-        hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1537,7 +1558,6 @@ class SVC(nn.Module):
         rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
          
-        
 class AE3D(nn.Module):
     def __init__(self, name):
         super(AE3D, self).__init__()
