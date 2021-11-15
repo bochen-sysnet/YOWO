@@ -178,6 +178,7 @@ def pmf_to_quantized_cdf(pmf, precision = 16):
     return cdf
     
 def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
+    print(pmf.size())
     cdf = torch.zeros(
         (len(pmf_length), max_length + 2), dtype=torch.int32, device=pmf.device
     )
