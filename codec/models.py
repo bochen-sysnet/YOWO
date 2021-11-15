@@ -1037,7 +1037,7 @@ class AVGNet(nn.Module):
     
     def forward(self, q, k, v):
         
-        bs = q.size(0)
+        bs,sl,_ = q.size
         
         # perform linear operation
         
@@ -1046,8 +1046,8 @@ class AVGNet(nn.Module):
         
         # calculate attention using function we will define next
         scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(self.d_model)
-        ones = torch.ones(bs, self.d_model, self.d_model, dtype=torch.float32)
-        diag = torch.eye(self.d_model, dtype=torch.float32)
+        ones = torch.ones(bs, sl, sl, dtype=torch.float32)
+        diag = torch.eye(sl, dtype=torch.float32)
         tmp = ones - diag # for removing diag elements
         print(tmp.size())
         scores = scores*tmp
