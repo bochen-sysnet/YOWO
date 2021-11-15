@@ -133,7 +133,7 @@ def myupdate(self, force = False):
     # only computed and stored when the conditonal model is update()'d.
     if self._offset.numel() > 0 and not force:
         return False
-    print('qts:',self.quantiles)
+    print('qts:',self.quantiles[37])
     medians = self.quantiles[:, 0, 1]
 
     minima = medians - self.quantiles[:, 0, 0]
@@ -148,7 +148,8 @@ def myupdate(self, force = False):
 
     pmf_start = medians - minima
     pmf_length = maxima + minima + 1
-    print(pmf_length)
+    print(pmf_start[37])
+    print(pmf_length[37])
 
     max_length = pmf_length.max().item()
     device = pmf_start.device
