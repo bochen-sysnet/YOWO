@@ -133,7 +133,7 @@ def myupdate(self, force = False):
     # only computed and stored when the conditonal model is update()'d.
     if self._offset.numel() > 0 and not force:
         return False
-    
+    print(self.quantiles[37])
     medians = self.quantiles[:, 0, 1]
 
     minima = medians - self.quantiles[:, 0, 0]
@@ -163,7 +163,7 @@ def myupdate(self, force = False):
     pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
 
     pmf = pmf[:, 0, :]
-    print('pmf:',pmf)
+    print('pmf:',pmf[37,:])
     tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
     quantized_cdf = my_pmf_to_cdf(self,pmf, tail_mass, pmf_length, max_length)
     self._quantized_cdf = quantized_cdf
