@@ -133,7 +133,7 @@ def myupdate(self, force = False):
     # only computed and stored when the conditonal model is update()'d.
     if self._offset.numel() > 0 and not force:
         return False
-
+    print('?')
     medians = self.quantiles[:, 0, 1]
 
     minima = medians - self.quantiles[:, 0, 0]
@@ -156,7 +156,7 @@ def myupdate(self, force = False):
     samples = samples[None, :] + pmf_start[:, None, None]
 
     half = float(0.5)
-
+    print('--')
     lower = self._logits_cumulative(samples - half, stop_gradient=True)
     upper = self._logits_cumulative(samples + half, stop_gradient=True)
     sign = -torch.sign(lower + upper)
@@ -164,7 +164,7 @@ def myupdate(self, force = False):
 
     pmf = pmf[:, 0, :]
     tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
-
+    print('----')
     quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
     self._quantized_cdf = quantized_cdf
     self._cdf_length = pmf_length + 2
@@ -244,13 +244,12 @@ class MeanScaleHyperPriors(CompressionModel):
         
     def update(self, scale_table=None, force=False):
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
-        print('update eb')
         for m in self.children():
             if not isinstance(m, EntropyBottleneck):
                 continue
             myupdate(m,force=force)
+        # official version will cause floating point exception
         #updated |= super().update(force=force)
-        print('finish')
         return updated
 
     def loss(self):
