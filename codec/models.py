@@ -1310,13 +1310,12 @@ class SCVC(nn.Module):
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
-        ref_frame = self.vote_net(x)
+        ref_frame,x_vote = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
+        vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
+        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
-        
-        # calculate ref frame loss
-        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         
         t_0 = time.perf_counter()
         # extract context
