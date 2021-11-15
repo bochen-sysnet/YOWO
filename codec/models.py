@@ -1146,6 +1146,7 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
+        print('test',x.size())
         bs, c, h, w = x.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
@@ -1156,13 +1157,12 @@ class SPVC(nn.Module):
         # this can be imagined as an information tunnel
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
-        print('test',x.size())
         ref_frame,x_vote = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
-        print('REF entropy:',t_ref)
+        #print('REF entropy:',t_ref)
         
         # repeat reference frame
         ref_frame_hat = ref_frame.repeat(bs,1,1,1)
@@ -1182,7 +1182,7 @@ class SPVC(nn.Module):
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
-        #print('MV entropy:',t_mv)
+        print('MV entropy:',t_mv)
         
         # motion compensation
         t_0 = time.perf_counter()
@@ -1193,7 +1193,7 @@ class SPVC(nn.Module):
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(x, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        #print('Compensation:',t_comp)
+        print('Compensation:',t_comp)
         
         # compress residual
         t_0 = time.perf_counter()
@@ -1205,7 +1205,7 @@ class SPVC(nn.Module):
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
-        #print('RS entropy:',t_res)
+        print('RS entropy:',t_res)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
