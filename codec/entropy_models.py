@@ -259,7 +259,6 @@ class MeanScaleHyperPriors(CompressionModel):
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
-        t_0 = time.perf_counter()
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
         for m in self.children():
             if not isinstance(m, EntropyBottleneck):
@@ -267,8 +266,6 @@ class MeanScaleHyperPriors(CompressionModel):
             myupdate(m,force=force)
         # official version will cause floating point exception
         #updated |= super().update(force=force)
-        duration = time.perf_counter() - t_0
-        print(duration)
         return updated
 
     def loss(self):
