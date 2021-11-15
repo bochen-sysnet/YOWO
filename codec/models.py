@@ -1093,6 +1093,7 @@ class CoderMean(nn.Module):
         # input: sequence of frames=[B,3,H,W]
         # output: key frame=[1,C,H,W]
         B,_,H,W = raw_frames.size()
+        print(raw_frames.size())
         
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
         features = self.enc(raw_frames)
@@ -1608,7 +1609,7 @@ def test_batch_proc(name = 'SPVC'):
     print('test',name)
     batch_size = 4
     h = w = 224
-    channels = 128
+    channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
     if name == 'SPVC' or name == 'SPVC_v2':
         model = SPVC(name,channels)
