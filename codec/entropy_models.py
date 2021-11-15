@@ -203,6 +203,7 @@ class MeanScaleHyperPriors(CompressionModel):
     def update(self, scale_table=None, force=False):
         print('start')
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
+        print('mid')
         updated |= super().update(force=force)
         print('end')
         return updated
