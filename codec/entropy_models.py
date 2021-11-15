@@ -169,6 +169,13 @@ def myupdate(self, force = False):
     self._cdf_length = pmf_length + 2
     return True
     
+from compressai._CXX import pmf_to_quantized_cdf as _pmf_to_quantized_cdf
+
+def pmf_to_quantized_cdf(pmf, precision = 16):
+    cdf = _pmf_to_quantized_cdf(pmf.tolist(), precision)
+    cdf = torch.IntTensor(cdf)
+    return cdf
+    
 def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
     cdf = torch.zeros(
         (len(pmf_length), max_length + 2), dtype=torch.int32, device=pmf.device
