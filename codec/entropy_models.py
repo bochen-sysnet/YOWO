@@ -164,7 +164,7 @@ def myupdate(self, force = False):
 
     pmf = pmf[:, 0, :]
     tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
-    quantized_cdf = self.my_pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
+    quantized_cdf = my_pmf_to_cdf(self,pmf, tail_mass, pmf_length, max_length)
     self._quantized_cdf = quantized_cdf
     self._cdf_length = pmf_length + 2
     return True
