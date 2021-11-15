@@ -138,11 +138,11 @@ def myupdate(self, force = False):
 
     minima = medians - self.quantiles[:, 0, 0]
     minima = torch.ceil(minima).int()
-    minima = torch.clamp(minima, min=1)
+    minima = torch.clamp(minima, min=0)
 
     maxima = self.quantiles[:, 0, 2] - medians
     maxima = torch.ceil(maxima).int()
-    maxima = torch.clamp(maxima, min=1)
+    maxima = torch.clamp(maxima, min=0)
 
     self._offset = -minima
 
