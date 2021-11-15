@@ -1146,7 +1146,7 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
-        print('test',x.size())
+        print('--START--',x.size())
         bs, c, h, w = x.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
@@ -1162,7 +1162,7 @@ class SPVC(nn.Module):
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
-        #print('REF entropy:',t_ref)
+        print('REF entropy:',t_ref)
         
         # repeat reference frame
         ref_frame_hat = ref_frame.repeat(bs,1,1,1)
@@ -1171,7 +1171,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, x, bs, h, w)
         t_flow = time.perf_counter() - t_0
-        #print('Flow:',t_flow)
+        print('Flow:',t_flow)
         
         # compress optical flow
         t_0 = time.perf_counter()
