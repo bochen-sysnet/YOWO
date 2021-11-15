@@ -1047,9 +1047,13 @@ class AVGNet(nn.Module):
         v = self.v_linear(v)
         
         # calculate attention using function we will define next
+        print(q.size)
         scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(self.d_model)
+        print(scores.size())
         weights = torch.sum(scores,dim=-1)
         weights = F.softmax(weights,dim=-1).unsqueeze(1)
+        print(weights)
+        exit(0)
         
         # qkv:[B,SL,D]
         # weights:[B,SL]
@@ -1061,23 +1065,23 @@ class AVGNet(nn.Module):
         return output
         
 class CoderMean(nn.Module):
-    def __init__(self, channels=128, in_channels=3):
+    def __init__(self, channels=128, in_channels=3, kernel=5, padding=2):
         super(CoderMean, self).__init__()
-        self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=3, stride=2, padding=1),
+        self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1, bias=False)
+                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
                                 )
-        self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+        self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
                                 GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+                                nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
                                 )
         self.s_attn = Attention(channels)
         self.t_avg = AVGNet(channels)
@@ -1085,6 +1089,7 @@ class CoderMean(nn.Module):
         self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
         
     def forward(self, raw_frames):
+        # one option is to treat the first frame as reference
         # input: sequence of frames=[B,3,H,W]
         # output: key frame=[1,C,H,W]
         B,_,H,W = raw_frames.size()
@@ -1135,7 +1140,7 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderMean()
+        self.ref_codec = CoderMean(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1164,6 +1169,7 @@ class SPVC(nn.Module):
         #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
+        # minimize the std of mse?
         ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
         
         # use the derived ref frame to compute optical flow
@@ -1697,8 +1703,8 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
         
 if __name__ == '__main__':
-    #test_batch_proc('SPVC')
-    test_batch_proc('SCVC')
+    test_batch_proc('SPVC')
+    #test_batch_proc('SCVC')
     #test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
     #test_seq_proc('DCVC')
