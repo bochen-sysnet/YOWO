@@ -1277,7 +1277,8 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = VoteNet()
+        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1285,6 +1286,7 @@ class SCVC(nn.Module):
         self.split()
 
     def split(self):
+        self.vote_net.cuda(0)
         self.ref_codec.cuda(0)
         self.feature_extract.cuda(0)
         self.tmp_prior_encoder.cuda(1)
@@ -1302,12 +1304,13 @@ class SCVC(nn.Module):
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(x)
+        ref_frame = self.vote_net(x)
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
-        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
+        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         
         t_0 = time.perf_counter()
         # extract context
@@ -1366,70 +1369,6 @@ class SCVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rpm_mv_hidden)
         
-class Coder3D(nn.Module):
-    def __init__(self, device, name, channels=128):
-        super(Coder3D, self).__init__()
-        # another option is to use 2D to scale with 2^4:1
-        # then use 3D to only deal with the time axis
-        self.enc3d = nn.Sequential(
-            nn.Conv3d(channels, channels, kernel_size=3, stride=2, padding=1), 
-            nn.BatchNorm3d(channels),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(channels, channels, kernel_size=3, stride=2, padding=1), 
-            nn.BatchNorm3d(channels),
-            nn.ReLU(inplace=True),
-        )
-        self.dec3d = nn.Sequential( 
-            nn.ConvTranspose3d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(channels),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose3d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(channels),
-        )
-        self.enc2d = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=2, padding=1),
-                                GDN(channels),
-                                nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1),
-                                )
-        self.dec2d = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
-                                GDN(channels, inverse=True),
-                                nn.ConvTranspose2d(channels, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
-                                )
-        self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
-        self.channels = channels
-                                
-    def forward(self,x):   
-        # 2D encoder
-        x = self.enc2d(x)
-        
-        # 3D encoder
-        x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
-        x = self.enc3d(x)
-        y = x.permute(0,2,1,3,4).contiguous().squeeze(0)
-        
-        # entropy
-        self.entropy_bottleneck.update(force=True)
-        y_hat, likelihoods = self.entropy_bottleneck(y, training=self.training)
-        latent_string = self.entropy_bottleneck.compress(y)
-        
-        # calculate bpp (estimated)
-        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        
-        # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
-        
-        # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()/self.channels
-        
-        # 3D decoder
-        y_hat = y_hat.permute(1,0,2,3).contiguous().unsqueeze(0)
-        y_hat = self.dec3d(y_hat)
-        y_hat = y_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
-        
-        # 2D decoder
-        x_hat = self.dec2d(y_hat)
-        
-        return x_hat,bits_act,bits_est,aux_loss
-
 class AE3D(nn.Module):
     def __init__(self, name):
         super(AE3D, self).__init__()
