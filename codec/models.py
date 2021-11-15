@@ -1146,7 +1146,6 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
-        print('--START--',x.size())
         bs, c, h, w = x.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
@@ -1162,7 +1161,7 @@ class SPVC(nn.Module):
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
-        print('REF entropy:',t_ref)
+        #print('REF entropy:',t_ref)
         
         # repeat reference frame
         ref_frame_hat = ref_frame.repeat(bs,1,1,1)
@@ -1171,9 +1170,10 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, x, bs, h, w)
         t_flow = time.perf_counter() - t_0
-        print('Flow:',t_flow)
+        #print('Flow:',t_flow)
         
         # compress optical flow
+        print('Enter entropy',self.mv_codec.entropy_type)
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
@@ -1193,7 +1193,7 @@ class SPVC(nn.Module):
         MC_frames = self.MC_network(MC_input)
         mc_loss = calc_loss(x, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        print('Compensation:',t_comp)
+        #print('Compensation:',t_comp)
         
         # compress residual
         t_0 = time.perf_counter()
@@ -1205,7 +1205,7 @@ class SPVC(nn.Module):
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         t_res = time.perf_counter() - t_0
-        print('RS entropy:',t_res)
+        #print('RS entropy:',t_res)
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
