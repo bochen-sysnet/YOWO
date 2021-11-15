@@ -835,7 +835,8 @@ class Coder2D(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
         
         # update CDF
-        self.entropy_bottleneck.update(force=not RPM_flag)
+        if not self.training:
+            self.entropy_bottleneck.update(force=not RPM_flag)
         
         # Time measurement: end
         if not noMeasure:
@@ -846,7 +847,8 @@ class Coder2D(nn.Module):
         if self.entropy_type == 'base':
             if noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-                latent_string = self.entropy_bottleneck.compress(latent)
+                if not self.training:
+                    latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 # encoding
                 t_0 = time.perf_counter()
@@ -859,7 +861,8 @@ class Coder2D(nn.Module):
         elif self.entropy_type == 'mshp':
             if noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-                latent_string = self.entropy_bottleneck.compress(latent)
+                if not self.training:
+                    latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 print('Not implemented now.')
                 exit(1)
@@ -867,7 +870,8 @@ class Coder2D(nn.Module):
             self.entropy_bottleneck.set_RPM(RPM_flag)
             if noMeasure:
                 latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
-                latent_string = self.entropy_bottleneck.compress(latent)
+                if not self.training:
+                    latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 latent_string, _, duration_e = net.compress_slow(latent,rpm_hidden)
                 latent_hat, rpm_hidden, duration_d = net.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
@@ -885,7 +889,10 @@ class Coder2D(nn.Module):
             bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
         
         # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        if not self.training:
+            bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+        else:
+            bits_act = bits_est
 
         # Time measurement: start
         if not noMeasure:
