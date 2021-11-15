@@ -1032,7 +1032,6 @@ class AVGNet(nn.Module):
         self.d_model = d_model
         
         self.q_linear = nn.Linear(d_model, d_model)
-        self.v_linear = nn.Linear(d_model, d_model)
         self.k_linear = nn.Linear(d_model, d_model)
         self.out = nn.Linear(d_model, d_model)
     
@@ -1044,13 +1043,16 @@ class AVGNet(nn.Module):
         
         k = self.k_linear(k)
         q = self.q_linear(q)
-        v = self.v_linear(v)
         
         # calculate attention using function we will define next
-        print(q.size())
         scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(self.d_model)
+        ones = torch.ones(bs, self.d_model, self.d_model, dtype=torch.float32)
+        diag = torch.eye(self.d_model, dtype=torch.float32)
+        tmp = ones - diag # for removing diag elements
+        scores = scores*tmp
         print(scores[0])
         weights = torch.sum(scores,dim=-1)
+        print(weights[0])
         weights = F.softmax(weights,dim=-1).unsqueeze(1)
         print(weights[0])
         exit(0)
