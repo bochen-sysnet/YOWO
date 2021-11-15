@@ -803,6 +803,7 @@ class Coder2D(nn.Module):
             self.t_attn_s = Attention(channels)
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag=False, fast=True):
+        print(x.size())
         # whether to measure time
         noMeasure = (self.training or fast)
         if not noMeasure:
@@ -833,6 +834,7 @@ class Coder2D(nn.Module):
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
+        print('--')
 
         # update CDF
         self.entropy_bottleneck.update(force=True)
@@ -872,6 +874,7 @@ class Coder2D(nn.Module):
                 latent_string, _, duration_e = net.compress_slow(latent,rpm_hidden)
                 latent_hat, rpm_hidden, duration_d = net.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
             self.entropy_bottleneck.set_prior(latent)
+        print('----')
             
         # add in the time in entropy bottleneck
         if not noMeasure:
@@ -908,6 +911,7 @@ class Coder2D(nn.Module):
             
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
+        print('------')
         
         # Time measurement: end
         if not noMeasure:
@@ -1173,7 +1177,6 @@ class SPVC(nn.Module):
         #print('Flow:',t_flow)
         
         # compress optical flow
-        print('Enter entropy',self.mv_codec.entropy_type)
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
@@ -1182,7 +1185,7 @@ class SPVC(nn.Module):
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         t_mv = time.perf_counter() - t_0
-        print('MV entropy:',t_mv)
+        #print('MV entropy:',t_mv)
         
         # motion compensation
         t_0 = time.perf_counter()
