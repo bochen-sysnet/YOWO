@@ -533,7 +533,7 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 10:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
+        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,0
     else:
         model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,.1,0,1,0,0,0
     
@@ -1025,7 +1025,7 @@ class Attention(nn.Module):
     
         return output
         
-class AVGNet(nn.Module):
+class SumNet(nn.Module):
     def __init__(self, d_model):
         super().__init__()
         
@@ -1050,12 +1050,8 @@ class AVGNet(nn.Module):
         diag = torch.eye(sl, dtype=torch.float32)
         tmp = ones - diag # for removing diag elements
         scores = scores*tmp.to(scores.device)
-        print(scores[0])
         weights = torch.sum(scores,dim=-1)
-        print(weights[0])
         weights = F.softmax(weights,dim=-1).unsqueeze(1)
-        print(weights[0])
-        exit(0)
         
         # qkv:[B,SL,D]
         # weights:[B,SL]
@@ -1086,7 +1082,7 @@ class CoderMean(nn.Module):
                                 nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
                                 )
         self.s_attn = Attention(channels)
-        self.t_avg = AVGNet(channels)
+        self.t_avg = SumNet(channels)
         self.channels = channels
         self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
         
