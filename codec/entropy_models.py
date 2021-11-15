@@ -135,9 +135,6 @@ def myupdate(self, force = False):
         return False
     
     medians = self.quantiles[:, 0, 1]
-    print('---')
-    print(medians)
-    print('====')
 
     minima = medians - self.quantiles[:, 0, 0]
     minima = torch.ceil(minima).int()
@@ -166,6 +163,7 @@ def myupdate(self, force = False):
     pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
 
     pmf = pmf[:, 0, :]
+    print('pmf:',pmf)
     tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
     quantized_cdf = my_pmf_to_cdf(self,pmf, tail_mass, pmf_length, max_length)
     self._quantized_cdf = quantized_cdf
@@ -175,7 +173,6 @@ def myupdate(self, force = False):
 from compressai._CXX import pmf_to_quantized_cdf as _pmf_to_quantized_cdf
 
 def pmf_to_quantized_cdf(pmf, precision = 16):
-    print(torch.sum(pmf))
     cdf = _pmf_to_quantized_cdf(pmf.tolist(), precision)
     cdf = torch.IntTensor(cdf)
     return cdf
@@ -186,7 +183,7 @@ def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
     )
     for i, p in enumerate(pmf):
         prob = torch.cat((p[: pmf_length[i]], tail_mass[i]), dim=0)
-        print(p.tolist(),prob.tolist(),float(pmf_length[i]))
+        print(prob.tolist(),float(pmf_length[i]))
         _cdf = pmf_to_quantized_cdf(prob, self.entropy_coder_precision)
         cdf[i, : _cdf.size(0)] = _cdf
     return cdf
