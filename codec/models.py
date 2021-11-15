@@ -803,7 +803,6 @@ class Coder2D(nn.Module):
             self.t_attn_s = Attention(channels)
         
     def forward(self, x, hidden, rpm_hidden, RPM_flag=False, fast=True):
-        print(x.size())
         # whether to measure time
         noMeasure = (self.training or fast)
         if not noMeasure:
@@ -834,7 +833,6 @@ class Coder2D(nn.Module):
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
-        print('--')
 
         # update CDF
         self.entropy_bottleneck.update(force=True)
@@ -843,7 +841,7 @@ class Coder2D(nn.Module):
         if not noMeasure:
             duration = time.perf_counter() - t_0
             duration_enc += duration
-        
+        print(latent.size(),self.entropy_type)
         # quantization + entropy coding
         if self.entropy_type == 'base':
             if noMeasure:
@@ -911,7 +909,6 @@ class Coder2D(nn.Module):
             
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
-        print('------')
         
         # Time measurement: end
         if not noMeasure:
