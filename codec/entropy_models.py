@@ -135,7 +135,7 @@ class MeanScaleHyperPriors(CompressionModel):
         channels,
         useAttention=False,
     ):
-        super().__init__(channels)
+        super(MeanScaleHyperPriors,self).__init__(channels)
 
         self.channels = int(channels)
         
