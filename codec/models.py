@@ -1148,7 +1148,7 @@ class SPVC(nn.Module):
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
         ref_frame = self.vote_net(raw_frames)
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame)
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
