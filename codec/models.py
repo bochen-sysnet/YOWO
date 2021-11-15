@@ -833,10 +833,9 @@ class Coder2D(nn.Module):
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
-        print(latent.size(),self.entropy_type)
+        
         # update CDF
         self.entropy_bottleneck.update(force=True)
-        print('?')
         
         # Time measurement: end
         if not noMeasure:
@@ -873,7 +872,6 @@ class Coder2D(nn.Module):
                 latent_string, _, duration_e = net.compress_slow(latent,rpm_hidden)
                 latent_hat, rpm_hidden, duration_d = net.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
             self.entropy_bottleneck.set_prior(latent)
-        print('----')
             
         # add in the time in entropy bottleneck
         if not noMeasure:

@@ -194,15 +194,14 @@ class MeanScaleHyperPriors(CompressionModel):
             )
         
         self.useAttention = useAttention
+        self.scale_table = get_scale_table()
         
         if self.useAttention:
             self.s_attn = Attention(channels)
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
-        if scale_table is None:
-            scale_table = get_scale_table()
-        updated = self.gaussian_conditional.update_scale_table(scale_table, force=force)
+        updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
         updated |= super().update(force=force)
         return updated
 
