@@ -1069,11 +1069,11 @@ class CoderMean(nn.Module):
         super(CoderMean, self).__init__()
         self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
+                                nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
+                                nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
-                                nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
+                                nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
                                 )
         self.dec = nn.Sequential(nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
                                 GDN(channels, inverse=True),
@@ -1093,7 +1093,6 @@ class CoderMean(nn.Module):
         # input: sequence of frames=[B,3,H,W]
         # output: key frame=[1,C,H,W]
         B,_,H,W = raw_frames.size()
-        print(raw_frames.size())
         
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
         features = self.enc(raw_frames)
