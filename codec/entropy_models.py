@@ -201,11 +201,10 @@ class MeanScaleHyperPriors(CompressionModel):
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
-        print('start')
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
-        print('mid')
+        print('update eb')
         updated |= super().update(force=force)
-        print('end')
+        print('finish')
         return updated
 
     def loss(self):
