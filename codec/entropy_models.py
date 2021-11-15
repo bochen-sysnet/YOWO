@@ -128,6 +128,48 @@ class RecProbModel(CompressionModel):
         duration = time.perf_counter() - t_0
         return x_hat, rpm_hidden, duration
         
+def myupdate(self, force = False):
+    # Check if we need to update the bottleneck parameters, the offsets are
+    # only computed and stored when the conditonal model is update()'d.
+    if self._offset.numel() > 0 and not force:
+        return False
+
+    medians = self.quantiles[:, 0, 1]
+
+    minima = medians - self.quantiles[:, 0, 0]
+    minima = torch.ceil(minima).int()
+    minima = torch.clamp(minima, min=0)
+
+    maxima = self.quantiles[:, 0, 2] - medians
+    maxima = torch.ceil(maxima).int()
+    maxima = torch.clamp(maxima, min=0)
+
+    self._offset = -minima
+
+    pmf_start = medians - minima
+    pmf_length = maxima + minima + 1
+
+    max_length = pmf_length.max().item()
+    device = pmf_start.device
+    samples = torch.arange(max_length, device=device)
+
+    samples = samples[None, :] + pmf_start[:, None, None]
+
+    half = float(0.5)
+
+    lower = self._logits_cumulative(samples - half, stop_gradient=True)
+    upper = self._logits_cumulative(samples + half, stop_gradient=True)
+    sign = -torch.sign(lower + upper)
+    pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
+
+    pmf = pmf[:, 0, :]
+    tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
+
+    quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
+    self._quantized_cdf = quantized_cdf
+    self._cdf_length = pmf_length + 2
+    return True
+        
 class MeanScaleHyperPriors(CompressionModel):
 
     def __init__(
@@ -206,8 +248,8 @@ class MeanScaleHyperPriors(CompressionModel):
         for m in self.children():
             if not isinstance(m, EntropyBottleneck):
                 continue
-            print(m)
-        updated |= super().update(force=force)
+            myupdate(m,force=force)
+        #updated |= super().update(force=force)
         print('finish')
         return updated
 
