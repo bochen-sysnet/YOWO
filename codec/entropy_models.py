@@ -135,7 +135,9 @@ def myupdate(self, force = False):
         return False
     
     medians = self.quantiles[:, 0, 1]
+    print('---')
     print(medians)
+    print('====')
 
     minima = medians - self.quantiles[:, 0, 0]
     minima = torch.ceil(minima).int()
