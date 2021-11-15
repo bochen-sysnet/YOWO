@@ -1129,6 +1129,7 @@ class SPVC(nn.Module):
 
     def split(self):
         # too much on cuda:0
+        self.vote_net.cuda(0)
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(1)
