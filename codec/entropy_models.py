@@ -203,10 +203,11 @@ class MeanScaleHyperPriors(CompressionModel):
     def update(self, scale_table=None, force=False):
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
         print('update eb')
-        try:
-            updated |= super().update(force=force)
-        except:
-            print("Cannot update entropy bottleneck")
+        for m in self.children():
+            if not isinstance(m, EntropyBottleneck):
+                continue
+            print(m)
+        updated |= super().update(force=force)
         print('finish')
         return updated
 
