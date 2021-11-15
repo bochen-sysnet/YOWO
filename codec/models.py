@@ -833,15 +833,16 @@ class Coder2D(nn.Module):
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
-
+        print(latent.size(),self.entropy_type)
         # update CDF
         self.entropy_bottleneck.update(force=True)
+        print('?')
         
         # Time measurement: end
         if not noMeasure:
             duration = time.perf_counter() - t_0
             duration_enc += duration
-        print(latent.size(),self.entropy_type)
+        
         # quantization + entropy coding
         if self.entropy_type == 'base':
             if noMeasure:
