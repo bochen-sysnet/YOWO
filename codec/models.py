@@ -303,7 +303,7 @@ class LearnedVideoCodecs(nn.Module):
         psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
         msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
-        img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)/(self.r_rec+self.r_warp+self.r_mc) 
+        img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)
         img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
@@ -475,9 +475,9 @@ class DCVC(nn.Module):
         msssim = MSSSIM(x, x_hat.cuda(0))
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         if self.name == 'DCVC':
-            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss)/(self.r_rec+self.r_warp) 
+            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss)
         else:
-            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)/(self.r_rec+self.r_warp+self.r_mc) 
+            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)
         img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
