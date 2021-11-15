@@ -234,7 +234,7 @@ class LearnedVideoCodecs(nn.Module):
         self.mv_codec = Coder2D(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc = 1,1,1,1,1,1,1,1
+        init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         self.I_level = 27 # [37,32,27,22]
         self.epoch = -1
@@ -303,17 +303,17 @@ class LearnedVideoCodecs(nn.Module):
         psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
         msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
-        img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
-        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.gamma_flow
+        img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)/(self.r_rec+self.r_warp+self.r_mc) 
+        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss
+        loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         if self.name in ['MLVC','RAW']:
             if app_loss is not None:
-                loss += self.gamma_app*app_loss
+                loss += self.r_app*app_loss
         return loss
     
     def init_hidden(self, h, w):
@@ -372,7 +372,7 @@ class DCVC(nn.Module):
         self.optical_flow = OpticalFlowNet()
         self.mv_codec = Coder2D(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         self.I_level = 27 # [37,32,27,22] poor->good quality
         self.name = name
@@ -475,19 +475,19 @@ class DCVC(nn.Module):
         msssim = MSSSIM(x, x_hat.cuda(0))
         rec_loss = calc_loss(x, x_hat.cuda(0), self.r, use_psnr)
         if self.name == 'DCVC':
-            img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss)/(self.gamma_rec+self.gamma_warp) 
+            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss)/(self.r_rec+self.r_warp) 
         else:
-            img_loss = (self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_rec+self.gamma_warp+self.gamma_mc) 
-        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.gamma_flow
+            img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)/(self.r_rec+self.r_warp+self.r_mc) 
+        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         if app_loss is None:
-            return self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss
+            return self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         else:
-            return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss
+            return self.r_app*app_loss + self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         
     def init_hidden(self, h, w):
         rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
@@ -502,9 +502,9 @@ class StandardVideoCodecs(nn.Module):
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         if app_loss is None:
-            return self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss
+            return self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         else:
-            return self.gamma_app*app_loss + self.gamma_img*pix_loss + self.gamma_bpp*bpp_loss + self.gamma_aux*aux_loss
+            return self.r_app*app_loss + self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         
 def I_compression(Y1_raw, r, I_level, use_psnr):
     # we can compress with bpg,deepcod ...
@@ -525,7 +525,11 @@ def I_compression(Y1_raw, r, I_level, use_psnr):
     msssim = MSSSIM(Y1_raw, Y1_com)
     bpp_est = loss = aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     return Y1_com, bpp_est, loss, aux_loss, bpp_act, psnr, msssim
-        
+            
+def init_training_params(model):
+    model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
+    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 1,1,1,1,1,1
+    
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
@@ -533,12 +537,14 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 10:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,1,0,1,1,1,1
+        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
     else:
-        model.gamma_img, model.gamma_bpp, model.gamma_flow, model.gamma_aux, model.gamma_app, model.gamma_rec, model.gamma_warp, model.gamma_mc, model.gamma_ref = 1,1,1,.1,0,1,0,0,0
+        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,0,0,0,0
     
     # whether to compute action detection
-    doAD = True if model.gamma_app > 0 else False
+    doAD = True if model.r_app > 0 else False
     
     model.epoch = epoch
     
@@ -1125,8 +1131,7 @@ class SPVC(nn.Module):
         self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux = 1,1,1,1
-        self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref, self.gamma_vote = 1,1,1,1,1,1
+        init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
@@ -1215,20 +1220,20 @@ class SPVC(nn.Module):
         psnr = PSNR(x, com_frames, use_list=True)
         msssim = MSSSIM(x, com_frames, use_list=True)
         rec_loss = calc_loss(x, com_frames, self.r, use_psnr)
-        img_loss = (self.gamma_ref*ref_loss + \
-                    self.gamma_rec*rec_loss + \
-                    self.gamma_warp*warp_loss + \
-                    self.gamma_mc*mc_loss + \
-                    self.gamma_vote*vote_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc+self.gamma_vote) 
-        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
+        img_loss = (self.r_ref_codec*ref_loss + \
+                    self.r_rec*rec_loss + \
+                    self.r_warp*warp_loss + \
+                    self.r_mc*mc_loss + \
+                    self.r_vote_codec*vote_loss)/(self.r_ref_codec + self.r_rec+self.r_warp+self.r_mc+self.r_vote_codec) 
+        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.r_flow
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
+        loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
         if app_loss is not None:
-            loss += self.gamma_app*app_loss.cuda(0)
+            loss += self.r_app*app_loss.cuda(0)
         return loss
         
     def init_hidden(self, h, w):
@@ -1286,7 +1291,7 @@ class SCVC(nn.Module):
         self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
@@ -1358,15 +1363,15 @@ class SCVC(nn.Module):
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
-        img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss)/(self.gamma_ref + self.gamma_rec)
+        img_loss = (self.r_ref_codec*ref_loss + self.r_rec*rec_loss)/(self.r_ref_codec + self.r_rec)
         
         hidden_states = (rae_ref_hidden, rpm_ref_hidden)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
+        loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
         if app_loss is not None:
-            loss += self.gamma_app*app_loss.cuda(0)
+            loss += self.r_app*app_loss.cuda(0)
         return loss
         
     def init_hidden(self, h, w):
@@ -1422,7 +1427,7 @@ class AE3D(nn.Module):
             nn.BatchNorm3d(3),
         )
         self.channels = 128
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
@@ -1500,9 +1505,9 @@ class AE3D(nn.Module):
         return None
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.gamma_img*pix_loss.cuda(0) + self.gamma_bpp*bpp_loss.cuda(0) + self.gamma_aux*aux_loss.cuda(0)
+        loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
         if app_loss is not None:
-            loss += self.gamma_app*app_loss.cuda(0)
+            loss += self.r_app*app_loss.cuda(0)
         return loss
         
 class ResBlockA(nn.Module):
