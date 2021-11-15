@@ -164,12 +164,22 @@ def myupdate(self, force = False):
 
     pmf = pmf[:, 0, :]
     tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
-    print('----')
-    quantized_cdf = self._pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
-    print('------')
+    quantized_cdf = self.my_pmf_to_cdf(pmf, tail_mass, pmf_length, max_length)
     self._quantized_cdf = quantized_cdf
     self._cdf_length = pmf_length + 2
     return True
+    
+def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
+    cdf = torch.zeros(
+        (len(pmf_length), max_length + 2), dtype=torch.int32, device=pmf.device
+    )
+    print('----',pmf.size())
+    for i, p in enumerate(pmf):
+        prob = torch.cat((p[: pmf_length[i]], tail_mass[i]), dim=0)
+        _cdf = pmf_to_quantized_cdf(prob, self.entropy_coder_precision)
+        cdf[i, : _cdf.size(0)] = _cdf
+    print('------')
+    return cdf
         
 class MeanScaleHyperPriors(CompressionModel):
 
