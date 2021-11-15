@@ -200,9 +200,7 @@ def parallel_compression(model, _range, cache, RPM_flag):
         idx_list.append(i)
     x = torch.stack(img_list, dim=0)
     n = len(idx_list)
-    print('proc',idx_list)
     x_hat, cache['hidden'], bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x, cache['hidden'], RPM_flag)
-    print('end')
     for pos,j in enumerate(idx_list):
         cache['clip'][j] = x_hat[pos].squeeze(0).detach()
         cache['img_loss'][j] = img_loss
@@ -1158,12 +1156,13 @@ class SPVC(nn.Module):
         # this can be imagined as an information tunnel
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
+        print('test',x.size())
         ref_frame,x_vote = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
-        #print('REF entropy:',t_ref)
+        print('REF entropy:',t_ref)
         
         # repeat reference frame
         ref_frame_hat = ref_frame.repeat(bs,1,1,1)
