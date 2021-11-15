@@ -1049,8 +1049,7 @@ class AVGNet(nn.Module):
         ones = torch.ones(bs, sl, sl, dtype=torch.float32)
         diag = torch.eye(sl, dtype=torch.float32)
         tmp = ones - diag # for removing diag elements
-        print(tmp.size())
-        scores = scores*tmp
+        scores = scores*tmp.to(scores.device)
         print(scores[0])
         weights = torch.sum(scores,dim=-1)
         print(weights[0])
