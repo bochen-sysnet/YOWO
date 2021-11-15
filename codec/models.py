@@ -438,7 +438,7 @@ class DCVC(nn.Module):
         y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
         
         # entropy model
-        self.entropy_bottleneck.update()
+        self.entropy_bottleneck.update(force=not RPM_flag)
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_string = self.entropy_bottleneck.compress(y)
@@ -536,7 +536,7 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 10:
+    if epoch <= 1:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
         model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
     else:
@@ -1336,7 +1336,7 @@ class SCVC(nn.Module):
         
         # entropy model
         t_0 = time.perf_counter()
-        self.entropy_bottleneck.update()
+        self.entropy_bottleneck.update(force=not RPM_flag)
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_string = self.entropy_bottleneck.compress(y)
@@ -1458,7 +1458,7 @@ class AE3D(nn.Module):
         bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
         rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
         latent_hat_list = []
-        self.entropy_bottleneck.update(force=True)
+        self.entropy_bottleneck.update(force=not RPM_flag)
         for frame_idx in range(t):
             latent_i = latent[:,:,frame_idx,:,:]
             self.entropy_bottleneck.set_RPM(frame_idx>=1)
