@@ -172,9 +172,7 @@ def myupdate(self, force = False):
 from compressai._CXX import pmf_to_quantized_cdf as _pmf_to_quantized_cdf
 
 def pmf_to_quantized_cdf(pmf, precision = 16):
-    print('?')
-    cdf = _pmf_to_quantized_cdf(pmf.tolist(), precision)
-    print('!')
+    cdf = _pmf_to_quantized_cdf(pmf.tolist(), 32)
     cdf = torch.IntTensor(cdf)
     return cdf
     
