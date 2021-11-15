@@ -266,7 +266,6 @@ class MeanScaleHyperPriors(CompressionModel):
             myupdate(m,force=force)
         # official version will cause floating point exception
         #updated |= super().update(force=force)
-        duration = time.perf_counter() - t_0
         return updated
 
     def loss(self):
