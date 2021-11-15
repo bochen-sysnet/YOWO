@@ -1062,9 +1062,9 @@ class SumNet(nn.Module):
     
         return output
         
-class CoderMean(nn.Module):
+class VoteNet(nn.Module):
     def __init__(self, channels=128, in_channels=3, kernel=5, padding=2):
-        super(CoderMean, self).__init__()
+        super(VoteNet, self).__init__()
         self.enc = nn.Sequential(nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding),
                                 GDN(channels),
                                 nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
@@ -1084,49 +1084,30 @@ class CoderMean(nn.Module):
         self.s_attn = Attention(channels)
         self.t_avg = SumNet(channels)
         self.channels = channels
-        self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
         
-    def forward(self, raw_frames):
+    def forward(self, x):
         # one option is to treat the first frame as reference
         # input: sequence of frames=[B,3,H,W]
         # output: key frame=[1,C,H,W]
-        B,_,H,W = raw_frames.size()
+        B,_,H,W = x.size()
         
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
-        features = self.enc(raw_frames)
-        _,_,fH,fW = features.size()
+        y = self.enc(x)
+        _,_,fH,fW = y.size()
         
         # spatial attention
-        features = features.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
+        features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
         features = self.s_attn(features,features,features) # B,fH*fW,128
         
         # temporal attention average
         features = features.transpose(0,1).contiguous() # fH*fW,B,128
         features = self.t_avg(features,features,features) # fH*fW,128
-        latent = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
-        
-        # update CDF
-        self.entropy_bottleneck.update(force=True)
-        
-        # encode
-        latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-        latent_string = self.entropy_bottleneck.compress(latent)
-        
-        # calculate bpp (estimated)
-        bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        
-        # calculate bpp (actual)
-        bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
-        
-        # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()/self.channels
+        features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
         # decode features to original size [1,3,H,W]
-        x_hat = self.dec(latent_hat)
+        x_hat = self.dec(features)
         
-        x_hat = x_hat.repeat(B,1,1,1)
-        
-        return x_hat, bits_act, bits_est, aux_loss
+        return x_hat
     
 # predictive coding     
 class SPVC(nn.Module):
@@ -1138,7 +1119,8 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderMean(channels=channels, in_channels=3, kernel=5, padding=2)
+        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1161,14 +1143,20 @@ class SPVC(nn.Module):
         # ref frame should be as close to original frames as possible
         # it is innevitable that the motion and residual needs to carry more info
         # how to allow different position to have different ref_frame?
+        # this can be imagined as an information tunnel
+        # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(raw_frames)
+        ref_frame = self.vote_net(raw_frames)
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # calculate ref frame loss
         # minimize the std of mse?
-        ref_loss = calc_loss(raw_frames, ref_frame_hat, self.r, use_psnr)
+        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
+        
+        # repeat reference frame
+        ref_frame_hat = ref_frame.repeat(bs,1,1,1)
         
         # use the derived ref frame to compute optical flow
         t_0 = time.perf_counter()
@@ -1180,7 +1168,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
-            mv_hat,rae_mv_hidden, rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden)
+            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden)
         else:
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1288,7 +1276,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = CoderMean()
+        self.ref_codec = VoteNet()
         self.channels = channels
         self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
