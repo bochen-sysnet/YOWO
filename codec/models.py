@@ -1093,8 +1093,11 @@ class VoteNet(nn.Module):
         
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
         y = self.enc(x)
-        _,_,fH,fW = y.size()
         
+        # decode non-attended features
+        x_tilde = self.dec(features)
+        
+        _,_,fH,fW = y.size()
         # spatial attention
         features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
         features = self.s_attn(features,features,features) # B,fH*fW,128
@@ -1104,10 +1107,11 @@ class VoteNet(nn.Module):
         features = self.t_avg(features,features,features) # fH*fW,128
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
-        # decode features to original size [1,3,H,W]
+        # decode attended features to original size [1,3,H,W]
         x_hat = self.dec(features)
         
-        return x_hat
+        
+        return x_hat,x_tilde
     
 # predictive coding     
 class SPVC(nn.Module):
@@ -1122,7 +1126,8 @@ class SPVC(nn.Module):
         self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
-        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux, self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref = 1,1,1,1,1,1,1,1,1
+        self.gamma_img, self.gamma_bpp, self.gamma_flow, self.gamma_aux = 1,1,1,1
+        self.gamma_app, self.gamma_rec, self.gamma_warp, self.gamma_mc, self.gamma_ref, self.gamma_vote = 1,1,1,1,1,1
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
@@ -1136,8 +1141,8 @@ class SPVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def forward(self, raw_frames, hidden_states, RPM_flag=False, use_psnr=True):
-        bs, c, h, w = raw_frames.size()
+    def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
+        bs, c, h, w = x.size()
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
         # derive ref frame(s)
@@ -1147,21 +1152,19 @@ class SPVC(nn.Module):
         # this can be imagined as an information tunnel
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
-        ref_frame = self.vote_net(raw_frames)
+        ref_frame,x_vote = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
+        vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
+        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
-        
-        # calculate ref frame loss
-        # minimize the std of mse?
-        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         
         # repeat reference frame
         ref_frame_hat = ref_frame.repeat(bs,1,1,1)
         
         # use the derived ref frame to compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, raw_frames, bs, h, w)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, x, bs, h, w)
         t_flow = time.perf_counter() - t_0
         #print('Flow:',t_flow)
         
@@ -1180,16 +1183,16 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         loc = get_grid_locations(bs, h, w).cuda(1)
         warped_frames = F.grid_sample(ref_frame_hat.cuda(1), loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(raw_frames, warped_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x, warped_frames, self.r, use_psnr)
         MC_input = torch.cat((mv_hat, ref_frame_hat.cuda(1), warped_frames), axis=1)
         MC_frames = self.MC_network(MC_input)
-        mc_loss = calc_loss(raw_frames, MC_frames, self.r, use_psnr)
+        mc_loss = calc_loss(x, MC_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         #print('Compensation:',t_comp)
         
         # compress residual
         t_0 = time.perf_counter()
-        res_tensors = raw_frames.cuda(1) - MC_frames
+        res_tensors = x.cuda(1) - MC_frames
         if self.res_codec.entropy_type == 'mshp':
             # option 1: attention
             res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
@@ -1210,10 +1213,14 @@ class SPVC(nn.Module):
         # auxilary loss
         aux_loss = (ref_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
         # calculate metrics/loss
-        psnr = PSNR(raw_frames, com_frames, use_list=True)
-        msssim = MSSSIM(raw_frames, com_frames, use_list=True)
-        rec_loss = calc_loss(raw_frames, com_frames, self.r, use_psnr)
-        img_loss = (self.gamma_ref*ref_loss + self.gamma_rec*rec_loss + self.gamma_warp*warp_loss + self.gamma_mc*mc_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc) 
+        psnr = PSNR(x, com_frames, use_list=True)
+        msssim = MSSSIM(x, com_frames, use_list=True)
+        rec_loss = calc_loss(x, com_frames, self.r, use_psnr)
+        img_loss = (self.gamma_ref*ref_loss + \
+                    self.gamma_rec*rec_loss + \
+                    self.gamma_warp*warp_loss + \
+                    self.gamma_mc*mc_loss + \
+                    self.gamma_vote*vote_loss)/(self.gamma_ref + self.gamma_rec+self.gamma_warp+self.gamma_mc+self.gamma_vote) 
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.gamma_flow
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
