@@ -1037,7 +1037,7 @@ class AVGNet(nn.Module):
     
     def forward(self, q, k, v):
         
-        bs,sl,_ = q.size
+        bs,sl,_ = q.size()
         
         # perform linear operation
         
