@@ -1095,7 +1095,7 @@ class VoteNet(nn.Module):
         y = self.enc(x)
         
         # decode non-attended features
-        x_tilde = self.dec(features)
+        x_tilde = self.dec(y)
         
         _,_,fH,fW = y.size()
         # spatial attention
@@ -1109,7 +1109,6 @@ class VoteNet(nn.Module):
 
         # decode attended features to original size [1,3,H,W]
         x_hat = self.dec(features)
-        
         
         return x_hat,x_tilde
     
