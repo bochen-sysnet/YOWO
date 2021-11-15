@@ -178,12 +178,12 @@ def pmf_to_quantized_cdf(pmf, precision = 16):
     return cdf
     
 def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
-    print(pmf.size(),pmf_length)
     cdf = torch.zeros(
         (len(pmf_length), max_length + 2), dtype=torch.int32, device=pmf.device
     )
     for i, p in enumerate(pmf):
         prob = torch.cat((p[: pmf_length[i]], tail_mass[i]), dim=0)
+        print(p,prob,pmf_length[i])
         _cdf = pmf_to_quantized_cdf(prob, self.entropy_coder_precision)
         cdf[i, : _cdf.size(0)] = _cdf
     return cdf
