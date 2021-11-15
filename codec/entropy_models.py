@@ -133,7 +133,7 @@ def myupdate(self, force = False):
     # only computed and stored when the conditonal model is update()'d.
     if self._offset.numel() > 0 and not force:
         return False
-    print(self.quantiles[37])
+    
     medians = self.quantiles[:, 0, 1]
 
     minima = medians - self.quantiles[:, 0, 0]
@@ -182,7 +182,6 @@ def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
     )
     for i, p in enumerate(pmf):
         prob = torch.cat((p[: pmf_length[i]], tail_mass[i]), dim=0)
-        print(i,float(pmf_length[i]),prob.tolist())
         _cdf = pmf_to_quantized_cdf(prob, self.entropy_coder_precision)
         cdf[i, : _cdf.size(0)] = _cdf
     return cdf
@@ -260,6 +259,7 @@ class MeanScaleHyperPriors(CompressionModel):
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
+        t_0 = time.perf_counter()
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
         for m in self.children():
             if not isinstance(m, EntropyBottleneck):
@@ -267,6 +267,8 @@ class MeanScaleHyperPriors(CompressionModel):
             myupdate(m,force=force)
         # official version will cause floating point exception
         #updated |= super().update(force=force)
+        duration = time.perf_counter() - t_0
+        print(duration)
         return updated
 
     def loss(self):
