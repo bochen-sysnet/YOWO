@@ -835,7 +835,7 @@ class Coder2D(nn.Module):
         latent = self.enc_conv4(x) # latent optical flow
         
         # update CDF
-        self.entropy_bottleneck.update(force=True)
+        self.entropy_bottleneck.update(force=not RPM_flag)
         
         # Time measurement: end
         if not noMeasure:
@@ -1157,7 +1157,7 @@ class SPVC(nn.Module):
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
         ref_frame,x_vote = self.vote_net(x)
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden)
+        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
@@ -1176,7 +1176,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         if self.mv_codec.entropy_type == 'mshp':
             # option 1
-            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden)
+            mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         else:
             # option 2
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1199,7 +1199,7 @@ class SPVC(nn.Module):
         res_tensors = x.cuda(1) - MC_frames
         if self.res_codec.entropy_type == 'mshp':
             # option 1: attention
-            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden)
+            res_hat,rae_res_hidden, rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensors, rae_res_hidden, rpm_res_hidden, RPM_flag)
         else:
             # option 2: only used when codec is recurrent
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
