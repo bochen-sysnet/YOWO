@@ -1224,7 +1224,7 @@ class SPVC(nn.Module):
                     self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
-                    self.r_vote_codec*vote_loss)/(self.r_ref_codec + self.r_rec+self.r_warp+self.r_mc+self.r_vote_codec) 
+                    self.r_vote_codec*vote_loss)
         img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.r_flow
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
@@ -1363,7 +1363,7 @@ class SCVC(nn.Module):
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
-        img_loss = (self.r_ref_codec*ref_loss + self.r_rec*rec_loss)/(self.r_ref_codec + self.r_rec)
+        img_loss = (self.r_ref_codec*ref_loss + self.r_rec*rec_loss)
         
         hidden_states = (rae_ref_hidden, rpm_ref_hidden)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
