@@ -148,6 +148,7 @@ def myupdate(self, force = False):
 
     pmf_start = medians - minima
     pmf_length = maxima + minima + 1
+    print(minima[37],maxima[37])
     print(pmf_start[37])
     print(pmf_length[37])
 
