@@ -56,7 +56,7 @@ def compress_video(model, frame_idx, cache, startNewClip, max_len):
             
 def init_training_params(model):
     model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 1,1,1,1,1,1
+    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 1,1,1,1,1
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -66,10 +66,10 @@ def update_training(model, epoch):
     # setup training weights
     if epoch <= 10:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,1,1,1
     else:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,0,0,0,0
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,0,0,0
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
@@ -1113,12 +1113,8 @@ class VoteNet(nn.Module):
         # encode original frame to features [B,128,H//16,W//16], e.g., [B,128,14,14]
         y = self.enc(x)
         
-        # decode non-attended features
-        x_tilde = self.dec(y)
-        
         _,_,fH,fW = y.size()
         # spatial attention
-        y = y.detach() # detach to not let final 
         features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
         features = self.s_attn(features,features,features) # B,fH*fW,128
         
@@ -1128,11 +1124,9 @@ class VoteNet(nn.Module):
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
         # decode attended features to original size [1,3,H,W]
-        set_model_grad(self.dec,False)
         x_hat = self.dec(features)
-        set_model_grad(self.dec,True)
         
-        return x_hat,x_tilde
+        return x_hat
         
 def set_model_grad(model,requires_grad=True):
     for k,v in model.named_parameters():
@@ -1177,10 +1171,9 @@ class SPVC(nn.Module):
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
         # need to ensure that the image can be reconstructed with votenet regardless of the attention and the summarynet
-        ref_frame,x_vote = self.vote_net(x)
+        ref_frame = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
-        vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
-        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
+        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr) # reconstructed should similar to the raw frames
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
@@ -1246,9 +1239,8 @@ class SPVC(nn.Module):
                     self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
-                    self.r_vote_codec*vote_loss + \
                     self.r_flow*flow_loss)
-        #print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
+        #print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(flow_loss))
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
@@ -1342,9 +1334,8 @@ class SCVC(nn.Module):
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
-        ref_frame,x_vote = self.vote_net(x)
+        ref_frame = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
-        vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
