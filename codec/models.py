@@ -1178,6 +1178,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         # need to ensure that the image can be reconstructed with votenet regardless of the attention and the summarynet
         ref_frame,x_vote = self.vote_net(x)
+        print('1',ref_frame.size(),x_vote.size(),x.size())
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
         ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
