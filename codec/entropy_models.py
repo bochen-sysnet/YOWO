@@ -111,8 +111,8 @@ class RecProbModel(CompressionModel):
             string = self.gaussian_conditional.compress(x, indexes, means=mu)
         else:
             string = self.entropy_bottleneck.compress(x)
-        duration = time.perf_counter() - t_0
-        return string, rpm_hidden, duration
+        self.enc_t = time.perf_counter() - t_0
+        return string, rpm_hidden
         
     def decompress_slow(self, string, shape, rpm_hidden):
         t_0 = time.perf_counter()
@@ -125,8 +125,8 @@ class RecProbModel(CompressionModel):
             x_hat = self.gaussian_conditional.decompress(string, indexes, means=mu)
         else:
             x_hat = self.entropy_bottleneck.decompress(string, shape)
-        duration = time.perf_counter() - t_0
-        return x_hat, rpm_hidden, duration
+        self.dec_t = time.perf_counter() - t_0
+        return x_hat, rpm_hidden
         
 def myupdate(self, force = False):
     # Check if we need to update the bottleneck parameters, the offsets are
