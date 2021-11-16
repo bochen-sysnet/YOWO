@@ -1248,7 +1248,7 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_vote_codec*vote_loss + \
                     self.r_flow*flow_loss)
-        print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
+        #print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
