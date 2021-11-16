@@ -1665,6 +1665,7 @@ def manipulate_grad():
     from torch.autograd import Variable
 
     x = Variable(torch.ones(10), requires_grad=True)
+    
     y = x * Variable(torch.linspace(1, 10, 10), requires_grad=False)
     y.backward(torch.ones(10))
     print(x.requires_grad)
@@ -1675,6 +1676,11 @@ def manipulate_grad():
         y = y * Variable(torch.linspace(1, 10, 10), requires_grad=False)
         print(x.grad)
         print(y)
+        
+    y = y * Variable(torch.linspace(1, 10, 10), requires_grad=False)
+    y.backward(torch.ones(10))
+    print(x.grad)
+    print(y)
 if __name__ == '__main__':
     #test_batch_proc('SPVC')
     #test_batch_proc('SCVC')
