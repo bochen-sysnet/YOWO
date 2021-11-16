@@ -1668,6 +1668,7 @@ def manipulate_grad():
     y.backward(torch.ones(10))
     print(x.requires_grad)
     print(x.grad)
+    print(y)
         
 if __name__ == '__main__':
     #test_batch_proc('SPVC')
