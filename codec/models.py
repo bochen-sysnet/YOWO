@@ -539,7 +539,7 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 1:
+    if epoch <= 10:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
         model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
     else:
