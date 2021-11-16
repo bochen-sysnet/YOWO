@@ -1118,7 +1118,7 @@ class VoteNet(nn.Module):
         
         _,_,fH,fW = y.size()
         # spatial attention
-        #y = y.detach() # detach to not let final 
+        y = y.detach() # detach to not let final 
         features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
         features = self.s_attn(features,features,features) # B,fH*fW,128
         
@@ -1128,9 +1128,15 @@ class VoteNet(nn.Module):
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
         # decode attended features to original size [1,3,H,W]
+        set_model_grad(self.dec,False)
         x_hat = self.dec(features)
+        set_model_grad(self.dec,True)
         
         return x_hat,x_tilde
+        
+def set_model_grad(model,requires_grad=True):
+    for k,v in model.named_parameters():
+        v.requires_grad = requires_grad
     
 # predictive coding     
 class SPVC(nn.Module):
@@ -1659,29 +1665,12 @@ def test_seq_proc(name='RLVC'):
 # need to implement 3D-CNN compression
 # ***************each model can have a timer member that counts enc/dec time
 # in training, counts total time, in testing, counts enc/dec time
-
-def manipulate_grad():
-    import torch
-    from torch.autograd import Variable
-
-    a = Variable(torch.ones(10), requires_grad=True)
-    b = Variable(2*torch.ones(10), requires_grad=True)
-    
-    y = a * Variable(torch.linspace(1, 10, 10), requires_grad=False)
-    print(y,y.requires_grad)
-    y = b.detach() * y
-    print(y,y.requires_grad)
-    y.backward(torch.ones(10))
-    print(a.grad)
-    print(b.grad)
-    
     
 if __name__ == '__main__':
-    #test_batch_proc('SPVC')
+    test_batch_proc('SPVC')
     #test_batch_proc('SCVC')
     #test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
     #test_seq_proc('DVC')
-    manipulate_grad()
