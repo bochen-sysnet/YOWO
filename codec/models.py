@@ -1241,12 +1241,14 @@ class SPVC(nn.Module):
         psnr = PSNR(x, com_frames, use_list=True)
         msssim = MSSSIM(x, com_frames, use_list=True)
         rec_loss = calc_loss(x, com_frames, self.r, use_psnr)
+        flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_ref_codec*ref_loss + \
                     self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
-                    self.r_vote_codec*vote_loss)
-        img_loss += (l0+l1+l2+l3+l4).cuda(0)/5*1024*self.r_flow
+                    self.r_vote_codec*vote_loss + \
+                    self.r_flow*flow_loss)
+        print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
