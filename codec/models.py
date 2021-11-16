@@ -1670,6 +1670,9 @@ def manipulate_grad():
     print(x.requires_grad)
     print(x.grad)
     print(y)
+    
+    with torch.no_grad():
+        y = y * Variable(torch.linspace(1, 10, 10), requires_grad=False)
         
     y = y * Variable(torch.linspace(1, 10, 10), requires_grad=False)
     y.backward(torch.ones(10))
