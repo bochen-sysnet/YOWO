@@ -378,6 +378,7 @@ class DCVC(nn.Module):
         self.name = name
         self.channels = channels
         self.split()
+        self.updated = False
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -392,6 +393,9 @@ class DCVC(nn.Module):
         self.ctx_decoder.cuda(1)
     
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
+        if not self.updated and not self.training:
+            self.entropy_bottleneck.update(force=True)
+            
         # I-frame compression
         if x_hat_prev is None:
             x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(x,self.r,self.I_level,use_psnr)
@@ -438,7 +442,6 @@ class DCVC(nn.Module):
         y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
         
         # entropy model
-        self.entropy_bottleneck.update(force=not RPM_flag)
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_string = self.entropy_bottleneck.compress(y)
@@ -801,11 +804,18 @@ class Coder2D(nn.Module):
             self.t_attn_a = Attention(channels)
             self.s_attn_s = Attention(channels)
             self.t_attn_s = Attention(channels)
+            
+        self.updated = False
+        self.noMeasure = True
+        # include two average meter to measure time
         
-    def forward(self, x, hidden, rpm_hidden, RPM_flag=False, fast=True):
-        # whether to measure time
-        noMeasure = (self.training or fast)
-        if not noMeasure:
+    def forward(self, x, hidden, rpm_hidden, RPM_flag=False):
+        # update only once during testing
+        if not self.updated and not self.training:
+            self.entropy_bottleneck.update(force=True)
+            self.updated = True
+            
+        if not self.noMeasure:
             duration_enc = duration_dec = 0
         
         # latent states
@@ -813,7 +823,7 @@ class Coder2D(nn.Module):
             state_enc, state_dec = torch.split(hidden.to(x.device),self.channels*2,dim=1)
             
         # Time measurement: start
-        if not noMeasure:
+        if not self.noMeasure:
             t_0 = time.perf_counter()
             
         # compress
@@ -834,18 +844,14 @@ class Coder2D(nn.Module):
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
         
-        # update CDF
-        if not self.training:
-            self.entropy_bottleneck.update(force=not RPM_flag)
-        
         # Time measurement: end
-        if not noMeasure:
+        if not self.noMeasure:
             duration = time.perf_counter() - t_0
             duration_enc += duration
         
         # quantization + entropy coding
         if self.entropy_type == 'base':
-            if noMeasure:
+            if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
@@ -859,7 +865,7 @@ class Coder2D(nn.Module):
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
                 duration_d = time.perf_counter() - t_0
         elif self.entropy_type == 'mshp':
-            if noMeasure:
+            if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
@@ -868,7 +874,7 @@ class Coder2D(nn.Module):
                 exit(1)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
-            if noMeasure:
+            if self.noMeasure:
                 latent_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent, rpm_hidden, training=self.training)
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
@@ -878,12 +884,12 @@ class Coder2D(nn.Module):
             self.entropy_bottleneck.set_prior(latent)
             
         # add in the time in entropy bottleneck
-        if not noMeasure:
+        if not self.noMeasure:
             duration_enc += duration_e
             duration_dec += duration_d
         
         # calculate bpp (estimated) if it is training else it will be set to 0
-        if noMeasure:
+        if self.noMeasure:
             bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         else:
             bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
@@ -895,7 +901,7 @@ class Coder2D(nn.Module):
             bits_act = bits_est
 
         # Time measurement: start
-        if not noMeasure:
+        if not self.noMeasure:
             t_0 = time.perf_counter()
             
         # decompress
@@ -917,7 +923,7 @@ class Coder2D(nn.Module):
         hat = self.dec_conv4(x)
         
         # Time measurement: end
-        if not noMeasure:
+        if not self.noMeasure:
             duration = time.perf_counter() - t_0
             duration_dec += duration
         
@@ -927,7 +933,7 @@ class Coder2D(nn.Module):
         if self.conv_type == 'rec':
             hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        if noMeasure:
+        if self.noMeasure:
             return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss
         else:
             return hat, hidden, rpm_hidden, bits_act, bits_est, aux_loss, duration_enc, duration_dec
@@ -1302,6 +1308,7 @@ class SCVC(nn.Module):
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
+        self.updated = False
 
     def split(self):
         self.vote_net.cuda(0)
@@ -1314,6 +1321,9 @@ class SCVC(nn.Module):
         self.ctx_decoder2.cuda(1)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
+        if not self.updated and not self.training:
+            self.entropy_bottleneck.update(force=True)
+            self.updated = True
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x.size()
         
@@ -1343,7 +1353,6 @@ class SCVC(nn.Module):
         
         # entropy model
         t_0 = time.perf_counter()
-        self.entropy_bottleneck.update(force=not RPM_flag)
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         y_string = self.entropy_bottleneck.compress(y)
@@ -1438,6 +1447,7 @@ class AE3D(nn.Module):
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
+        self.updated = False
 
     def split(self):
         # too much on cuda:0
@@ -1450,6 +1460,10 @@ class AE3D(nn.Module):
         self.entropy_bottleneck.cuda(0)
         
     def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
+        if not self.updated and not self.training:
+            self.entropy_bottleneck.update(force=True)
+            self.updated = True
+            
         # x=[B,C,H,W]: input sequence of frames
         x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
         bs, c, t, h, w = x.size()
@@ -1465,7 +1479,6 @@ class AE3D(nn.Module):
         bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
         rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
         latent_hat_list = []
-        self.entropy_bottleneck.update(force=not RPM_flag)
         for frame_idx in range(t):
             latent_i = latent[:,:,frame_idx,:,:]
             self.entropy_bottleneck.set_RPM(frame_idx>=1)
