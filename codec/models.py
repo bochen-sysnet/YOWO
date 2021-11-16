@@ -1668,10 +1668,11 @@ def manipulate_grad():
     b = Variable(2*torch.ones(10), requires_grad=True)
     
     y = a * Variable(torch.linspace(1, 10, 10), requires_grad=False)
+    print(y,y.requires_grad)
     with torch.no_grad():
         y = b * y
-    y.backward(torch.ones(10))
     print(y,y.requires_grad)
+    y.backward(torch.ones(10))
     print(a.grad)
     print(b.grad)
     
