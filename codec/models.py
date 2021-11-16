@@ -53,6 +53,30 @@ def compress_video(model, frame_idx, cache, startNewClip, max_len):
         compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC','AE3D','SVC']:
         compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
+            
+def init_training_params(model):
+    model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
+    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 1,1,1,1,1,1
+    
+def update_training(model, epoch):
+    # warmup with all gamma set to 1
+    # optimize for bpp,img loss and focus only reconstruction loss
+    # optimize bpp and app loss only
+    
+    # setup training weights
+    if epoch <= 10:
+        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
+    else:
+        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,0,0,0,0
+    
+    # whether to compute action detection
+    doAD = True if model.r_app > 0 else False
+    
+    model.epoch = epoch
+    
+    return doAD
         
 # depending on training or testing
 # the compression time should be recorded accordinglly
@@ -528,30 +552,6 @@ def I_compression(Y1_raw, r, I_level, use_psnr):
     msssim = MSSSIM(Y1_raw, Y1_com)
     bpp_est = loss = aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     return Y1_com, bpp_est, loss, aux_loss, bpp_act, psnr, msssim
-            
-def init_training_params(model):
-    model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 1,1,1,1,1,1
-    
-def update_training(model, epoch):
-    # warmup with all gamma set to 1
-    # optimize for bpp,img loss and focus only reconstruction loss
-    # optimize bpp and app loss only
-    
-    # setup training weights
-    if epoch <= 10:
-        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,1,1,1,1
-    else:
-        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec, model.r_vote_codec = 0,1,0,0,0,0
-    
-    # whether to compute action detection
-    doAD = True if model.r_app > 0 else False
-    
-    model.epoch = epoch
-    
-    return doAD
     
 def load_state_dict_only(model, state_dict, keyword):
     own_state = model.state_dict()
