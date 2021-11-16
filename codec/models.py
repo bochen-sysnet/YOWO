@@ -1118,6 +1118,7 @@ class VoteNet(nn.Module):
         
         _,_,fH,fW = y.size()
         # spatial attention
+        #y = y.detach() # detach to not let final 
         features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
         features = self.s_attn(features,features,features) # B,fH*fW,128
         
@@ -1664,11 +1665,13 @@ def manipulate_grad():
     from torch.autograd import Variable
 
     x = Variable(torch.ones(10), requires_grad=True)
-    y = x * Variable(torch.linspace(1, 10, 10), requires_grad=False)
-    y.backward()
-    print(x.requires_grad)
-    print(x.grad)
-    print(y)
+    with torch.no_grad():
+        
+        y = x * Variable(torch.linspace(1, 10, 10), requires_grad=False)
+        y.backward(torch.ones(10))
+        print(x.requires_grad)
+        print(x.grad)
+        print(y)
         
 if __name__ == '__main__':
     #test_batch_proc('SPVC')
