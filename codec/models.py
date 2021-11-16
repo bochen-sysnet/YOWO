@@ -1128,9 +1128,9 @@ class VoteNet(nn.Module):
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 
         # decode attended features to original size [1,3,H,W]
-        #set_model_grad(self.dec,False)
+        set_model_grad(self.dec,False)
         x_hat = self.dec(features)
-        #set_model_grad(self.dec,True)
+        set_model_grad(self.dec,True)
         
         return x_hat,x_tilde
         
@@ -1180,7 +1180,7 @@ class SPVC(nn.Module):
         ref_frame,x_vote = self.vote_net(x)
         ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
         vote_loss = calc_loss(x, x_vote, self.r, use_psnr)
-        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
+        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
@@ -1248,7 +1248,7 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_vote_codec*vote_loss + \
                     self.r_flow*flow_loss)
-        print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
+        #print(float(rec_loss),float(ref_loss),float(warp_loss),float(mc_loss),float(vote_loss),float(flow_loss))
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
