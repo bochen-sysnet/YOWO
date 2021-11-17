@@ -841,9 +841,7 @@ class Coder2D(nn.Module):
             # use attention
             B,C,H,W = x.size()
             x = self.s_attn_a(x)
-            x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
-            x = self.t_attn_a(x,x,x)
-            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+            x = self.t_attn_a(x)
             
         x = self.gdn3(self.enc_conv3(x))
         latent = self.enc_conv4(x) # latent optical flow
@@ -918,9 +916,7 @@ class Coder2D(nn.Module):
             # use attention
             B,C,H,W = x.size()
             x = self.s_attn_s(x)
-            x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
-            x = self.t_attn_s(x,x,x)
-            x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+            x = self.t_attn_s(x)
             
         x = self.igdn3(self.dec_conv3(x))
         hat = self.dec_conv4(x)
