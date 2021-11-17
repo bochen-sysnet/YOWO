@@ -1031,8 +1031,8 @@ class Attention(nn.Module):
         self.out = nn.Linear(d_model, d_model)
     
     def forward(self, x):
-        
-        bs = x.size(0)
+        bs,C,H,W = x.size()
+        x = x.view(bs,C,-1).permute(2,0,1).contiguous()
         
         # perform linear operation
         
@@ -1044,6 +1044,8 @@ class Attention(nn.Module):
         scores = attention(q, k, v, self.d_model, self.dropout)
         
         output = self.out(scores) # bs * sl * d_model
+        
+        output = output.permute(1,2,0).view(bs,C,H,W).contiguous()
     
         return output
         
