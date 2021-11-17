@@ -1229,12 +1229,12 @@ class CoderSeqOneSeq(CompressionModel):
         mv_y_hat = self.h_s(mv_z_hat) # context from motion [B-1,C,H//16,W//16]
         
         # calculate bpp (estimated)
-        mv_est = self.entropy_bottleneck.get_estimate_bits(mv_z_likelihood)
+        mv_est = get_estimate_bits(None,mv_z_likelihood)
         bits_est = i_est + mv_est
         
         # calculate bpp (actual)
         if not self.training:
-            mv_act = self.entropy_bottleneck.get_actual_bits(mv_z_string)
+            mv_act = get_actual_bits(None,mv_z_string)
         else:
             mv_act = mv_est
         bits_act = i_act + mv_act
