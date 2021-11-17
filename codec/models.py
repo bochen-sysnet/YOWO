@@ -1242,9 +1242,9 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        print(f"Rec:{float(rec_loss):.2f}. Rec:{float(ref_loss):.2f}. Rec:{float(warp_loss):.2f}. \
-                Rec:{float(mc_loss):.2f}. Rec:{float(flow_loss):.2f}. Rec:{float(ref_est):.2f}. \
-                Rec:{float(mv_est):.2f}. Rec:{float(res_est):.2f}. ")
+        print(f"Rec:{float(rec_loss):.2f}. Ref:{float(ref_loss):.2f}. War:{float(warp_loss):.2f}. "
+                f"MC:{float(mc_loss):.2f}. FL:{float(flow_loss):.2f}. Refbits:{float(ref_est):.2f}. "
+                f"MVBits:{float(mv_est):.2f}. ResBits:{float(res_est):.2f}. ")
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
