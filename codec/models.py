@@ -1149,7 +1149,7 @@ class CoderSeqOneSeq(CompressionModel):
             AttentionBlock(channels),
             Attention(channels),
             nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
-            GDN(channels)
+            GDN(channels),
             nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
         )
         
