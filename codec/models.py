@@ -1044,7 +1044,7 @@ class Attention(nn.Module):
     
         return output
         
-class SumNet(nn.Module):
+class AvgNet(nn.Module):
     def __init__(self, d_model):
         super().__init__()
         
@@ -1102,7 +1102,7 @@ class VoteNet(nn.Module):
                                 )
         #self.s_attn = Attention(channels)
         self.s_attn = AttentionBlock(channels)
-        self.t_avg = SumNet(channels)
+        self.t_avg = AvgNet(channels)
         self.channels = channels
         
     def forward(self, x):

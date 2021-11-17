@@ -282,6 +282,7 @@ class MeanScaleHyperPriors(CompressionModel):
         self.z = z # for fast compression
         
         if self.useAttention:
+            # attention can also be applied between h_a1 and h_a2
             z_hat = st_attention(z_hat,self.s_attn,self.t_attn)
             
         g = self.h_s1(z_hat)
@@ -414,7 +415,8 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         self.useAttention = useAttention
         
         if self.useAttention:
-            self.s_attn = Attention(channels)
+            self.s_attn = AttentionBlock(channels)
+            #self.s_attn = Attention(channels)
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
