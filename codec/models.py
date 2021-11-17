@@ -19,7 +19,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
-from compressai.layers import GDN,ResidualBlock
+from compressai.layers import GDN,ResidualBlock,AttentionBlock
 from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors,MeanScaleHyperPriors
 from compressai.models.waseda import Cheng2020Attention
 import pytorch_msssim
@@ -800,10 +800,12 @@ class Coder2D(nn.Module):
             self.enc_lstm = ConvLSTM(channels)
             self.dec_lstm = ConvLSTM(channels)
         elif self.conv_type == 'attn':
-            self.s_attn_a = Attention(channels)
+            self.s_attn_a = AttentionBlock(channels)
+            self.s_attn_s = AttentionBlock(channels)
             self.t_attn_a = Attention(channels)
-            self.s_attn_s = Attention(channels)
             self.t_attn_s = Attention(channels)
+            #self.s_attn_a = Attention(channels)
+            #self.s_attn_s = Attention(channels)
             
         self.updated = False
         self.noMeasure = True
@@ -835,9 +837,8 @@ class Coder2D(nn.Module):
         elif self.conv_type == 'attn':
             # use attention
             B,C,H,W = x.size()
-            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            x = self.s_attn_a(x,x,x)
-            x = x.transpose(0,1).contiguous() #[HW,B,C]
+            x = self.s_attn_a(x)
+            x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
             x = self.t_attn_a(x,x,x)
             x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
@@ -913,10 +914,9 @@ class Coder2D(nn.Module):
         elif self.conv_type == 'attn':
             # use attention
             B,C,H,W = x.size()
-            x = x.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-            x = self.s_attn_s(x,x,x)
-            x = x.transpose(0,1).contiguous() #[HW,B,C]
-            x = self.t_attn_s(x,x,x)
+            x = self.s_attn_a(x)
+            x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
+            x = self.t_attn_a(x,x,x)
             x = x.permute(1,2,0).view(B,C,H,W).contiguous()
             
         x = self.igdn3(self.dec_conv3(x))
@@ -1100,7 +1100,8 @@ class VoteNet(nn.Module):
                                 GDN(channels, inverse=True),
                                 nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
                                 )
-        self.s_attn = Attention(channels)
+        #self.s_attn = Attention(channels)
+        self.s_attn = AttentionBlock(channels)
         self.t_avg = SumNet(channels)
         self.channels = channels
         
@@ -1115,11 +1116,12 @@ class VoteNet(nn.Module):
         
         _,_,fH,fW = y.size()
         # spatial attention
-        features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
-        features = self.s_attn(features,features,features) # B,fH*fW,128
+        features = self.s_attn(y)
+        #features = y.view(B,self.channels,-1).transpose(1,2).contiguous() # B,fH*fW,128
+        #features = self.s_attn(features,features,features) # B,fH*fW,128
         
         # temporal attention average
-        features = features.transpose(0,1).contiguous() # fH*fW,B,128
+        features = features.view(B,self.channels,-1).permute(2,0,1).contiguous() # fH*fW,B,128
         features = self.t_avg(features,features,features) # fH*fW,128
         features = features.permute(0,1).contiguous().view(1,self.channels,fH,fW)
 

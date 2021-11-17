@@ -8,6 +8,7 @@ from torch import Tensor
 
 from compressai.entropy_models import EntropyModel,GaussianConditional,EntropyBottleneck
 from compressai.models import CompressionModel
+from compressai.layers import AttentionBlock
 import sys, os, math, time
 sys.path.append('..')
         
@@ -255,7 +256,8 @@ class MeanScaleHyperPriors(CompressionModel):
         self.scale_table = get_scale_table()
         
         if self.useAttention:
-            self.s_attn = Attention(channels)
+            #self.s_attn = Attention(channels)
+            self.s_attn = AttentionBlock(channels)
             self.t_attn = Attention(channels)
         
     def update(self, scale_table=None, force=False):
@@ -356,15 +358,14 @@ class MeanScaleHyperPriors(CompressionModel):
         duration = time.perf_counter() - t_0
         return x_hat, duration
         
-def st_attention(z, s_attn, t_attn):
+def st_attention(x, s_attn, t_attn):
     # use attention
-    B,C,H,W = z.size()
-    z = z.view(B,C,-1).transpose(1,2).contiguous() # [B,HW,C]
-    z = s_attn(z,z,z)
-    z = z.transpose(0,1).contiguous() #[HW,B,C]
-    z = t_attn(z,z,z)
-    z = z.permute(1,2,0).view(B,C,H,W).contiguous()
-    return z
+    B,C,H,W = x.size()
+    x = self.s_attn_a(x)
+    x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
+    x = self.t_attn_a(x,x,x)
+    x = x.permute(1,2,0).view(B,C,H,W).contiguous()
+    return x
         
 class JointAutoregressiveHierarchicalPriors(CompressionModel):
 
