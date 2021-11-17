@@ -256,8 +256,8 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = Coder2D(device, self.name, in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = Coder2D(device, self.name, in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D(self.name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = Coder2D(self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -395,7 +395,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = Coder2D(device, name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.mv_codec = Coder2D(name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -755,7 +755,7 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class Coder2D(nn.Module):
-    def __init__(self, device, keyword, in_channels=2, channels=128, kernel=3, padding=1):
+    def __init__(self, keyword, in_channels=2, channels=128, kernel=3, padding=1):
         super(Coder2D, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
@@ -1205,7 +1205,7 @@ class CoderSeqOneSeq(CompressionModel):
             nn.Conv2d(channels, channels * 2, 1),
         )
         
-        self.i_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.i_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.optical_flow = OpticalFlowNet()        
 
     def forward(self, x):
@@ -1276,11 +1276,11 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        #self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        #self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.ref_codec = CoderSeqOneSeq(channels=channels, kernel=5, padding=2)
-        self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
+        #self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1289,7 +1289,7 @@ class SPVC(nn.Module):
 
     def split(self):
         # too much on cuda:0
-        self.vote_net.cuda(0)
+        #self.vote_net.cuda(0)
         self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(1)
@@ -1445,7 +1445,7 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
