@@ -1208,7 +1208,8 @@ class CoderSeqOneSeq(CompressionModel):
         )
         
         self.i_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.optical_flow = OpticalFlowNet()        
+        self.optical_flow = OpticalFlowNet()
+        self.channels = channels
 
     def forward(self, x):
         # encode
