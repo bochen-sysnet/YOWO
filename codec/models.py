@@ -20,6 +20,7 @@ from torch.autograd import Function
 from torchvision import transforms
 sys.path.append('..')
 from compressai.layers import GDN,ResidualBlock,AttentionBlock
+from compressai.models import CompressionModel
 from codec.entropy_models import RecProbModel,JointAutoregressiveHierarchicalPriors,MeanScaleHyperPriors
 from compressai.models.waseda import Cheng2020Attention
 import pytorch_msssim
@@ -290,7 +291,7 @@ class LearnedVideoCodecs(nn.Module):
         rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
         # estimate optical flow
         t_0 = time.perf_counter()
-        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw, batch_size, Height, Width)
+        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
         t_flow = time.perf_counter() - t_0
         #print('flow estimation:',t_flow)
         # compress optical flow
@@ -431,7 +432,7 @@ class DCVC(nn.Module):
         rae_mv_hidden, rpm_mv_hidden = hidden_states
                 
         # motion estimation
-        mv, l0, l1, l2, l3, l4 = self.optical_flow(x, x_hat_prev, bs, h, w)
+        mv, l0, l1, l2, l3, l4 = self.optical_flow(x, x_hat_prev)
         
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
@@ -659,9 +660,11 @@ class OpticalFlowNet(nn.Module):
         self.pool = nn.AvgPool2d(kernel_size=(2,2), stride=(2,2), padding=0)
         self.loss = LossNet()
 
-    def forward(self, im1_4, im2_4, batch, h, w):
+    def forward(self, im1_4, im2_4):
         # im1_4,im2_4:[1,c,h,w]
         # flow_4:[1,2,h,w]
+        batch, _, h, w = im1_4.size()
+        
         im1_3 = self.pool(im1_4)
         im1_2 = self.pool(im1_3)
         im1_1 = self.pool(im1_2)
@@ -1027,15 +1030,15 @@ class Attention(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.out = nn.Linear(d_model, d_model)
     
-    def forward(self, q, k, v):
+    def forward(self, x):
         
-        bs = q.size(0)
+        bs = x.size(0)
         
         # perform linear operation
         
-        k = self.k_linear(k)
-        q = self.q_linear(q)
-        v = self.v_linear(v)
+        k = self.k_linear(x)
+        q = self.q_linear(x)
+        v = self.v_linear(x)
         
         # calculate attention using function we will define next
         scores = attention(q, k, v, self.d_model, self.dropout)
@@ -1134,6 +1137,137 @@ def set_model_grad(model,requires_grad=True):
     for k,v in model.named_parameters():
         v.requires_grad = requires_grad
     
+class CoderSeqOneSeq(CompressionModel):
+    def __init__(self, channels=128, kernel=5, padding=2):
+        super(CoderSeqOneSeq, self).__init__(channels)
+        
+        self.g_mv_a = nn.Sequential(
+            nn.Conv2d(2, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels),
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels),
+            AttentionBlock(channels),
+            Attention(channels),
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels)
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+        )
+        
+        self.g_i_a = nn.Sequential(
+            nn.Conv2d(3, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels),
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels),
+            AttentionBlock(channels),
+            Attention(channels),
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+            GDN(channels),
+            nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding),
+        )
+        
+        self.g_s = nn.Sequential(
+            nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
+            GDN(channels, inverse=True),
+            nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
+            GDN(channels, inverse=True),
+            AttentionBlock(channels),
+            Attention(channels),
+            nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
+            GDN(channels, inverse=True),
+            nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
+        )
+        
+        self.h_a = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(inplace=True),
+            AttentionBlock(channels),
+            Attention(channels),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=5, stride=2, padding=2),
+        )
+
+        self.h_s = nn.Sequential(
+            nn.ConvTranspose2d(channels, channels, kernel_size=5, stride=2, padding=2),
+            nn.LeakyReLU(inplace=True),
+            AttentionBlock(channels),
+            Attention(channels),
+            nn.ConvTranspose2d(channels, channels * 3 // 2, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels * 3 // 2, channels, kernel_size=3, stride=1, padding=1)
+        )
+        
+        self.entropy_parameters = nn.Sequential(
+            nn.Conv2d(channels * 2, channels, 1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels, 1),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv2d(channels, channels * 2, 1),
+        )
+        
+        self.i_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.optical_flow = OpticalFlowNet()        
+
+    def forward(self, x):
+        # encode
+        # compress the I frame
+        # decode I frame
+        i_hat,_,_,i_act,i_est,i_aux = self.i_codec(x[:1], None, None, False)
+        if x.size(0)==1:
+            return i_hat,i_act,i_est,i_aux
+        # derive motions
+        mv, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
+        # compress motions in a batch
+        # decode motions
+        mv_y = self.g_mv_a(mv)
+        mv_z = self.h_a(mv_y)
+        mv_z_hat, mv_z_likelihood = self.entropy_bottleneck(mv_z)
+        if not self.training:
+            mv_z_string = self.entropy_bottleneck.compress(mv_z)
+        mv_y_hat = self.h_s(mv_z_hat) # context from motion [B-1,C,H//16,W//16]
+        
+        # calculate bpp (estimated)
+        mv_est = self.entropy_bottleneck.get_estimate_bits(mv_z_likelihood)
+        bits_est = i_est + mv_est
+        
+        # calculate bpp (actual)
+        if not self.training:
+            mv_act = self.entropy_bottleneck.get_actual_bits(mv_z_string)
+        else:
+            mv_act = mv_est
+        bits_act = i_act + mv_act
+            
+        # auxilary loss
+        aux_loss = self.entropy_bottleneck.loss()/self.channels + i_aux
+        
+        N = mv.size(0)
+        # use decoded motions to reconstruct frames recursively
+        ref_frame = i_hat.detach()
+        frame_list = [i_hat]
+        
+        for f_idx in range(N):
+            ref_y = self.g_i_a(ref_frame) # feature of I frame [1,C,H//16,W//16]
+            gaussian_params = self.entropy_parameters(torch.cat((ref_y,mv_y_hat[f_idx:f_idx+1]), dim=1))
+            sigma, mu = torch.split(gaussian_params, self.channels, dim=1)
+            y_hat = self.reparameterize(mu, sigma)
+            x_hat = self.g_s(y_hat)
+            ref_frame = x_hat.detach()
+            frame_list.append(x_hat)
+        com_frames = torch.cat(frame_list,dim=0)
+        return com_frames,bits_act,bits_est,aux_loss
+        
+    def reparameterize(self, mu, sigma):
+        """
+        Will a single z be enough ti compute the expectation
+        for the loss??
+        :param mu: (Tensor) Mean of the latent Gaussian
+        :param sigma: (Tensor) Standard deviation of the latent Gaussian
+        :return:
+        """
+        std = torch.exp(0.5 * sigma)
+        eps = torch.randn_like(std)
+        return eps * std + mu
+    
 # predictive coding     
 class SPVC(nn.Module):
     def __init__(self, name, channels=128):
@@ -1144,7 +1278,8 @@ class SPVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D(device, 'attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D(device, 'attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        #self.ref_codec = Coder2D(device, 'mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.ref_codec = CoderSeqOneSeq(channels=channels, kernel=5, padding=2)
         self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
@@ -1173,18 +1308,21 @@ class SPVC(nn.Module):
         # what matters is the bits and the after effects caused by the frame comming out of it.
         t_0 = time.perf_counter()
         # need to ensure that the image can be reconstructed with votenet regardless of the attention and the summarynet
-        ref_frame = self.vote_net(x)
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
+        # old
+        # ref_frame = self.vote_net(x)
+        # ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
+        # ref_frame_hat = ref_frame.repeat(bs,1,1,1)
+        # new 
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(x)
         ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr) # reconstructed should similar to the raw frames
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
         # repeat reference frame
-        ref_frame_hat = ref_frame.repeat(bs,1,1,1)
         
         # use the derived ref frame to compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, x, bs, h, w)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(ref_frame_hat, x)
         t_flow = time.perf_counter() - t_0
         #print('Flow:',t_flow)
         
