@@ -361,7 +361,7 @@ class MeanScaleHyperPriors(CompressionModel):
 def st_attention(x, s_attn, t_attn):
     # use attention
     B,C,H,W = x.size()
-    x = self.s_attn(x)
+    x = s_attn(x)
     x = x.view(B,C,-1).permute(2,0,1).contiguous() #[HW,B,C]
     x = t_attn(x,x,x)
     x = x.permute(1,2,0).view(B,C,H,W).contiguous()
