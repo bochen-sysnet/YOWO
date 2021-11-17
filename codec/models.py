@@ -1174,7 +1174,7 @@ class CoderSeqOneSeq(CompressionModel):
             Attention(channels),
             nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
             GDN(channels, inverse=True),
-            nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
+            nn.ConvTranspose2d(channels, 3, kernel_size=kernel, stride=2, padding=padding, output_padding=1),
         )
         
         self.h_a = nn.Sequential(
