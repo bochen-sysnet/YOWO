@@ -1312,7 +1312,7 @@ class SVC(nn.Module):
         
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[:1])
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
         t_flow = time.perf_counter() - t_0
         #print('Flow:',t_flow)
         
