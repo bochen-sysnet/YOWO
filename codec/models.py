@@ -1348,7 +1348,7 @@ class SVC(nn.Module):
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
-        com_frames = torch.cat((i_hat,com_frames.to(x_hat.device)),dim=0) # concat the I frame
+        com_frames = torch.cat((i_hat,com_frames.to(i_hat.device)),dim=0) # concat the I frame
         ##### compute bits
         # estimated bits
         bpp_est = (i_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
