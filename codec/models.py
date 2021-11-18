@@ -1253,6 +1253,8 @@ class CoderSeqOneSeq(CompressionModel):
             ref_frame = x_hat.detach()
             frame_list.append(x_hat)
         com_frames = torch.cat(frame_list,dim=0)
+        psnr = PSNR(x,com_frames,use_list=True).tolist()
+        print(psnr)
         return com_frames,bits_act,bits_est,aux_loss
         
     def reparameterize(self, mu, sigma):
