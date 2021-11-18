@@ -1285,8 +1285,6 @@ class SVC(nn.Module):
         self.MC_network = MCNet()
         self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2)
-        #self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderSeqOneSeq(channels=channels, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1295,7 +1293,6 @@ class SVC(nn.Module):
 
     def split(self):
         # too much on cuda:0
-        self.ref_codec.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(1)
         self.MC_network.cuda(1)
@@ -1306,8 +1303,10 @@ class SVC(nn.Module):
         (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden) = hidden_states
         
         # SEQ:compress I frame
-        i_hat, i_est, i_loss, i_aux, i_act, psnr, msssim = I_compression(x[:1],I_level=self.I_level,use_psnr=use_psnr)
+        i_hat, i_est, i_loss, i_aux, i_act, _, _ = I_compression(x[:1],I_level=self.I_level,use_psnr=use_psnr)
         if bs == 1:
+            psnr = PSNR(x[:1], i_hat, use_list=True)
+            msssim = MSSSIM(x[:1], i_hat, use_list=True)
             return i_hat, hidden_states, i_est, i_loss, i_aux, i_act, psnr, msssim
         
         # BATCH:compute optical flow
