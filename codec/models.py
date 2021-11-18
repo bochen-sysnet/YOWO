@@ -1328,7 +1328,7 @@ class SVC(nn.Module):
         warped_frame_list = []
         ref_frame = i_hat
         for i in range(x.size(0)-1):
-            ref_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i])
+            ref_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
             MC_frame_list.append(ref_frame)
             warped_frame_list.append(warped_frame)
         MC_frames = torch.cat(MC_frame_list,dim=0)
