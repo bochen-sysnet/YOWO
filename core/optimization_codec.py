@@ -187,6 +187,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                         scalers[i].scale(loss).backward(retain_graph=True)
                     else:
                         # finish graph if it is the last frame or data_idx is at the end of a batch
+                        # if not retain the graph, make sure all compressed data are used or repeat compression for new data(out of batch)
                         scalers[i].scale(loss).backward(retain_graph=not(train_dataset.last_frame or (data_idx+1)%comp_batch_size==0))
                 # update model after compress each video
                 if train_dataset.last_frame:

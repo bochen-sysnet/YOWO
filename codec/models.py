@@ -1287,12 +1287,10 @@ class SVC(nn.Module):
         self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
-        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
 
     def split(self):
-        # too much on cuda:0
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(1)
         self.MC_network.cuda(1)
@@ -1365,9 +1363,6 @@ class SVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        #print(f"Rec:{float(rec_loss):.2f}. War:{float(warp_loss):.2f}. "
-        #        f"MC:{float(mc_loss):.2f}. FL:{float(flow_loss):.2f}. Refbits:{float(ref_est):.2f}. "
-        #        f"MVBits:{float(mv_est):.2f}. ResBits:{float(res_est):.2f}. ")
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
@@ -1525,6 +1520,8 @@ class SCVC(nn.Module):
         super(SCVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
+        self.optical_flow = OpticalFlowNet()
+        self.MC_network = MCNet()
         self.ctx_encoder = nn.Sequential(nn.Conv2d(3+channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
                                         ResidualBlock(channels,channels),
@@ -1562,9 +1559,6 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        #self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.ref_codec = CoderSeqOneSeq(channels=channels, kernel=5, padding=2)
-        #self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
@@ -1572,9 +1566,9 @@ class SCVC(nn.Module):
         self.updated = False
 
     def split(self):
-        #self.vote_net.cuda(0)
-        self.ref_codec.cuda(0)
+        self.optical_flow.cuda(0)
         self.feature_extract.cuda(0)
+        self.MC_network.cuda(0)
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
         self.entropy_bottleneck.cuda(1)
@@ -1589,26 +1583,53 @@ class SCVC(nn.Module):
         bs, c, h, w = x.size()
         
         # hidden states
-        rae_ref_hidden, rpm_ref_hidden = hidden_states
+        rae_mv_hidden, rpm_mv_hidden = hidden_states
         
-        # extract ref frame, which is close to all frames in a sense
+        # SEQ:compress I frame
+        i_hat, i_est, i_loss, i_aux, i_act, _, _ = I_compression(x[:1],I_level=self.I_level,use_psnr=use_psnr)
+        if bs == 1:
+            psnr = PSNR(x[:1], i_hat, use_list=True)
+            msssim = MSSSIM(x[:1], i_hat, use_list=True)
+            return i_hat, hidden_states, i_est, i_loss, i_aux, i_act, psnr, msssim
+        
+        # BATCH:compute optical flow
         t_0 = time.perf_counter()
-        #ref_frame = self.vote_net(x)
-        #ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
-        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(x)
-        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
-        t_ref = time.perf_counter() - t_0
-        #print('REF entropy:',t_ref)
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
+        t_flow = time.perf_counter() - t_0
+        #print('Flow:',t_flow)
+        
+        # BATCH:compress optical flow
+        t_0 = time.perf_counter()
+        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1), rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        t_mv = time.perf_counter() - t_0
+        #print('MV entropy:',t_mv)
+        
+        # SEQ:motion compensation
+        t_0 = time.perf_counter()
+        MC_frame_list = []
+        warped_frame_list = []
+        ref_frame = i_hat
+        for i in range(x.size(0)-1):
+            MC_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
+            ref_frame = MC_frame.detach()
+            MC_frame_list.append(MC_frame)
+            warped_frame_list.append(warped_frame)
+        MC_frames = torch.cat(MC_frame_list,dim=0)
+        warped_frames = torch.cat(warped_frame_list,dim=0)
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
+        t_comp = time.perf_counter() - t_0
+        #print('Compensation:',t_comp)
         
         t_0 = time.perf_counter()
-        # extract context
-        context = self.feature_extract(ref_frame_hat).cuda(1)
+        # BATCH:extract context
+        context = self.feature_extract(MC_frames).cuda(1)
         
-        # temporal prior
+        # BATCH:temporal prior
         prior = self.tmp_prior_encoder(context)
         
         # contextual encoder
-        y = self.ctx_encoder(torch.cat((x.cuda(1), context), axis=1))
+        y = self.ctx_encoder(torch.cat((x[1:].cuda(1), context), axis=1))
         t_ctx = time.perf_counter() - t_0
         #print('Context:',t_ctx)
         
@@ -1629,21 +1650,26 @@ class SCVC(nn.Module):
         t_ctx_dec = time.perf_counter() - t_0
         #print('Context dec:',t_ctx_dec)
         
+        # append I frame
+        x_hat = torch.cat((i_hat,x_hat.to(i_hat.device)),dim=0) # concat the I frame
+        
         # estimated bits
-        bpp_est = (ref_est + y_est.to(ref_est.device))/(h * w * bs)
+        bpp_est = (mv_est + y_est.to(mv_est.device))/(h * w * bs)
         # actual bits
-        bpp_act = (ref_act + y_act.to(ref_act.device))/(h * w * bs)
-        #print(bs,h,w,float(bpp_est),float(bpp_act))
+        bpp_act = (mv_act + y_act.to(mv_act.device))/(h * w * bs)
         # auxilary loss
-        aux_loss = (ref_aux + y_aux.to(ref_aux.device))/2
+        aux_loss = (mv_aux + y_aux.to(mv_aux.device))/2
         # calculate metrics/loss
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
-        img_loss = (self.r_ref_codec*ref_loss + self.r_rec*rec_loss)
+        img_loss = self.r_warp*warp_loss + \
+                    self.r_mc*mc_loss + \
+                    self.r_flow*flow_loss + \
+                    self.r_rec*rec_loss
         
         hidden_states = (rae_ref_hidden, rpm_ref_hidden)
-        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return x_hat, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
@@ -1918,6 +1944,7 @@ def test_seq_proc(name='RLVC'):
 # need to implement 3D-CNN compression
 # ***************each model can have a timer member that counts enc/dec time
 # in training, counts total time, in testing, counts enc/dec time
+# how to deal with big batch in training? hybrid mode
     
 if __name__ == '__main__':
     test_batch_proc('SPVC')
