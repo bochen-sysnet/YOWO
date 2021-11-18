@@ -59,8 +59,8 @@ def init_training_params(model):
     model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
     model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 1,1,1,1,1
     
-    self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
-    self.I_level = 27 # [37,32,27,22] poor->good quality
+    model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+    model.I_level = 27 # [37,32,27,22] poor->good quality
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
