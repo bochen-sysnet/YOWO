@@ -1444,8 +1444,9 @@ class SCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
-        self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
-        self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
+        #self.ref_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.ref_codec = CoderSeqOneSeq(channels=channels, kernel=5, padding=2)
+        #self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
@@ -1454,7 +1455,7 @@ class SCVC(nn.Module):
         self.updated = False
 
     def split(self):
-        self.vote_net.cuda(0)
+        #self.vote_net.cuda(0)
         self.ref_codec.cuda(0)
         self.feature_extract.cuda(0)
         self.tmp_prior_encoder.cuda(1)
@@ -1475,9 +1476,10 @@ class SCVC(nn.Module):
         
         # extract ref frame, which is close to all frames in a sense
         t_0 = time.perf_counter()
-        ref_frame = self.vote_net(x)
-        ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
-        ref_loss = calc_loss(ref_frame, ref_frame_hat, self.r, use_psnr)
+        #ref_frame = self.vote_net(x)
+        #ref_frame_hat,rae_ref_hidden,rpm_ref_hidden,ref_act,ref_est,ref_aux = self.ref_codec(ref_frame, rae_ref_hidden, rpm_ref_hidden, RPM_flag)
+        ref_frame_hat,ref_act,ref_est,ref_aux = self.ref_codec(x)
+        ref_loss = calc_loss(x, ref_frame_hat, self.r, use_psnr)
         t_ref = time.perf_counter() - t_0
         #print('REF entropy:',t_ref)
         
