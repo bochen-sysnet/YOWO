@@ -1333,8 +1333,8 @@ class SVC(nn.Module):
             warped_frame_list.append(warped_frame)
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
-        mc_loss = calc_loss(x, MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x, warped_frames, self.r, use_psnr)
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         #print('Compensation:',t_comp)
         
