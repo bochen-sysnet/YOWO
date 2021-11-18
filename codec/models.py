@@ -1328,8 +1328,9 @@ class SVC(nn.Module):
         warped_frame_list = []
         ref_frame = i_hat
         for i in range(x.size(0)-1):
-            ref_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
-            MC_frame_list.append(ref_frame)
+            MC_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
+            ref_frame = MC_frame.detach()
+            MC_frame_list.append(MC_frame)
             warped_frame_list.append(warped_frame)
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
@@ -1347,7 +1348,7 @@ class SVC(nn.Module):
         
         # reconstruction
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1)
-        com_frames = torch.cat((i_hat,com_frames),dim=0) # concat the I frame
+        com_frames = torch.cat((i_hat,com_frames.to(x_hat.device)),dim=0) # concat the I frame
         ##### compute bits
         # estimated bits
         bpp_est = (i_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
@@ -1370,7 +1371,7 @@ class SVC(nn.Module):
         #        f"MVBits:{float(mv_est):.2f}. ResBits:{float(res_est):.2f}. ")
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
-        return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return com_frames, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
