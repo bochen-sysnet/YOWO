@@ -1271,8 +1271,8 @@ class CoderSeqOneSeq(CompressionModel):
 def motion_compensation(mc_model,x,motion):
     bs, c, h, w = x.size()
     loc = get_grid_locations(bs, h, w).to(motion.device)
-    warped_frames = F.grid_sample(ref_frame_hat.to(motion.device), loc + motion.permute(0,2,3,1), align_corners=True)
-    MC_input = torch.cat((motion, ref_frame_hat.to(motion.device), warped_frames), axis=1)
+    warped_frames = F.grid_sample(x.to(motion.device), loc + motion.permute(0,2,3,1), align_corners=True)
+    MC_input = torch.cat((motion, x.to(motion.device), warped_frames), axis=1)
     MC_frames = mc_model(MC_input)
     return MC_frames,warped_frames
         
