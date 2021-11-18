@@ -256,9 +256,10 @@ class MeanScaleHyperPriors(CompressionModel):
         self.scale_table = get_scale_table()
         
         if self.useAttention:
-            #self.s_attn = Attention(channels)
-            self.s_attn = AttentionBlock(channels)
-            self.t_attn = Attention(channels)
+            self.s_attn_a = AttentionBlock(channels)
+            self.s_attn_s = AttentionBlock(channels)
+            self.t_attn_a = Attention(channels)
+            self.t_attn_s = Attention(channels)
         
     def update(self, scale_table=None, force=False):
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
@@ -277,15 +278,15 @@ class MeanScaleHyperPriors(CompressionModel):
         self, x, training = None
     ):
         z = self.h_a1(x)
+        if self.useAttention:
+            z = st_attention(z,self.s_attn_a,self.t_attn_a)
         z = self.h_a2(z)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
         self.z = z # for fast compression
-        
-        if self.useAttention:
-            # attention can also be applied between h_a1 and h_a2
-            z_hat = st_attention(z_hat,self.s_attn,self.t_attn)
             
         g = self.h_s1(z_hat)
+        if self.useAttention:
+            g = st_attention(g,self.s_attn_s,self.t_attn_s)
         gaussian_params = self.h_s2(g)
             
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression

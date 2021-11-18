@@ -143,7 +143,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
         bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
-            end_of_comp_batch = (data_idx//batch_size+1)*batch_size-data_idx
+            comp_batch_size = 8
+            end_of_comp_batch = (data_idx//comp_batch_size+1)*comp_batch_size-data_idx
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec, end_of_comp_batch)
             # read one clip

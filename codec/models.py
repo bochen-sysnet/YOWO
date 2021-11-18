@@ -36,8 +36,6 @@ def get_codec_model(name):
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
-    elif name in ['SVC']:
-        model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
     elif name in ['x264','x265']:
@@ -52,7 +50,7 @@ def compress_video(model, frame_idx, cache, startNewClip, max_len):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D','SVC']:
+    elif model.name in ['SPVC','SCVC','AE3D']:
         compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
             
 def init_training_params(model):
@@ -1284,9 +1282,9 @@ def motion_compensation(mc_model,x,motion):
     MC_frames = mc_model(MC_input)
     return MC_frames,warped_frames
         
-class SVC(nn.Module):
+class SPVC(nn.Module):
     def __init__(self, name, channels=128):
-        super(SVC, self).__init__()
+        super(SPVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
