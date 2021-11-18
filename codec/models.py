@@ -59,6 +59,9 @@ def init_training_params(model):
     model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
     model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 1,1,1,1,1
     
+    self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
+    self.I_level = 27 # [37,32,27,22] poor->good quality
+    
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
@@ -260,8 +263,6 @@ class LearnedVideoCodecs(nn.Module):
         self.res_codec = Coder2D(self.name, in_channels=3, channels=channels, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
-        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
-        self.I_level = 27 # [37,32,27,22]
         self.epoch = -1
         
         # split on multi-gpus
@@ -284,7 +285,7 @@ class LearnedVideoCodecs(nn.Module):
             aux_loss = img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
             return Y1_raw, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, metrics
         if Y0_com is None:
-            Y1_com, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(Y1_raw, self.r, self.I_level, use_psnr)
+            Y1_com, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(Y1_raw, self.I_level, use_psnr)
             return Y1_com, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         # otherwise, it's P frame
         # hidden states
@@ -398,8 +399,6 @@ class DCVC(nn.Module):
         self.mv_codec = Coder2D(name, in_channels=2, channels=channels, kernel=3, padding=1)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         init_training_params(self)
-        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
-        self.I_level = 27 # [37,32,27,22] poor->good quality
         self.name = name
         self.channels = channels
         self.split()
@@ -423,7 +422,7 @@ class DCVC(nn.Module):
             
         # I-frame compression
         if x_hat_prev is None:
-            x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(x,self.r,self.I_level,use_psnr)
+            x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(x,self.I_level,use_psnr)
             return x_hat, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         # size
         bs,c,h,w = x.size()
@@ -534,7 +533,7 @@ class StandardVideoCodecs(nn.Module):
         else:
             return self.r_app*app_loss + self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         
-def I_compression(Y1_raw, r, I_level, use_psnr):
+def I_compression(Y1_raw, I_level, use_psnr):
     # we can compress with bpg,deepcod ...
     batch_size, _, Height, Width = Y1_raw.shape
     prename = "tmp/frames/prebpg"
@@ -1203,7 +1202,6 @@ class CoderSeqOneSeq(CompressionModel):
             nn.Conv2d(channels, channels * 2, 1),
         )
         
-        self.i_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2)
         self.optical_flow = OpticalFlowNet()
         self.channels = channels
 
@@ -1211,7 +1209,7 @@ class CoderSeqOneSeq(CompressionModel):
         # encode
         # compress the I frame
         # decode I frame
-        i_hat,_,_,i_act,i_est,i_aux = self.i_codec(x[:1], None, None, False)
+        i_hat, i_est, img_loss, i_aux, i_act, psnr, msssim = I_compression(x[:1],I_level=27,use_psnr=True)
         if x.size(0)==1:
             return i_hat,i_act,i_est,i_aux
         # derive motions
@@ -1452,7 +1450,6 @@ class SCVC(nn.Module):
         #self.vote_net = VoteNet(channels=channels, in_channels=3, kernel=5, padding=2)
         self.channels = channels
         init_training_params(self)
-        self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
         self.updated = False
