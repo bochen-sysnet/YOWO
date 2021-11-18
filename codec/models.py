@@ -1254,6 +1254,7 @@ class CoderSeqOneSeq(CompressionModel):
             frame_list.append(x_hat)
         com_frames = torch.cat(frame_list,dim=0)
         psnr = PSNR(x,com_frames,use_list=True)
+        psnr = [float(p) for p in psnr]
         print(psnr)
         return com_frames,bits_act,bits_est,aux_loss
         
@@ -1381,9 +1382,9 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        #print(f"Rec:{float(rec_loss):.2f}. Ref:{float(ref_loss):.2f}. War:{float(warp_loss):.2f}. "
-        #        f"MC:{float(mc_loss):.2f}. FL:{float(flow_loss):.2f}. Refbits:{float(ref_est):.2f}. "
-        #        f"MVBits:{float(mv_est):.2f}. ResBits:{float(res_est):.2f}. ")
+        print(f"Rec:{float(rec_loss):.2f}. Ref:{float(ref_loss):.2f}. War:{float(warp_loss):.2f}. "
+                f"MC:{float(mc_loss):.2f}. FL:{float(flow_loss):.2f}. Refbits:{float(ref_est):.2f}. "
+                f"MVBits:{float(mv_est):.2f}. ResBits:{float(res_est):.2f}. ")
         
         hidden_states = (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden, rae_ref_hidden, rpm_ref_hidden)
         return com_frames.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
