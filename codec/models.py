@@ -1742,7 +1742,7 @@ class AE3D(nn.Module):
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         
         if not self.noMeasure:
-            print(self.enc,self.dec)
+            print(self.enc_t,self.dec_t)
         
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
