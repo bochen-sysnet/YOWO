@@ -1331,6 +1331,7 @@ class SPVC(nn.Module):
         ref_frame = i_hat
         for i in range(x.size(0)-1):
             MC_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
+            # using compensated frame as reference increases the error
             ref_frame = MC_frame.detach()
             MC_frame_list.append(MC_frame)
             warped_frame_list.append(warped_frame)
@@ -1606,7 +1607,7 @@ class AE3D(nn.Module):
         self.deconv3.cuda(1)
         self.entropy_bottleneck.cuda(0)
         
-    def forward(self, x, hidden_states, RPM_flag=False, use_psnr=True):
+    def forward(self, x, RPM_flag=False, use_psnr=True):
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
             self.updated = True
@@ -1666,7 +1667,7 @@ class AE3D(nn.Module):
         # calculate img loss
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         
-        return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def init_hidden(self, h, w):
         return None
