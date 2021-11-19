@@ -34,16 +34,16 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            batch,be,il,a,ba,p,m = train_dataset[data_idx]
+            batch,additional = train_dataset[data_idx]
             data.append(batch['clip'])
             cls.append(batch['cls'])
             boxes.append(batch['boxes'])
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            bpp_act_list.append(ba)
-            psnr_list.append(p)
-            msssim_list.append(m)
+            bpp_est_list.append(additional['bpp_est'])
+            aux_loss_list.append(additional['aux_loss'])
+            img_loss_list.append(additional['img_loss'])
+            bpp_act_list.append(additional['bpp_act'])
+            psnr_list.append(additional['psnr'])
+            msssim_list.append(additional['msssim'])
         data = torch.stack(data, dim=0)
         cls = torch.stack(cls, dim=0)
         boxes = torch.stack(boxes, dim=0)
@@ -137,28 +137,27 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     # get instructions on training
     doAD = update_training(model_codec,epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
+    frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
+    bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
-        # start compression
-        frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
-        bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
+        # align batches
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
-            comp_batch_size = 8
-            end_of_comp_batch = (data_idx//comp_batch_size+1)*comp_batch_size-data_idx
             # compress one batch of the data
-            train_dataset.preprocess(data_idx, model_codec, end_of_comp_batch)
+            train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            f,d,t,be,il,a,ba,p,m = train_dataset[data_idx]
+            f,d,t,additional = train_dataset[data_idx]
             frame_idx.append(f-1)
             data.append(d)
             target.append(t)
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            bpp_act_list.append(ba)
-            psnr_list.append(p)
-            msssim_list.append(m)
-            if train_dataset.last_frame or j == batch_size-1:
+            bpp_est_list.append(additional['bpp_est'])
+            aux_loss_list.append(additional['aux_loss'])
+            img_loss_list.append(additional['img_loss'])
+            bpp_act_list.append(additional['bpp_act'])
+            psnr_list.append(additional['psnr'])
+            msssim_list.append(additional['msssim'])
+            if train_dataset.last_frame or additional['end_of_batch']:
+                # we split if the batch of compression ends or if the video ends or if its a i frame
                 # if is the end of a video
                 data = torch.stack(data, dim=0).cuda()
                 target = torch.stack(target, dim=0)
@@ -188,7 +187,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     else:
                         # finish graph if it is the last frame or data_idx is at the end of a batch
                         # if not retain the graph, make sure all compressed data are used or repeat compression for new data(out of batch)
-                        scalers[i].scale(loss).backward(retain_graph=not(train_dataset.last_frame or (data_idx+1)%comp_batch_size==0))
+                        scalers[i].scale(loss).backward()
                 # update model after compress each video
                 if train_dataset.last_frame:
                     for i in range(n_optimizers):
@@ -271,16 +270,16 @@ def test_ava_codec(cfg, epoch, model, model_codec, test_dataset, loss_module):
             # compress one batch of the data
             train_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            batch,be,il,a,ba,p,m = train_dataset[data_idx]
+            batch,additional = train_dataset[data_idx]
             data.append(batch['clip'])
             cls.append(batch['cls'])
             boxes.append(batch['boxes'])
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            bpp_act_list.append(ba)
-            psnr_list.append(p)
-            msssim_list.append(m)
+            bpp_est_list.append(additional['bpp_est'])
+            aux_loss_list.append(additional['aux_loss'])
+            img_loss_list.append(additional['img_loss'])
+            bpp_act_list.append(additional['bpp_act'])
+            psnr_list.append(additional['psnr'])
+            msssim_list.append(additional['msssim'])
         data = torch.stack(data, dim=0)
         cls = torch.stack(cls, dim=0)
         boxes = torch.stack(boxes, dim=0)
@@ -391,18 +390,18 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
-            test_dataset.preprocess(data_idx, model_codec, batch_size-j)
+            test_dataset.preprocess(data_idx, model_codec)
             # read one clip
-            f,d,t,be,il,a,ba,p,m = test_dataset[data_idx]
+            f,d,t,additional = test_dataset[data_idx]
             frame_idx.append(f)
             data.append(d)
             target.append(t)
-            bpp_est_list.append(be)
-            aux_loss_list.append(a)
-            img_loss_list.append(il)
-            bpp_act_list.append(ba)
-            psnr_list.append(p)
-            msssim_list.append(m)
+            bpp_est_list.append(additional['bpp_est'])
+            aux_loss_list.append(additional['aux_loss'])
+            img_loss_list.append(additional['img_loss'])
+            bpp_act_list.append(additional['bpp_act'])
+            psnr_list.append(additional['psnr'])
+            msssim_list.append(additional['msssim'])
         data = torch.stack(data, dim=0)
         target = torch.stack(target, dim=0)
         # end of compression

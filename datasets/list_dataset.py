@@ -94,7 +94,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
         
-        frame_idx, clip, label, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
+        frame_idx, clip, label, additional = load_data_detection_from_cache(self.base_path, imgpath, self.train, self.clip_duration, self.sampling_rate, self.cache, self.dataset)
         
         # (self.duration, -1) + self.shape = (8, -1, 224, 224)
         clip = torch.cat(clip, 0).view((self.clip_duration, -1) + self.shape).permute(1, 0, 2, 3)
@@ -102,9 +102,9 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         if self.target_transform is not None:
             label = self.target_transform(label)
 
-        return (frame_idx, clip, label, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim)
+        return (frame_idx, clip, label, additional)
             
-    def preprocess(self, index, model_codec, max_len):
+    def preprocess(self, index, model_codec):
         # called by the optimization code in each iteration
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
@@ -122,7 +122,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
                 self.cache['clip'] = [self.transform(img).cuda() for img in self.cache['clip']]
         else:
             clip = None
-        compress_video(model_codec, im_ind, self.cache, startNewClip, max_len)
+        compress_video(model_codec, im_ind, self.cache, startNewClip)
         self.prev_video = cur_video
         # check if the last frame of a clip or the last frame of a batch
         # it tells whether to split the processing for action detection
@@ -210,10 +210,11 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
         label = tmp[0:50*5]
     elif tsz > 0:
         label[0:tsz] = tmp
+        
+    additional = {'bpp_est': cache['bpp_est'][im_ind-1], 'img_loss':cache['img_loss'][im_ind-1], 'aux_loss':cache['aux'][im_ind-1], \
+                'bpp_act':cache['bpp_act'][im_ind-1], 'psnr':cache['psnr'][im_ind-1], 'msssim':cache['msssim'][im_ind-1], 'end_of_batch':cache['end_of_batch'][im_ind-1]}
     
     if train:
-        return im_ind, clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], cache['aux'][im_ind-1], \
-                cache['bpp_act'][im_ind-1], cache['psnr'][im_ind-1], cache['msssim'][im_ind-1]
+        return im_ind, clip, label, additional
     else:
-        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, cache['bpp_est'][im_ind-1], cache['img_loss'][im_ind-1], \
-                cache['aux'][im_ind-1], cache['bpp_act'][im_ind-1], cache['psnr'][im_ind-1], cache['msssim'][im_ind-1]
+        return im_split[0] + '_' +im_split[1] + '_' + im_split[2], clip, label, additional
