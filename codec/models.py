@@ -1781,6 +1781,7 @@ def test_seq_proc(name='RLVC'):
     timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,26))
+    model.eval()
     x_hat_prev = x
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
