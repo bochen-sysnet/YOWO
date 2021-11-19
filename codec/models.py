@@ -543,6 +543,7 @@ class DCVC(nn.Module):
             strings,shape = self.entropy_bottleneck.compress_slow(y, prior)
             y_hat = self.entropy_bottleneck.decompress_slow(strings, shape, prior)
             self.enc_t,self.dec_t = self.entropy_bottleneck.enc_t,self.entropy_bottleneck.dec_t
+            y_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
         else:
             y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
             y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
