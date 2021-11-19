@@ -184,6 +184,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['bpp_act'] = {}
         cache['msssim'] = {}
         cache['psnr'] = {}
+        cache['end_of_batch'] = {}
         # frame shape
         _,h,w = cache['clip'][0].shape
         cache['hidden'] = model.init_hidden(h,w)
@@ -244,7 +245,7 @@ def parallel_compression(model, _range, cache):
         cache['msssim'][_range] = msssim
         cache['bpp_act'][_range] = bpp_act
         cache['ref_frame'] = x_hat.squeeze(0)
-        cache['end_of_batch'] = True
+        cache['end_of_batch'][_range] = True
         return
     # P compression
     img_list = []; idx_list = []
