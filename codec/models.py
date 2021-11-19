@@ -310,7 +310,7 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
 # Need to measure time and implement decompression for demo
 # cache should store start/end-of-GOP information for the action detector to stop; test will be based on it
 class LearnedVideoCodecs(nn.Module):
-    def __init__(self, name, channels=128):
+    def __init__(self, name, channels=128, noMeasure=True):
         super(LearnedVideoCodecs, self).__init__()
         self.name = name 
         device = torch.device('cuda')
@@ -327,11 +327,12 @@ class LearnedVideoCodecs(nn.Module):
             self._image_coder = DeepCOD()
         else:
             self._image_coder = None
-        self.mv_codec = Coder2D(self.name, in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = Coder2D(self.name, in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D(self.name, in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+        self.res_codec = Coder2D(self.name, in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         self.channels = channels
         init_training_params(self)
         self.epoch = -1
+        self.noMeasure = noMeasure
         
         # split on multi-gpus
         self.split()
