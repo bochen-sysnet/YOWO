@@ -346,7 +346,6 @@ class MeanScaleHyperPriors(CompressionModel):
         
     def decompress_slow(self, string, shape):
         t_0 = time.perf_counter()
-        B,C,H,W = x.size()
         z_hat = self.entropy_bottleneck.decompress(string[1], shape)
         g = self.h_s1(z_hat)
         if self.useAttention:
