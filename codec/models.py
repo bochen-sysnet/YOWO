@@ -205,7 +205,7 @@ def index2range(i, clip_len, startNewClip):
     else:
         # minimum of end of clip, end of batch, end of GOP
         end = min(clip_len-1,i//GOP*GOP+((pos-1)//bs+1)*bs,(i//GOP+1)*GOP-1)
-        return range(i-1,end+1),i,end
+        return range(i,end+1),i,end
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -248,11 +248,12 @@ def parallel_compression(model, _range, cache):
         cache['end_of_batch'][_range] = True
         return
     # P compression
-    img_list = []; idx_list = []
+    img_list = [cache['clip'][_range[0]-1]]; idx_list = []
     for i in _range:
         img_list.append(cache['clip'][i])
         idx_list.append(i)
     x = torch.stack(img_list, dim=0)
+    print(x.size())
     n = len(idx_list)
     x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, cache['ref_frame'] = model(x, ref_frame=cache['ref_frame'].unsqueeze(0).cuda(0))
     for pos,j in enumerate(idx_list):
