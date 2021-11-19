@@ -253,7 +253,7 @@ def parallel_compression(model, _range, cache):
         idx_list.append(i)
     x = torch.stack(img_list, dim=0)
     n = len(idx_list)
-    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, ref_frame = model(x, ref_frame=cache['ref_frame'])
+    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
     for pos,j in enumerate(idx_list):
         cache['clip'][j] = x_hat[pos].squeeze(0).detach()
         cache['img_loss'][j] = img_loss
@@ -263,7 +263,6 @@ def parallel_compression(model, _range, cache):
         cache['msssim'][j] = msssim[pos]
         cache['bpp_act'][j] = bpp_act.cpu()
         cache['end_of_batch'][j] = True if pos == n-1 else False
-    cache['ref_frame'] = ref_frame.cuda(0)
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # input: 
@@ -1323,8 +1322,10 @@ class SPVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def forward(self, x, ref_frame=None, use_psnr=True):
+    def forward(self, x, use_psnr=True):
         bs, c, h, w = x.size()
+        
+        ref_frame = x[:1]
         
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
@@ -1382,7 +1383,7 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
         
-        return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, ref_frame
+        return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
