@@ -1638,7 +1638,6 @@ class AE3D(nn.Module):
             latent_i = latent[:,:,frame_idx,:,:]
             self.entropy_bottleneck.set_RPM(frame_idx>=1)
             latent_i_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent_i, rpm_hidden, training=self.training)
-            latent_i_string = self.entropy_bottleneck.compress(latent_i)
             self.entropy_bottleneck.set_prior(latent_i)
             latent_hat_list.append(latent_i_hat)
             
@@ -1646,7 +1645,11 @@ class AE3D(nn.Module):
             bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
             
             # calculate bpp (actual)
-            bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
+            if not self.training:
+                latent_i_string = self.entropy_bottleneck.compress(latent_i)
+                bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
+            else:
+                bits_act = bits_est
         latent_hat = torch.stack(latent_hat_list, dim=2)
         
         # decoder
