@@ -1366,12 +1366,12 @@ class SPVC(nn.Module):
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
         ##### compute bits
         # estimated bits
-        bpp_est = (i_est + mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
+        bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
         # actual bits
-        bpp_act = (i_act + mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
+        bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         #print(float(ref_est),float(mv_est),float(res_est),float(ref_act),float(mv_act),float(res_act))
         # auxilary loss
-        aux_loss = (i_aux + mv_aux.cuda(0) + res_aux.cuda(0))/3
+        aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
         # calculate metrics/loss
         psnr = PSNR(x, com_frames, use_list=True)
         msssim = MSSSIM(x, com_frames, use_list=True)
