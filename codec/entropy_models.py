@@ -59,11 +59,11 @@ class RecProbModel(CompressionModel):
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
             self.sigma = torch.exp(self.sigma)
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
-            rpm_hidden = rpm_hidden.detach()
+            rpm_hidden = rpm_hidden
         else:
             x_hat,likelihood = self.entropy_bottleneck(x,training=training)
         # self.prior_latent = torch.round(x).detach()
-        return x_hat, likelihood, rpm_hidden
+        return x_hat, likelihood, rpm_hidden.detach()
         
     def get_actual_bits(self, string):
         bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
@@ -113,7 +113,7 @@ class RecProbModel(CompressionModel):
         else:
             string = self.entropy_bottleneck.compress(x)
         self.enc_t = time.perf_counter() - t_0
-        return string, rpm_hidden
+        return string, rpm_hidden.detach()
         
     def decompress_slow(self, string, shape, rpm_hidden):
         t_0 = time.perf_counter()
@@ -127,7 +127,7 @@ class RecProbModel(CompressionModel):
         else:
             x_hat = self.entropy_bottleneck.decompress(string, shape)
         self.dec_t = time.perf_counter() - t_0
-        return x_hat, rpm_hidden
+        return x_hat, rpm_hidden.detach()
         
 def myupdate(self, force = False):
     # Check if we need to update the bottleneck parameters, the offsets are
