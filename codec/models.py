@@ -205,7 +205,7 @@ def index2range(i, clip_len, startNewClip):
     else:
         # minimum of end of clip, end of batch, end of GOP
         end = min(clip_len-1,i//GOP*GOP+((pos-1)//bs+1)*bs,(i//GOP+1)*GOP-1)
-        return range(i,end+1),i,end
+        return range(i-1,end+1),i,end
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
