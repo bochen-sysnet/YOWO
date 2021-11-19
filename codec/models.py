@@ -1509,8 +1509,11 @@ class SCVC(nn.Module):
         t_0 = time.perf_counter()
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        y_string = self.entropy_bottleneck.compress(y)
-        y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+        if self.training:
+            y_string = self.entropy_bottleneck.compress(y)
+            y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+        else:
+            y_act = y_est
         y_aux = self.entropy_bottleneck.loss()/self.channels
         t_y = time.perf_counter() - t_0
         #print('Y entropy:',t_y)
