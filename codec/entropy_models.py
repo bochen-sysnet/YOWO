@@ -353,7 +353,7 @@ class MeanScaleHyperPriors(CompressionModel):
         gaussian_params = self.h_s2(g)
         
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
-        sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
+        sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
         sigma = torch.exp(sigma)
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
