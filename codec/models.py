@@ -410,7 +410,7 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         if not self.noMeasure:
-            print(self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t),np.sum(self.dec_t),self.enc_t,self.dec_t)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -614,7 +614,7 @@ class DCVC(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
         if not self.noMeasure:
-            print(self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t),np.sum(self.dec_t),self.enc_t,self.dec_t)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1426,7 +1426,7 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
         if not self.noMeasure:
-            print(self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
@@ -1742,7 +1742,7 @@ class AE3D(nn.Module):
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         
         if not self.noMeasure:
-            print(self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
         
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
