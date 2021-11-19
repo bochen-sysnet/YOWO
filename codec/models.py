@@ -364,9 +364,8 @@ class LearnedVideoCodecs(nn.Module):
         # estimate optical flow
         t_0 = time.perf_counter()
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
-        t_flow = time.perf_counter() - t_0
         if not self.noMeasure:
-            self.enc_t += [t_flow]
+            self.enc_t += [time.perf_counter() - t_0]
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         if not self.noMeasure:
@@ -391,7 +390,10 @@ class LearnedVideoCodecs(nn.Module):
             self.enc_t += [self.res_codec.enc_t]
             self.dec_t += [self.res_codec.dec_t]
         # reconstruction
+        t_0 = time.perf_counter()
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
+        if not self.noMeasure:
+            self.dec_t += [time.perf_counter() - t_0]
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
@@ -1359,17 +1361,21 @@ class SPVC(nn.Module):
         
         ref_frame = x[:1]
         
+        # init time measurement
+        if not self.noMeasure:
+            self.enc_t = [];self.dec_t = []
+        
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
-        t_flow = time.perf_counter() - t_0
-        #print('Flow:',t_flow)
+        if not self.noMeasure:
+            self.enc_t += [time.perf_counter() - t_0]
         
         # BATCH:compress optical flow
-        t_0 = time.perf_counter()
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
-        t_mv = time.perf_counter() - t_0
-        #print('MV entropy:',t_mv)
+        if not self.noMeasure:
+            self.enc_t += [self.mv_codec.enc_t]
+            self.dec_t += [self.mv_codec.dec_t]
         
         # SEQ:motion compensation
         t_0 = time.perf_counter()
@@ -1386,17 +1392,22 @@ class SPVC(nn.Module):
         mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
         warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        #print('Compensation:',t_comp)
+        if not self.noMeasure:
+            self.enc_t += [t_comp]
+            self.dec_t += [t_comp]
         
         # BATCH:compress residual
-        t_0 = time.perf_counter()
         res_tensors = x[1:].to(MC_frames.device) - MC_frames
         res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
-        t_res = time.perf_counter() - t_0
-        #print('RS entropy:',t_res)
+        if not self.noMeasure:
+            self.enc_t += [self.res_codec.enc_t]
+            self.dec_t += [self.res_codec.dec_t]
         
         # reconstruction
+        t_0 = time.perf_counter()
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
+        if not self.noMeasure:
+            self.dec_t += [time.perf_counter() - t_0]
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
@@ -1414,6 +1425,8 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
+        if not self.noMeasure:
+            print(self.enc_t,self.dec_t)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
