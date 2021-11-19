@@ -85,7 +85,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         imgByteArr = io.BytesIO()
         width,height = shape
         fps = 25
-        Q = 27#15,19,23,27
+        Q = 23#15,19,23,27
         GOP = 13
         output_filename = 'tmp/videostreams/output.mp4'
         if model.name == 'x265':
@@ -1454,12 +1454,14 @@ class SCVC(nn.Module):
         self.ctx_decoder1.cuda(1)
         self.ctx_decoder2.cuda(1)
         
-    def forward(self, x, ref_frame, use_psnr=True):
+    def forward(self, x, use_psnr=True):
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
             self.updated = True
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x.size()
+        
+        ref_frame = x[:1]
         
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
@@ -1525,15 +1527,15 @@ class SCVC(nn.Module):
         # auxilary loss
         aux_loss = (mv_aux + y_aux.to(mv_aux.device))/2
         # calculate metrics/loss
-        psnr = PSNR(x, x_hat.to(x.device), use_list=True)
-        msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
-        rec_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
+        msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
+        rec_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
         img_loss = self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss + \
                     self.r_rec*rec_loss
         
-        return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, ref_frame
+        return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
@@ -1711,7 +1713,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 4
+    batch_size = 5
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1739,7 +1741,7 @@ def test_batch_proc(name = 'SPVC'):
         t_0 = time.perf_counter()
         com_frames, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x,hidden_states,i>=1)
         d = time.perf_counter() - t_0
-        timer.update(d/batch_size)
+        timer.update(d/(batch_size-1))
         # measure end
         
         loss = model.loss(img_loss,bpp_est,aux_loss)
@@ -1812,7 +1814,7 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     test_batch_proc('SPVC')
-    #test_batch_proc('SCVC')
+    test_batch_proc('SCVC')
     #test_batch_proc('AE3D')
     #test_seq_proc('RLVC')
     #test_seq_proc('DCVC')
