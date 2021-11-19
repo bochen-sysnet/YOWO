@@ -536,8 +536,11 @@ class DCVC(nn.Module):
         # entropy model
         y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
         y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        y_string = self.entropy_bottleneck.compress(y)
-        y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+        if not self.training:
+            y_string = self.entropy_bottleneck.compress(y)
+            y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+        else:
+            y_act = y_est
         y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
