@@ -68,7 +68,7 @@ def update_training(model, epoch):
     # setup training weights
     if epoch <= 10:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,1,1,1
+        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 1,1,1,1,1
     else:
         model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
         model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,0,0,0
@@ -197,7 +197,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         
 def index2range(i, clip_len, startNewClip):
     GOP = 13
-    bs = 12
+    bs = 4
     pos = i%GOP
     if pos == 0 or startNewClip:
         # compress as I frame
