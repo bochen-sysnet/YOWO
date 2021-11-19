@@ -1537,7 +1537,6 @@ class SCVC(nn.Module):
         rec_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
         img_loss = self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
-                    self.r_flow*flow_loss + \
                     self.r_rec*rec_loss
         
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
