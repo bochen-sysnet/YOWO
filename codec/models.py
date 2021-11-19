@@ -1373,9 +1373,9 @@ class SPVC(nn.Module):
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
         # calculate metrics/loss
-        psnr = PSNR(x, com_frames, use_list=True)
-        msssim = MSSSIM(x, com_frames, use_list=True)
-        rec_loss = calc_loss(x, com_frames, self.r, use_psnr)
+        psnr = PSNR(x[1:], com_frames, use_list=True)
+        msssim = MSSSIM(x[1:], com_frames, use_list=True)
+        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
         flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
