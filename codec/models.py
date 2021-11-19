@@ -884,7 +884,7 @@ class Coder2D(nn.Module):
         # Time measurement: end
         if not self.noMeasure:
             duration = time.perf_counter() - t_0
-            duration_enc += duration
+            self.enc_t += duration
         
         # quantization + entropy coding
         if self.entropy_type == 'base':
@@ -922,8 +922,8 @@ class Coder2D(nn.Module):
             
         # add in the time in entropy bottleneck
         if not self.noMeasure:
-            duration_enc += self.entropy_bottleneck.enc_t
-            duration_dec += self.entropy_bottleneck.dec_t
+            self.enc_t += self.entropy_bottleneck.enc_t
+            self.dec_t += self.entropy_bottleneck.dec_t
         
         # calculate bpp (estimated) if it is training else it will be set to 0
         if self.noMeasure:
@@ -959,15 +959,13 @@ class Coder2D(nn.Module):
         # Time measurement: end
         if not self.noMeasure:
             duration = time.perf_counter() - t_0
-            duration_dec += duration
+            self.dec_t += duration
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
         
         if self.conv_type == 'rec':
             rae_hidden = torch.cat((state_enc, state_dec),dim=1)
-            
-        self.enc_t,self.dec_t = duration_enc, duration_dec
             
         return hat, rae_hidden, rpm_hidden, bits_act, bits_est, aux_loss
             
@@ -1786,9 +1784,9 @@ def test_seq_proc(name='RLVC'):
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
     if name == 'DCVC' or name == 'DCVC_v2':
-        model = DCVC(name)
+        model = DCVC(name,noMeasure=False)
     else:
-        model = LearnedVideoCodecs(name)
+        model = LearnedVideoCodecs(name,noMeasure=False)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
