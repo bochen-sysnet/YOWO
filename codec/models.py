@@ -1400,6 +1400,7 @@ class SCVC(nn.Module):
         self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
+        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1)
         self.MC_network = MCNet()
         self.ctx_encoder = nn.Sequential(nn.Conv2d(3+channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
@@ -1446,6 +1447,7 @@ class SCVC(nn.Module):
 
     def split(self):
         self.optical_flow.cuda(0)
+        self.mv_codec.cuda(0)
         self.feature_extract.cuda(0)
         self.MC_network.cuda(0)
         self.tmp_prior_encoder.cuda(1)
@@ -1471,7 +1473,7 @@ class SCVC(nn.Module):
         
         # BATCH:compress optical flow
         t_0 = time.perf_counter()
-        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
+        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
         t_mv = time.perf_counter() - t_0
         #print('MV entropy:',t_mv)
         
