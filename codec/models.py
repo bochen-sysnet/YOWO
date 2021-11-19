@@ -441,20 +441,21 @@ class DCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.ctx_decoder = nn.ModuleList([nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1),
+        self.ctx_decoder1 = nn.Sequential(nn.ConvTranspose2d(channels2, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                         GDN(channels, inverse=True),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
-                                        GDN(channels, inverse=True),
-                                        ResidualBlock(channels,channels),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
                                         GDN(channels, inverse=True),
                                         ResidualBlock(channels,channels),
-                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1),
-                                        nn.Conv2d(channels*2, channels, kernel_size=3, stride=1, padding=1),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                        GDN(channels, inverse=True),
+                                        ResidualBlock(channels,channels),
+                                        nn.ConvTranspose2d(channels, channels, kernel_size=3, stride=2, padding=1, output_padding=1),
+                                        )
+        self.ctx_decoder2 = nn.Sequential(nn.Conv2d(channels*2, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels),
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
-                                        ])
+                                        )
         if name == 'DCVC_v2':
             self.MC_network = MCNet()
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
@@ -491,14 +492,15 @@ class DCVC(nn.Module):
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
         self.entropy_bottleneck.cuda(1)
-        self.ctx_decoder.cuda(1)
+        self.ctx_decoder1.cuda(1)
+        self.ctx_decoder2.cuda(1)
     
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
             
         if not self.noMeasure:
-            self.enc_t = self.dec_t = 0
+            self.enc_t = [];self.dec_t = []
             
         # I-frame compression
         if x_hat_prev is None:
@@ -511,12 +513,20 @@ class DCVC(nn.Module):
         rae_mv_hidden, rpm_mv_hidden = hidden_states
                 
         # motion estimation
+        t_0 = time.perf_counter()
         mv, l0, l1, l2, l3, l4 = self.optical_flow(x, x_hat_prev)
+        t_flow = time.perf_counter() - t_0
+        if not self.noMeasure:
+            self.enc_t += [t_flow]
         
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        if not self.noMeasure:
+            self.enc_t += [self.mv_codec.enc_t]
+            self.dec_t += [self.mv_codec.dec_t]
         
         # warping
+        t_0 = time.perf_counter()
         loc = get_grid_locations(bs, h, w).cuda(1)
         if self.name == 'DCVC':
             # feature extraction
@@ -535,12 +545,26 @@ class DCVC(nn.Module):
             
             # feature extraction
             x_feat_warp = self.feature_extract(x_mc)
+        t_warp = time.perf_counter() - t_0
+        if not self.noMeasure:
+            self.enc_t += [t_warp]
+            self.dec_t += [t_warp]
         
         # context refinement
+        t_0 = time.perf_counter()
         context = self.ctx_refine(x_feat_warp)
+        t_refine = time.perf_counter() - t_0
+        if not self.noMeasure:
+            self.enc_t += [t_refine]
+            self.dec_t += [t_refine]
         
         # temporal prior
+        t_0 = time.perf_counter()
         prior = self.tmp_prior_encoder(context)
+        t_prior = time.perf_counter() - t_0
+        if not self.noMeasure:
+            self.enc_t += [t_prior]
+            self.dec_t += [t_prior]
         
         # contextual encoder
         y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
@@ -552,6 +576,8 @@ class DCVC(nn.Module):
             self.enc_t,self.dec_t = self.entropy_bottleneck.enc_t,self.entropy_bottleneck.dec_t
             y_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
             y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+            self.enc_t += [self.entropy_bottleneck.enc_t]
+            self.dec_t += [self.entropy_bottleneck.dec_t]
         else:
             y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
             y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
@@ -562,22 +588,11 @@ class DCVC(nn.Module):
         y_aux = self.entropy_bottleneck.loss()/self.channels
         
         # contextual decoder
-        x_hat = y_hat
-        for i,m in enumerate(self.ctx_decoder):
-            if i in [0,2,5,8]:
-                if i==0:
-                    sz = torch.Size([bs,c,h//8,w//8])
-                elif i==2:
-                    sz = torch.Size([bs,c,h//4,w//4])
-                elif i==5:
-                    sz = torch.Size([bs,c,h//2,w//2])
-                else:
-                    sz = torch.Size([bs,c,h,w])
-                x_hat = m(x_hat,output_size=sz)
-            elif i==9:
-                x_hat = m(torch.cat((x_hat, context.cuda(1)), axis=1))
-            else:
-                x_hat = m(x_hat)
+        t_0 = time.perf_counter()
+        x_hat = self.ctx_decoder1(y_hat)
+        x_hat = self.ctx_decoder2(torch.cat((x_hat, context.to(x_hat.device)), axis=1)).to(x.device)
+        if not self.noMeasure:
+            self.dec_t += [time.perf_counter() - t_0]
         
         # estimated bits
         bpp_est = (mv_est + y_est.cuda(0))/(h * w * bs)
@@ -597,6 +612,8 @@ class DCVC(nn.Module):
         img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rpm_mv_hidden)
+        if not self.noMeasure:
+            print(self.enc_t,self.dec_t)
         return x_hat.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
