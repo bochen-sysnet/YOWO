@@ -204,6 +204,7 @@ def index2range(i, clip_len, startNewClip):
         return i,i,i
     else:
         # minimum of end of clip, end of batch, end of GOP
+        print(i,clip_len-1,i//GOP*GOP+(pos-1)//bs*bs,(i//GOP+1)*GOP-1)
         end = min(clip_len-1,i//GOP*GOP+(pos-1)//bs*bs,(i//GOP+1)*GOP-1)
         return range(i,end+1),i,end
       
