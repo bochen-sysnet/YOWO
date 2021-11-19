@@ -473,7 +473,7 @@ class DCVC(nn.Module):
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = Coder2D(name, in_channels=2, channels=channels, kernel=3, padding=1)
+        self.mv_codec = Coder2D(name, in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
         self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
         init_training_params(self)
         self.name = name
