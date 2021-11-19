@@ -907,7 +907,7 @@ class Coder2D(nn.Module):
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
-                latent_string, shape = self.entropy_bottleneck.compress_slow(latent,rpm_hidden)
+                latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
                 latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
