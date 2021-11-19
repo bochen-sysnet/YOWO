@@ -45,13 +45,13 @@ def get_codec_model(name):
         exit(1)
     return model_codec
 
-def compress_video(model, frame_idx, cache, startNewClip, max_len):
+def compress_video(model, frame_idx, cache, startNewClip):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC','AE3D']:
-        compress_video_batch(model, frame_idx, cache, startNewClip, max_len)
+        compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
     model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
