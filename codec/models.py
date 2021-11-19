@@ -420,7 +420,7 @@ class LearnedVideoCodecs(nn.Module):
 # DCVC?
 # adding MC network doesnt help much
 class DCVC(nn.Module):
-    def __init__(self, name, channels=64, channels2=96):
+    def __init__(self, name, channels=64, channels2=96, noMeasure=True):
         super(DCVC, self).__init__()
         device = torch.device('cuda')
         self.ctx_encoder = nn.Sequential(nn.Conv2d(channels+3, channels, kernel_size=5, stride=2, padding=2),
@@ -471,6 +471,7 @@ class DCVC(nn.Module):
         self.channels = channels
         self.split()
         self.updated = False
+        self.noMeasure = noMeasure
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -487,6 +488,9 @@ class DCVC(nn.Module):
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
+            
+        if not self.noMeasure:
+            self.enc_t = self.dec_t = 0
             
         # I-frame compression
         if x_hat_prev is None:
@@ -534,12 +538,16 @@ class DCVC(nn.Module):
         y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
         
         # entropy model
-        y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
-        y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        if not self.training:
-            y_string = self.entropy_bottleneck.compress(y)
-            y_act = self.entropy_bottleneck.get_actual_bits(y_string)
+        if not self.noMeasure:
+            strings,shape = self.entropy_bottleneck.compress_slow(y, prior)
+            y_hat = self.entropy_bottleneck.decompress_slow(strings, shape, prior)
+            self.enc_t,self.dec_t = self.entropy_bottleneck.enc_t,self.entropy_bottleneck.dec_t
         else:
+            y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
+            y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
+            if not self.training:
+                y_string = self.entropy_bottleneck.compress(y)
+                y_act = self.entropy_bottleneck.get_actual_bits(y_string)
             y_act = y_est
         y_aux = self.entropy_bottleneck.loss()/self.channels
         
@@ -782,7 +790,7 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class Coder2D(nn.Module):
-    def __init__(self, keyword, in_channels=2, channels=128, kernel=3, padding=1):
+    def __init__(self, keyword, in_channels=2, channels=128, kernel=3, padding=1, noMeasure=True):
         super(Coder2D, self).__init__()
         self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
         self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
@@ -838,7 +846,7 @@ class Coder2D(nn.Module):
             #self.s_attn_s = Attention(channels)
             
         self.updated = False
-        self.noMeasure = True
+        self.noMeasure = noMeasure
         # include two average meter to measure time
         
     def forward(self, x, rae_hidden=None, rpm_hidden=None, RPM_flag=False):
@@ -888,19 +896,19 @@ class Coder2D(nn.Module):
                 # encoding
                 t_0 = time.perf_counter()
                 latent_string = self.entropy_bottleneck.compress(latent)
-                duration_e = time.perf_counter() - t_0
+                self.entropy_bottleneck.enc_t = time.perf_counter() - t_0
                 # decoding
                 t_0 = time.perf_counter()
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
-                duration_d = time.perf_counter() - t_0
+                self.entropy_bottleneck.dec_t = time.perf_counter() - t_0
         elif self.entropy_type == 'mshp':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
-                print('Not implemented now.')
-                exit(1)
+                latent_string, shape = self.entropy_bottleneck.compress_slow(latent,rpm_hidden)
+                latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
             if self.noMeasure:
@@ -908,14 +916,14 @@ class Coder2D(nn.Module):
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
-                latent_string, _, duration_e = net.compress_slow(latent,rpm_hidden)
-                latent_hat, rpm_hidden, duration_d = net.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
+                latent_string, _ = self.entropy_bottleneck.compress_slow(latent,rpm_hidden)
+                latent_hat, rpm_hidden = self.entropy_bottleneck.decompress_slow(latent_string, latent.size()[-2:], rpm_hidden)
             self.entropy_bottleneck.set_prior(latent)
             
         # add in the time in entropy bottleneck
         if not self.noMeasure:
-            duration_enc += duration_e
-            duration_dec += duration_d
+            duration_enc += self.entropy_bottleneck.enc_t
+            duration_dec += self.entropy_bottleneck.dec_t
         
         # calculate bpp (estimated) if it is training else it will be set to 0
         if self.noMeasure:
@@ -959,10 +967,9 @@ class Coder2D(nn.Module):
         if self.conv_type == 'rec':
             rae_hidden = torch.cat((state_enc, state_dec),dim=1)
             
-        if self.noMeasure:
-            return hat, rae_hidden, rpm_hidden, bits_act, bits_est, aux_loss
-        else:
-            return hat, rae_hidden, rpm_hidden, bits_act, bits_est, aux_loss, duration_enc, duration_dec
+        self.enc_t,self.dec_t = duration_enc, duration_dec
+            
+        return hat, rae_hidden, rpm_hidden, bits_act, bits_est, aux_loss
             
     def compress_sequence(self,x):
         bs,c,h,w = x.size()
@@ -1305,18 +1312,19 @@ def motion_compensation(mc_model,x,motion):
     return MC_frames,warped_frames
         
 class SPVC(nn.Module):
-    def __init__(self, name, channels=128):
+    def __init__(self, name, channels=128, noMeasure=True):
         super(SPVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1)
-        self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2)
+        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+        self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
         self.split()
+        self.noMeasure = noMeasure
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -1398,12 +1406,12 @@ class SPVC(nn.Module):
          
 # conditional coding
 class SCVC(nn.Module):
-    def __init__(self, name, channels=64, channels2=96):
+    def __init__(self, name, channels=64, channels2=96, noMeasure=True):
         super(SCVC, self).__init__()
         self.name = name 
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
-        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1)
+        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
         self.MC_network = MCNet()
         self.ctx_encoder = nn.Sequential(nn.Conv2d(3+channels, channels, kernel_size=5, stride=2, padding=2),
                                         GDN(channels),
@@ -1447,6 +1455,7 @@ class SCVC(nn.Module):
         # split on multi-gpus
         self.split()
         self.updated = False
+        self.noMeasure = noMeasure
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -1727,12 +1736,12 @@ def test_batch_proc(name = 'SPVC'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    if name == 'SPVC' or name == 'SPVC_v2':
-        model = SPVC(name,channels)
+    if name == 'SPVC':
+        model = SPVC(name,channels,noMeasure=False)
     elif name == 'SCVC':
-        model = SCVC(name,channels)
+        model = SCVC(name,channels,noMeasure=False)
     elif name == 'AE3D':
-        model = AE3D(name)
+        model = AE3D(name,noMeasure=False)
     else:
         print('Not implemented.')
     import torch.optim as optim
@@ -1740,7 +1749,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,20))
+    train_iter = tqdm(range(0,2))
     model.eval()
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
@@ -1780,7 +1789,7 @@ def test_seq_proc(name='RLVC'):
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
     hidden_states = model.init_hidden(h,w)
-    train_iter = tqdm(range(0,26))
+    train_iter = tqdm(range(0,13))
     model.eval()
     x_hat_prev = x
     for i,_ in enumerate(train_iter):

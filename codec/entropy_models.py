@@ -57,7 +57,7 @@ class RecProbModel(CompressionModel):
             rpm_in = self.prior_latent
             self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(x.device))
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
-            self.sigma = torch.exp(self.sigma)/10
+            self.sigma = torch.exp(self.sigma)
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             rpm_hidden = rpm_hidden.detach()
         else:
@@ -107,7 +107,7 @@ class RecProbModel(CompressionModel):
             assert self.prior_latent is not None, 'prior latent is none!'
             sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
             sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
-            sigma = torch.exp(sigma)/10
+            sigma = torch.exp(sigma)
             indexes = self.gaussian_conditional.build_indexes(sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=mu)
         else:
@@ -325,14 +325,15 @@ class MeanScaleHyperPriors(CompressionModel):
         t_0 = time.perf_counter()
         B,C,H,W = x.size()
         z = self.h_a1(x)
+        if self.useAttention:
+            z = st_attention(z,self.s_attn_a,self.t_attn_a)
         z = self.h_a2(z)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
         
-        if self.useAttention:
-            z_hat = st_attention(z_hat,self.s_attn,self.t_attn)
-        
         g = self.h_s1(z_hat)
+        if self.useAttention:
+            g = st_attention(g,self.s_attn_s,self.t_attn_s)
         gaussian_params = self.h_s2(g)
         
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
@@ -340,16 +341,16 @@ class MeanScaleHyperPriors(CompressionModel):
         sigma = torch.exp(sigma)
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
-        duration = time.perf_counter() - t_0
-        return (x_string, z_string), x.size()[-2:], duration
+        self.enc_t = time.perf_counter() - t_0
+        return (x_string, z_string), x.size()[-2:]
         
     def decompress_slow(self, string, shape):
         t_0 = time.perf_counter()
         B,C,H,W = x.size()
         z_hat = self.entropy_bottleneck.decompress(string[1], shape)
-        if self.useAttention:
-            z_hat = st_attention(z_hat,self.s_attn,self.t_attn)
         g = self.h_s1(z_hat)
+        if self.useAttention:
+            g = st_attention(g,self.s_attn_s,self.t_attn_s)
         gaussian_params = self.h_s2(g)
         
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
@@ -357,8 +358,8 @@ class MeanScaleHyperPriors(CompressionModel):
         sigma = torch.exp(sigma)
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
-        duration = time.perf_counter() - t_0
-        return x_hat, duration
+        self.dec_t = time.perf_counter() - t_0
+        return x_hat
         
 def st_attention(x, s_attn, t_attn):
     # use attention
@@ -487,16 +488,16 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         gaussian_params = self.conv2(g)
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
-        sigma = torch.exp(sigma)/10
+        sigma = torch.exp(sigma)
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
-        duration = time.perf_counter() - t_0
-        return (x_string, z_string), x.size(), duration
+        self.enc_t = time.perf_counter() - t_0
+        return (x_string, z_string), x.size()
         
     def decompress_slow(self, string, shape, ctx_params):
         t_0 = time.perf_counter()
         bs,c,h,w = shape
-        z_hat = self.entropy_bottleneck.decompress(string[1], [4,4])
+        z_hat = self.entropy_bottleneck.decompress(string[1], [h,w])
         params = self.h_s(z_hat)
         g = self.conv1(torch.cat((params, ctx_params), dim=1))
         if self.useAttention:
@@ -504,11 +505,11 @@ class JointAutoregressiveHierarchicalPriors(CompressionModel):
         gaussian_params = self.conv2(g)
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
-        sigma = torch.exp(sigma)/10
+        sigma = torch.exp(sigma)
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
-        duration = time.perf_counter() - t_0
-        return x_hat, duration
+        self.dec_t = time.perf_counter() - t_0
+        return x_hat
         
         
 def attention(q, k, v, d_model, dropout=None):
