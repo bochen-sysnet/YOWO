@@ -573,7 +573,6 @@ class DCVC(nn.Module):
         if not self.noMeasure:
             y_string,shape = self.entropy_bottleneck.compress_slow(y, prior)
             y_hat = self.entropy_bottleneck.decompress_slow(y_string, shape, prior)
-            self.enc_t,self.dec_t = self.entropy_bottleneck.enc_t,self.entropy_bottleneck.dec_t
             y_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
             y_act = self.entropy_bottleneck.get_actual_bits(y_string)
             self.enc_t += [self.entropy_bottleneck.enc_t]
