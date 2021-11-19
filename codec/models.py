@@ -197,7 +197,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         
 def index2range(i, clip_len, startNewClip):
     GOP = 13
-    bs = 4
+    bs = 12
     pos = i%GOP
     if pos == 0 or startNewClip:
         # compress as I frame
@@ -243,7 +243,6 @@ def parallel_compression(model, _range, cache):
         cache['psnr'][_range] = psnr
         cache['msssim'][_range] = msssim
         cache['bpp_act'][_range] = bpp_act
-        cache['ref_frame'] = x_hat.cuda(0)
         cache['end_of_batch'][_range] = True
         return
     # P compression
