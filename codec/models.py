@@ -244,7 +244,7 @@ def parallel_compression(model, _range, cache):
         cache['psnr'][_range] = psnr
         cache['msssim'][_range] = msssim
         cache['bpp_act'][_range] = bpp_act
-        cache['ref_frame'] = x_hat.squeeze(0)
+        cache['ref_frame'] = x_hat.cuda(0)
         cache['end_of_batch'][_range] = True
         return
     # P compression
@@ -253,9 +253,8 @@ def parallel_compression(model, _range, cache):
         img_list.append(cache['clip'][i])
         idx_list.append(i)
     x = torch.stack(img_list, dim=0)
-    print(x.size())
     n = len(idx_list)
-    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, cache['ref_frame'] = model(x, ref_frame=cache['ref_frame'].unsqueeze(0).cuda(0))
+    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim, ref_frame = model(x, ref_frame=cache['ref_frame'])
     for pos,j in enumerate(idx_list):
         cache['clip'][j] = x_hat[pos].squeeze(0).detach()
         cache['img_loss'][j] = img_loss
@@ -265,6 +264,7 @@ def parallel_compression(model, _range, cache):
         cache['msssim'][j] = msssim[pos]
         cache['bpp_act'][j] = bpp_act.cpu()
         cache['end_of_batch'][j] = True if pos == n-1 else False
+    cache['ref_frame'] = ref_frame.cuda(0)
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # input: 
