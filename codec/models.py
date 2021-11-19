@@ -1721,8 +1721,6 @@ def test_batch_proc(name = 'SPVC'):
         model = SPVC(name,channels)
     elif name == 'SCVC':
         model = SCVC(name,channels)
-    elif name == 'SVC':
-        model = SVC(name,channels)
     elif name == 'AE3D':
         model = AE3D(name)
     else:
@@ -1732,14 +1730,13 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    hidden_states = model.init_hidden(h,w)
     train_iter = tqdm(range(0,20))
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
         
         # measure start
         t_0 = time.perf_counter()
-        com_frames, hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x,hidden_states,i>=1)
+        com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, sim = model(x)
         d = time.perf_counter() - t_0
         timer.update(d/(batch_size-1))
         # measure end
