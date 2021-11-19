@@ -856,7 +856,7 @@ class Coder2D(nn.Module):
             self.updated = True
             
         if not self.noMeasure:
-            duration_enc = duration_dec = 0
+            self.enc_t = self.dec_t = 0
         
         # latent states
         if self.conv_type == 'rec':
@@ -883,8 +883,7 @@ class Coder2D(nn.Module):
         
         # Time measurement: end
         if not self.noMeasure:
-            duration = time.perf_counter() - t_0
-            self.enc_t += duration
+            self.enc_t += time.perf_counter() - t_0
         
         # quantization + entropy coding
         if self.entropy_type == 'base':
@@ -958,8 +957,7 @@ class Coder2D(nn.Module):
         
         # Time measurement: end
         if not self.noMeasure:
-            duration = time.perf_counter() - t_0
-            self.dec_t += duration
+            self.dec_t += time.perf_counter() - t_0
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
