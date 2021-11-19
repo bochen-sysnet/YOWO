@@ -348,6 +348,8 @@ class LearnedVideoCodecs(nn.Module):
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame, [1,c,h,w]
         # Y1_raw: uncompressed current frame
+        if not self.noMeasure:
+            self.enc_t = [];self.dec_t = []
         batch_size, _, Height, Width = Y1_raw.shape
         if self.name == 'RAW':
             bpp_est = bpp_act = metrics = torch.FloatTensor([0]).cuda(0)
@@ -363,28 +365,31 @@ class LearnedVideoCodecs(nn.Module):
         t_0 = time.perf_counter()
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
         t_flow = time.perf_counter() - t_0
-        #print('flow estimation:',t_flow)
+        if not self.noMeasure:
+            self.enc_t += [t_flow]
         # compress optical flow
-        t_0 = time.perf_counter()
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
-        t_mv_entropy = time.perf_counter() - t_0
-        #print('mv entropy:',t_mv_entropy)
+        if not self.noMeasure:
+            self.enc_t += [self.mv_codec.enc_t]
+            self.dec_t += [self.mv_codec.dec_t]
         # motion compensation
         t_0 = time.perf_counter()
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
         Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
         Y1_MC = self.MC_network(MC_input.cuda(1))
-        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
-        #print('compensation:',t_comp)
+        if not self.noMeasure:
+            self.enc_t += [t_comp]
+            self.dec_t += [t_comp]
+        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
+        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         # compress residual
-        t_0 = time.perf_counter()
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
-        t_res_entropy = time.perf_counter() - t_0
-        #print('res entropy:',t_res_entropy)
+        if not self.noMeasure:
+            self.enc_t += [self.res_codec.enc_t]
+            self.dec_t += [self.res_codec.dec_t]
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         ##### compute bits
@@ -402,6 +407,8 @@ class LearnedVideoCodecs(nn.Module):
         img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        if not self.noMeasure:
+            print(self.enc_t,self.dec_t)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
