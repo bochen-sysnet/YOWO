@@ -1563,7 +1563,7 @@ class SCVC(nn.Module):
         return None
         
 class AE3D(nn.Module):
-    def __init__(self, name):
+    def __init__(self, name, noMeasure=True):
         super(AE3D, self).__init__()
         self.name = name 
         device = torch.device('cuda')
@@ -1615,6 +1615,7 @@ class AE3D(nn.Module):
         # split on multi-gpus
         self.split()
         self.updated = False
+        self.noMeasure = noMeasure
 
     def split(self):
         # too much on cuda:0
@@ -1649,19 +1650,24 @@ class AE3D(nn.Module):
         for frame_idx in range(t):
             latent_i = latent[:,:,frame_idx,:,:]
             self.entropy_bottleneck.set_RPM(frame_idx>=1)
-            latent_i_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent_i, rpm_hidden, training=self.training)
+            if self.noMeasure:
+                latent_i_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent_i, rpm_hidden, training=self.training)
+            
+                # calculate bpp (estimated) if it is training else it will be set to 0
+                bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
+            
+                # calculate bpp (actual)
+                if not self.training:
+                    latent_i_string = self.entropy_bottleneck.compress(latent_i)
+                    bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
+                else:
+                    bits_act = bits_est
+            else:
+                latent_i_string, _ = self.entropy_bottleneck.compress_slow(latent_i,rpm_hidden)
+                latent_i_hat, rpm_hidden = self.entropy_bottleneck.decompress_slow(latent_i_string, latent_i.size()[-2:], rpm_hidden)
+                bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
             self.entropy_bottleneck.set_prior(latent_i)
             latent_hat_list.append(latent_i_hat)
-            
-            # calculate bpp (estimated) if it is training else it will be set to 0
-            bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
-            
-            # calculate bpp (actual)
-            if not self.training:
-                latent_i_string = self.entropy_bottleneck.compress(latent_i)
-                bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
-            else:
-                bits_act = bits_est
         latent_hat = torch.stack(latent_hat_list, dim=2)
         
         # decoder
