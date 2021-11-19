@@ -1667,14 +1667,20 @@ class AE3D(nn.Module):
             self.entropy_bottleneck.update(force=True)
             self.updated = True
             
+        if not self.noMeasure:
+            self.enc_t = [];self.dec_t = []
+            
         # x=[B,C,H,W]: input sequence of frames
         x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
         bs, c, t, h, w = x.size()
         
         # encoder
+        t_0 = time.perf_counter()
         x1 = self.conv1(x)
         x2 = self.conv2(x1) + x1
         latent = self.conv3(x2)
+        if not self.noMeasure:
+            self.enc_t += [time.perf_counter() - t_0]
         
         # entropy
         # compress each frame sequentially
@@ -1701,14 +1707,19 @@ class AE3D(nn.Module):
                 latent_i_string, _ = self.entropy_bottleneck.compress_slow(latent_i,rpm_hidden)
                 latent_i_hat, rpm_hidden = self.entropy_bottleneck.decompress_slow(latent_i_string, latent_i.size()[-2:], rpm_hidden)
                 bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
+                self.enc_t += [self.entropy_bottleneck.enc_t]
+                self.dec_t += [self.entropy_bottleneck.dec_t]
             self.entropy_bottleneck.set_prior(latent_i)
             latent_hat_list.append(latent_i_hat)
         latent_hat = torch.stack(latent_hat_list, dim=2)
         
         # decoder
+        t_0 = time.perf_counter()
         x3 = self.deconv1(latent_hat.cuda(1))
         x4 = self.deconv2(x3) + x3
         x_hat = self.deconv3(x4)
+        if not self.noMeasure:
+            self.dec_t += [time.perf_counter() - t_0]
         
         # reshape
         x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
@@ -1729,6 +1740,9 @@ class AE3D(nn.Module):
         
         # calculate img loss
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        
+        if not self.noMeasure:
+            print(self.enc,self.dec)
         
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
