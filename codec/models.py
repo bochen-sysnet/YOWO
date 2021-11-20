@@ -240,7 +240,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['psnr'][i] = psnr
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
-    cache['end_of_batch'][i] = True
+    cache['end_of_batch'][i] = (i%4==0)
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
