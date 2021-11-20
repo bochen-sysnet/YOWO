@@ -62,6 +62,8 @@ def init_training_params(model):
     
     model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}"
     model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}"
+    model.meters = {'E-FL':AverageMeter();'E-MV':AverageMeter();'E-MC':AverageMeter();'E-RES':AverageMeter();\
+                    'D-MV':AverageMeter();'D-MC':AverageMeter();'D-RES':AverageMeter();'D-REC':AverageMeter()}
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -355,8 +357,6 @@ class LearnedVideoCodecs(nn.Module):
     def forward(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame, [1,c,h,w]
         # Y1_raw: uncompressed current frame
-        if not self.noMeasure:
-            self.enc_t = [];self.dec_t = []
         batch_size, _, Height, Width = Y1_raw.shape
         if self.name == 'RAW':
             bpp_est = bpp_act = metrics = torch.FloatTensor([0]).cuda(0)
@@ -372,12 +372,12 @@ class LearnedVideoCodecs(nn.Module):
         t_0 = time.perf_counter()
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
         if not self.noMeasure:
-            self.enc_t += [time.perf_counter() - t_0]
+            self.meters['E-FL'].update(time.perf_counter() - t_0)
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         if not self.noMeasure:
-            self.enc_t += [self.mv_codec.enc_t]
-            self.dec_t += [self.mv_codec.dec_t]
+            self.meters['E-MV'].update(self.mv_codec.enc_t)
+            self.meters['D-MV'].update(self.mv_codec.dec_t)
         # motion compensation
         t_0 = time.perf_counter()
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
@@ -386,21 +386,21 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         t_comp = time.perf_counter() - t_0
         if not self.noMeasure:
-            self.enc_t += [t_comp]
-            self.dec_t += [t_comp]
+            self.meters['E-MV'].update(t_comp)
+            self.meters['D-MV'].update(t_comp)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
         if not self.noMeasure:
-            self.enc_t += [self.res_codec.enc_t]
-            self.dec_t += [self.res_codec.dec_t]
+            self.meters['E-RES'].update(self.res_codec.enc_t)
+            self.meters['D-RES'].update(self.res_codec.dec_t)
         # reconstruction
         t_0 = time.perf_counter()
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
         if not self.noMeasure:
-            self.dec_t += [time.perf_counter() - t_0]
+            self.meters['D-REC'].update(time.perf_counter() - t_0)
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
@@ -417,9 +417,8 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         if not self.noMeasure:
-            print(np.sum(self.enc_t),np.sum(self.dec_t))
-            print(self.fmt_enc_str.format(*self.enc_t))
-            print(self.fmt_dec_str.format(*self.dec_t))
+            print(self.fmt_enc_str.format(self.meters['E-FL'].avg,self.meters['E-MV'].avg,self.meters['E-MC'].avg,self.meters['E-RES'].avg))
+            print(self.fmt_dec_str.format(self.meters["D-MV"].avg,self.meters["D-MC"].avg,self.meters["D-RES"].avg,self.meters["D-REC"].avg))
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1375,15 +1374,11 @@ class SPVC(nn.Module):
         
         bs, c, h, w = x[1:].size()
         
-        # init time measurement
-        if not self.noMeasure:
-            self.enc_t = [];self.dec_t = []
-        
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
         if not self.noMeasure:
-            self.enc_t += [time.perf_counter() - t_0]
+            self.meters['E-FL'].update(time.perf_counter() - t_0)
         
         # BATCH:compress optical flow
         if self.name == 'SPVC':
@@ -1391,8 +1386,8 @@ class SPVC(nn.Module):
         elif self.name == 'SPVC_v2':
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors.cuda(1))
         if not self.noMeasure:
-            self.enc_t += [self.mv_codec.enc_t]
-            self.dec_t += [self.mv_codec.dec_t]
+            self.meters['E-MV'].update(self.mv_codec.enc_t)
+            self.meters['D-MV'].update(self.mv_codec.dec_t)
         
         # SEQ:motion compensation
         t_0 = time.perf_counter()
@@ -1410,8 +1405,8 @@ class SPVC(nn.Module):
         warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         if not self.noMeasure:
-            self.enc_t += [t_comp]
-            self.dec_t += [t_comp]
+            self.meters['E-MV'].update(t_comp)
+            self.meters['D-MV'].update(t_comp)
         
         # BATCH:compress residual
         res_tensors = x[1:].to(MC_frames.device) - MC_frames
@@ -1420,14 +1415,15 @@ class SPVC(nn.Module):
         elif self.name == 'SPVC_v2':
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         if not self.noMeasure:
-            self.enc_t += [self.res_codec.enc_t]
-            self.dec_t += [self.res_codec.dec_t]
+            self.meters['E-RES'].update(self.res_codec.enc_t)
+            self.meters['D-RES'].update(self.res_codec.dec_t)
         
         # reconstruction
         t_0 = time.perf_counter()
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
         if not self.noMeasure:
-            self.dec_t += [time.perf_counter() - t_0]
+            self.meters['D-REC'].update(time.perf_counter() - t_0)
+            
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
@@ -1446,9 +1442,8 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
         if not self.noMeasure:
-            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs)
-            print(self.fmt_enc_str.format(*self.enc_t))
-            print(self.fmt_dec_str.format(*self.dec_t))
+            print(self.fmt_enc_str.format(self.meters['E-FL'].avg,self.meters['E-MV'].avg,self.meters['E-MC'].avg,self.meters['E-RES'].avg))
+            print(self.fmt_dec_str.format(self.meters["D-MV"].avg,self.meters["D-MC"].avg,self.meters["D-RES"].avg,self.meters["D-REC"].avg))
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
