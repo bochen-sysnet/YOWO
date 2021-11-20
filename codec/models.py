@@ -870,6 +870,9 @@ class Coder2D(nn.Module):
             self.entropy_bottleneck = EntropyBottleneck(channels)
             self.conv_type = 'non-rec'
             self.entropy_type = 'base'
+        elif keyword in ['joint']:
+            self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels,useAttention=True)
+            self.entropy_type = 'joint'
         else:
             print('Bottleneck not implemented for:',keyword)
             exit(1)
@@ -891,7 +894,7 @@ class Coder2D(nn.Module):
         self.noMeasure = noMeasure
         # include two average meter to measure time
         
-    def forward(self, x, rae_hidden=None, rpm_hidden=None, RPM_flag=False):
+    def forward(self, x, rae_hidden=None, rpm_hidden=None, RPM_flag=False, prior=None):
         # update only once during testing
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
@@ -953,6 +956,14 @@ class Coder2D(nn.Module):
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
                 latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
+        elif self.entropy_type == 'joint':
+            if self.noMeasure:
+                latent_hat, likelihoods = self.entropy_bottleneck(latent, prior, training=self.training)
+                if not self.training:
+                    latent_string = self.entropy_bottleneck.compress(latent)
+            else:
+                latent_string,shape = self.entropy_bottleneck.compress_slow(latent, prior)
+                latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape, prior)
         else:
             self.entropy_bottleneck.set_RPM(RPM_flag)
             if self.noMeasure:
@@ -1517,7 +1528,7 @@ class SCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2,useAttention=True)
+        self.latent_codec = Coder2D('joint', channels=channels, noMeasure=noMeasure, downsample=False)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
@@ -1532,7 +1543,7 @@ class SCVC(nn.Module):
         self.MC_network.cuda(0)
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
-        self.entropy_bottleneck.cuda(1)
+        self.latent_codec.cuda(1)
         self.ctx_decoder1.cuda(1)
         self.ctx_decoder2.cuda(1)
         
@@ -1587,14 +1598,7 @@ class SCVC(nn.Module):
         
         # entropy model
         t_0 = time.perf_counter()
-        y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
-        y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-        if not self.training:
-            y_string = self.entropy_bottleneck.compress(y)
-            y_act = self.entropy_bottleneck.get_actual_bits(y_string)
-        else:
-            y_act = y_est
-        y_aux = self.entropy_bottleneck.loss()/self.channels
+        y_hat,y_act,y_est,y_aux = self.latent_codec(y, prior=prior)
         t_y = time.perf_counter() - t_0
         #print('Y entropy:',t_y)
         
