@@ -418,8 +418,8 @@ class LearnedVideoCodecs(nn.Module):
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         if not self.noMeasure:
             print(np.sum(self.enc_t),np.sum(self.dec_t))
-            print(self.fmt_enc_str.format(*self.enc_t)
-            print(self.fmt_dec_str.format(*self.dec_t)
+            print(self.fmt_enc_str.format(*self.enc_t))
+            print(self.fmt_dec_str.format(*self.dec_t))
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1447,8 +1447,8 @@ class SPVC(nn.Module):
                     self.r_flow*flow_loss)
         if not self.noMeasure:
             print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs)
-            print(self.fmt_enc_str.format(*self.enc_t)
-            print(self.fmt_dec_str.format(*self.dec_t)
+            print(self.fmt_enc_str.format(*self.enc_t))
+            print(self.fmt_dec_str.format(*self.dec_t))
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
