@@ -199,7 +199,7 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         
 def index2range(i, clip_len, startNewClip):
     GOP = 13
-    bs = 4
+    bs = 12
     pos = i%GOP
     if pos == 0 or startNewClip:
         # compress as I frame
