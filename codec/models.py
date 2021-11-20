@@ -66,7 +66,7 @@ def init_training_params(model):
                     'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter()}
     
 def showTimer(model):
-    if model.name in ['SLVC','SLVC_v2','RLVC','DVC']
+    if model.name in ['SLVC','SLVC_v2','RLVC','DVC']:
         print('------------',model.name,'------------')
         print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg))
         print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg))
