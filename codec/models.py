@@ -1690,12 +1690,9 @@ class AE3D(nn.Module):
         self.deconv1.cuda(1)
         self.deconv2.cuda(1)
         self.deconv3.cuda(1)
-        self.entropy_bottleneck.cuda(0)
+        self.latent_codec.cuda(0)
         
     def forward(self, x, RPM_flag=False, use_psnr=True):
-        if not self.updated and not self.training:
-            self.entropy_bottleneck.update(force=True)
-            self.updated = True
             
         x = x[1:]
             
