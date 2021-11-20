@@ -78,7 +78,7 @@ def update_training(model, epoch):
     
     # setup training weights
     if epoch <= 10:
-        model.r_img, model.r_bpp, model.r_aux = 1,1,1
+        model.r_img, model.r_bpp, model.r_aux = 0,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,1,1,1
         model.r_app = 0
     else:
