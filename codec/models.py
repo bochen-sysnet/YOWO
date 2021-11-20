@@ -1014,6 +1014,7 @@ class Coder2D(nn.Module):
         x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
         rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
         rae_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
+        enc_t = dec_t = 0
         x_hat_list = []
         for frame_idx in range(bs):
             x_i = x[frame_idx,:,:,:].unsqueeze(0)
@@ -1028,7 +1029,11 @@ class Coder2D(nn.Module):
             
             # aux
             x_aux += x_aux_i.cuda()
+            
+            enc_t += self.enc_t
+            dec_t += self.dec_t
         x_hat = torch.stack(x_hat_list, dim=0)
+        self.enc_t,self.dec_t = enc_t,dec_t
         return x_hat,x_act,x_est,x_aux
 
 class MCNet(nn.Module):
@@ -1823,7 +1828,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,5))
+    train_iter = tqdm(range(0,10))
     model.eval()
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
