@@ -1534,7 +1534,6 @@ class SCVC(nn.Module):
         init_training_params(self)
         # split on multi-gpus
         self.split()
-        self.updated = False
         self.noMeasure = noMeasure
 
     def split(self):
@@ -1549,9 +1548,6 @@ class SCVC(nn.Module):
         self.ctx_decoder2.cuda(1)
         
     def forward(self, x, use_psnr=True):
-        if not self.updated and not self.training:
-            self.entropy_bottleneck.update(force=True)
-            self.updated = True
         # x=[B,C,H,W]: input sequence of frames
         bs, c, h, w = x[1:].size()
         
@@ -1687,7 +1683,6 @@ class AE3D(nn.Module):
         self.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
         # split on multi-gpus
         self.split()
-        self.updated = False
         self.noMeasure = noMeasure
 
     def split(self):
