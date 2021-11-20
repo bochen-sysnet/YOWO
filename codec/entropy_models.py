@@ -113,6 +113,7 @@ class RecProbModel(CompressionModel):
         else:
             string = self.entropy_bottleneck.compress(x)
         self.enc_t = time.perf_counter() - t_0
+        print(self.enc_t,x.size())
         return string, rpm_hidden.detach()
         
     def decompress_slow(self, string, shape, rpm_hidden):
