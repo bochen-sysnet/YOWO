@@ -292,7 +292,7 @@ class MeanScaleHyperPriors(CompressionModel):
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
         self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
-        self.sigma = torch.exp(self.sigma)
+        self.sigma = torch.exp(self.sigma)/10
         x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
         return x_hat, (x_likelihood,z_likelihood)
         
@@ -338,7 +338,7 @@ class MeanScaleHyperPriors(CompressionModel):
         
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(x.device))
-        sigma = torch.exp(sigma)
+        sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_string = self.gaussian_conditional.compress(x, indexes, means=mu)
         self.enc_t = time.perf_counter() - t_0
@@ -354,7 +354,7 @@ class MeanScaleHyperPriors(CompressionModel):
         
         sigma, mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
-        sigma = torch.exp(sigma)
+        sigma = torch.exp(sigma)/10
         indexes = self.gaussian_conditional.build_indexes(sigma)
         x_hat = self.gaussian_conditional.decompress(string[0], indexes, means=mu)
         self.dec_t = time.perf_counter() - t_0
