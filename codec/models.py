@@ -1020,7 +1020,7 @@ class Coder2D(nn.Module):
         x_est = torch.FloatTensor([0]).squeeze(0).cuda()
         x_act = torch.FloatTensor([0]).squeeze(0).cuda()
         x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
-        if self.downsample:
+        if not self.downsample:
             rpm_hidden = torch.zeros(1,self.channels*2,h//8,w//8)
         else:
             rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
