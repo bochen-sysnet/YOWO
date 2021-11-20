@@ -65,6 +65,12 @@ def init_training_params(model):
     model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),
                     'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter()}
     
+def showTimer(model):
+    if model.name in ['SLVC','SLVC_v2','RLVC','DVC']
+        print('------------',model.name,'------------')
+        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg))
+        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg))
+    
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
@@ -386,8 +392,8 @@ class LearnedVideoCodecs(nn.Module):
         Y1_MC = self.MC_network(MC_input.cuda(1))
         t_comp = time.perf_counter() - t_0
         if not self.noMeasure:
-            self.meters['E-MV'].update(t_comp)
-            self.meters['D-MV'].update(t_comp)
+            self.meters['E-MC'].update(t_comp)
+            self.meters['D-MC'].update(t_comp)
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         # compress residual
@@ -416,9 +422,6 @@ class LearnedVideoCodecs(nn.Module):
         img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        if not self.noMeasure:
-            print(self.fmt_enc_str.format(self.meters['E-FL'].avg,self.meters['E-MV'].avg,self.meters['E-MC'].avg,self.meters['E-RES'].avg))
-            print(self.fmt_dec_str.format(self.meters["D-MV"].avg,self.meters["D-MC"].avg,self.meters["D-RES"].avg,self.meters["D-REC"].avg))
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1405,8 +1408,8 @@ class SPVC(nn.Module):
         warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         if not self.noMeasure:
-            self.meters['E-MV'].update(t_comp)
-            self.meters['D-MV'].update(t_comp)
+            self.meters['E-MC'].update(t_comp)
+            self.meters['D-MC'].update(t_comp)
         
         # BATCH:compress residual
         res_tensors = x[1:].to(MC_frames.device) - MC_frames
@@ -1441,9 +1444,6 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        if not self.noMeasure:
-            print(self.fmt_enc_str.format(self.meters['E-FL'].avg,self.meters['E-MV'].avg,self.meters['E-MC'].avg,self.meters['E-RES'].avg))
-            print(self.fmt_dec_str.format(self.meters["D-MV"].avg,self.meters["D-MC"].avg,self.meters["D-RES"].avg,self.meters["D-REC"].avg))
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
@@ -1907,10 +1907,9 @@ def test_seq_proc(name='RLVC'):
 if __name__ == '__main__':
     test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
-    test_seq_proc('RLVC')
-    exit(0)
-    test_batch_proc('SCVC')
-    test_batch_proc('AE3D')
-    test_seq_proc('DCVC')
-    test_seq_proc('DCVC_v2')
+    #test_batch_proc('SCVC')
+    #test_batch_proc('AE3D')
+    #test_seq_proc('DCVC')
+    #test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
+    test_seq_proc('RLVC')
