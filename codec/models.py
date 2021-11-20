@@ -487,7 +487,7 @@ class DCVC(nn.Module):
                                         )
         self.optical_flow = OpticalFlowNet()
         self.mv_codec = Coder2D(name, in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
-        self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels2)
+        self.latent_codec = Coder2D('joint', channels=channels2, noMeasure=noMeasure, downsample=False)
         init_training_params(self)
         self.name = name
         self.channels = channels
@@ -504,14 +504,11 @@ class DCVC(nn.Module):
         self.ctx_refine.cuda(1)
         self.tmp_prior_encoder.cuda(1)
         self.ctx_encoder.cuda(1)
-        self.entropy_bottleneck.cuda(1)
+        self.latent_codec.cuda(1)
         self.ctx_decoder1.cuda(1)
         self.ctx_decoder2.cuda(1)
     
     def forward(self, x_hat_prev, x, hidden_states, RPM_flag, use_psnr=True):
-        if not self.updated and not self.training:
-            self.entropy_bottleneck.update(force=True)
-            
         if not self.noMeasure:
             self.enc_t = [];self.dec_t = []
             
@@ -583,21 +580,7 @@ class DCVC(nn.Module):
         y = self.ctx_encoder(torch.cat((x, context.to(x.device)), axis=1).cuda(1))
         
         # entropy model
-        if not self.noMeasure:
-            y_string,shape = self.entropy_bottleneck.compress_slow(y, prior)
-            y_hat = self.entropy_bottleneck.decompress_slow(y_string, shape, prior)
-            y_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
-            y_act = self.entropy_bottleneck.get_actual_bits(y_string)
-            self.enc_t += [self.entropy_bottleneck.enc_t]
-            self.dec_t += [self.entropy_bottleneck.dec_t]
-        else:
-            y_hat, likelihoods = self.entropy_bottleneck(y, prior, training=self.training)
-            y_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
-            if not self.training:
-                y_string = self.entropy_bottleneck.compress(y)
-                y_act = self.entropy_bottleneck.get_actual_bits(y_string)
-            y_act = y_est
-        y_aux = self.entropy_bottleneck.loss()/self.channels
+        y_hat,_,_,y_act,y_est,y_aux = self.latent_codec(y, prior=prior)
         
         # contextual decoder
         t_0 = time.perf_counter()
@@ -1529,7 +1512,7 @@ class SCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.latent_codec = Coder2D('joint', channels=channels2, noMeasure=noMeasure, downsample=False)
+        self.latent_codec = Coder2D('joint-attn', channels=channels2, noMeasure=noMeasure, downsample=False)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
@@ -1890,7 +1873,7 @@ if __name__ == '__main__':
     test_batch_proc('SPVC')
     test_batch_proc('SCVC')
     test_batch_proc('AE3D')
-    #test_seq_proc('DCVC')
-    #test_seq_proc('DCVC_v2')
+    test_seq_proc('DCVC')
+    test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
     test_seq_proc('RLVC')
