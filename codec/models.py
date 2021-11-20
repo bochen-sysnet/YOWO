@@ -62,8 +62,8 @@ def init_training_params(model):
     
     model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}"
     model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}"
-    model.meters = {'E-FL':AverageMeter();'E-MV':AverageMeter();'E-MC':AverageMeter();'E-RES':AverageMeter();\
-                    'D-MV':AverageMeter();'D-MC':AverageMeter();'D-RES':AverageMeter();'D-REC':AverageMeter()}
+    model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),
+                    'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter()}
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
