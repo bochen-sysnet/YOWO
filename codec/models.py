@@ -55,7 +55,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
             
 def init_training_params(model):
     model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-    model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 1,1,1,1,1
+    model.r_app, model.r_rec, model.r_warp, model.r_mc = 1,1,1,1
     
     model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
     model.I_level = 27 # [37,32,27,22] poor->good quality
@@ -66,12 +66,14 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 10:
-        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,1,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,1,1,1
+    if epoch <= 2:
+        model.r_img, model.r_bpp, model.r_aux = 1,1,1
+        model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,1,1,1
+        model.r_app = 0
     else:
-        model.r_img, model.r_bpp, model.r_flow, model.r_aux = 1,1,0,1
-        model.r_app, model.r_rec, model.r_warp, model.r_mc, model.r_ref_codec = 0,1,0,0,0
+        model.r_img, model.r_bpp, model.r_aux = 1,1,1
+        model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,0,0,0
+        model.r_app = 0
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
@@ -1357,9 +1359,9 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, use_psnr=True):
-        bs, c, h, w = x.size()
-        
         ref_frame = x[:1]
+        
+        bs, c, h, w = x[1:].size()
         
         # init time measurement
         if not self.noMeasure:
@@ -1508,7 +1510,7 @@ class SCVC(nn.Module):
             self.entropy_bottleneck.update(force=True)
             self.updated = True
         # x=[B,C,H,W]: input sequence of frames
-        bs, c, h, w = x.size()
+        bs, c, h, w = x[1:].size()
         
         ref_frame = x[:1]
         
@@ -1666,6 +1668,8 @@ class AE3D(nn.Module):
         if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
             self.updated = True
+            
+        x = x[1:]
             
         if not self.noMeasure:
             self.enc_t = [];self.dec_t = []
