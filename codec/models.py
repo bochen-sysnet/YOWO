@@ -235,6 +235,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
 def parallel_compression(model, _range, cache):
     # we can summarize the result for each index to study error propagation
     # I compression
+    print(_range)
     if not isinstance(_range,range):
         # I frame compression
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][_range].unsqueeze(0), model.I_level)
