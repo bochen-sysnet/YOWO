@@ -830,22 +830,23 @@ def get_estimate_bits(self, likelihoods):
     return bits_est
 
 class Coder2D(nn.Module):
-    def __init__(self, keyword, in_channels=2, channels=128, kernel=3, padding=1, noMeasure=True):
+    def __init__(self, keyword, in_channels=2, channels=128, kernel=3, padding=1, noMeasure=True, downsample=True):
         super(Coder2D, self).__init__()
-        self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
-        self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
-        self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
-        self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, bias=False)
-        self.gdn1 = GDN(channels)
-        self.gdn2 = GDN(channels)
-        self.gdn3 = GDN(channels)
-        self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
-        self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
-        self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
-        self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
-        self.igdn1 = GDN(channels, inverse=True)
-        self.igdn2 = GDN(channels, inverse=True)
-        self.igdn3 = GDN(channels, inverse=True)
+        if downsample:
+            self.enc_conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel, stride=2, padding=padding)
+            self.enc_conv2 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
+            self.enc_conv3 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding)
+            self.enc_conv4 = nn.Conv2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, bias=False)
+            self.gdn1 = GDN(channels)
+            self.gdn2 = GDN(channels)
+            self.gdn3 = GDN(channels)
+            self.dec_conv1 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+            self.dec_conv2 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+            self.dec_conv3 = nn.ConvTranspose2d(channels, channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+            self.dec_conv4 = nn.ConvTranspose2d(channels, in_channels, kernel_size=kernel, stride=2, padding=padding, output_padding=1)
+            self.igdn1 = GDN(channels, inverse=True)
+            self.igdn2 = GDN(channels, inverse=True)
+            self.igdn3 = GDN(channels, inverse=True)
         if keyword in ['MLVC','RLVC','rpm']:
             # for recurrent sequential model
             self.entropy_bottleneck = RecProbModel(channels)
@@ -885,6 +886,7 @@ class Coder2D(nn.Module):
             #self.s_attn_a = Attention(channels)
             #self.s_attn_s = Attention(channels)
             
+        self.downsample = downsample
         self.updated = False
         self.noMeasure = noMeasure
         # include two average meter to measure time
@@ -907,19 +909,22 @@ class Coder2D(nn.Module):
             t_0 = time.perf_counter()
             
         # compress
-        x = self.gdn1(self.enc_conv1(x))
-        x = self.gdn2(self.enc_conv2(x))
-        
-        if self.conv_type == 'rec':
-            x, state_enc = self.enc_lstm(x, state_enc)
-        elif self.conv_type == 'attn':
-            # use attention
-            B,C,H,W = x.size()
-            x = self.s_attn_a(x)
-            x = self.t_attn_a(x)
+        if self.downsample:
+            x = self.gdn1(self.enc_conv1(x))
+            x = self.gdn2(self.enc_conv2(x))
             
-        x = self.gdn3(self.enc_conv3(x))
-        latent = self.enc_conv4(x) # latent optical flow
+            if self.conv_type == 'rec':
+                x, state_enc = self.enc_lstm(x, state_enc)
+            elif self.conv_type == 'attn':
+                # use attention
+                B,C,H,W = x.size()
+                x = self.s_attn_a(x)
+                x = self.t_attn_a(x)
+                
+            x = self.gdn3(self.enc_conv3(x))
+            latent = self.enc_conv4(x) # latent optical flow
+        else:
+            latent = x
         
         # Time measurement: end
         if not self.noMeasure:
@@ -981,19 +986,22 @@ class Coder2D(nn.Module):
             t_0 = time.perf_counter()
             
         # decompress
-        x = self.igdn1(self.dec_conv1(latent_hat))
-        x = self.igdn2(self.dec_conv2(x))
-        
-        if self.conv_type == 'rec':
-            x, state_dec = self.enc_lstm(x, state_dec)
-        elif self.conv_type == 'attn':
-            # use attention
-            B,C,H,W = x.size()
-            x = self.s_attn_s(x)
-            x = self.t_attn_s(x)
+        if self.downsample:
+            x = self.igdn1(self.dec_conv1(latent_hat))
+            x = self.igdn2(self.dec_conv2(x))
             
-        x = self.igdn3(self.dec_conv3(x))
-        hat = self.dec_conv4(x)
+            if self.conv_type == 'rec':
+                x, state_dec = self.enc_lstm(x, state_dec)
+            elif self.conv_type == 'attn':
+                # use attention
+                B,C,H,W = x.size()
+                x = self.s_attn_s(x)
+                x = self.t_attn_s(x)
+                
+            x = self.igdn3(self.dec_conv3(x))
+            hat = self.dec_conv4(x)
+        else:
+            hat = latent_hat
         
         # Time measurement: end
         if not self.noMeasure:
@@ -1645,7 +1653,7 @@ class AE3D(nn.Module):
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
-        self.entropy_bottleneck = RecProbModel(32)
+        self.latent_codec = Coder2D('rpm', channels=32, kernel=5, padding=2, noMeasure=noMeasure, downsample=False)
         self.deconv1 = nn.Sequential( 
             nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(128),
@@ -1708,34 +1716,7 @@ class AE3D(nn.Module):
         
         # entropy
         # compress each frame sequentially
-        bits_est = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        bits_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        rpm_hidden = torch.zeros(1,64,h//8,w//8).cuda()
-        latent_hat_list = []
-        for frame_idx in range(t):
-            latent_i = latent[:,:,frame_idx,:,:]
-            self.entropy_bottleneck.set_RPM(frame_idx>=1)
-            if self.noMeasure:
-                latent_i_hat, likelihoods, rpm_hidden = self.entropy_bottleneck(latent_i, rpm_hidden, training=self.training)
-            
-                # calculate bpp (estimated) if it is training else it will be set to 0
-                bits_est += self.entropy_bottleneck.get_estimate_bits(likelihoods)
-            
-                # calculate bpp (actual)
-                if not self.training:
-                    latent_i_string = self.entropy_bottleneck.compress(latent_i)
-                    bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
-                else:
-                    bits_act = bits_est
-            else:
-                latent_i_string, _ = self.entropy_bottleneck.compress_slow(latent_i,rpm_hidden)
-                latent_i_hat, rpm_hidden = self.entropy_bottleneck.decompress_slow(latent_i_string, latent_i.size()[-2:], rpm_hidden)
-                bits_act += self.entropy_bottleneck.get_actual_bits(latent_i_string)
-                self.enc_t += [self.entropy_bottleneck.enc_t]
-                self.dec_t += [self.entropy_bottleneck.dec_t]
-            self.entropy_bottleneck.set_prior(latent_i)
-            latent_hat_list.append(latent_i_hat)
-        latent_hat = torch.stack(latent_hat_list, dim=2)
+        latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         
         # decoder
         t_0 = time.perf_counter()
@@ -1748,15 +1729,6 @@ class AE3D(nn.Module):
         # reshape
         x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
-        
-        # estimated bits
-        bpp_est = bits_est/(h * w * t)
-        
-        # actual bits
-        bpp_act = bits_act/(h * w * t)
-        
-        # auxilary loss
-        aux_loss = self.entropy_bottleneck.loss()/32
         
         # calculate metrics/loss
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
@@ -1828,7 +1800,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,10))
+    train_iter = tqdm(range(0,2))
     model.eval()
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
@@ -1915,7 +1887,7 @@ if __name__ == '__main__':
     test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
     #test_batch_proc('SCVC')
-    #test_batch_proc('AE3D')
+    test_batch_proc('AE3D')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
