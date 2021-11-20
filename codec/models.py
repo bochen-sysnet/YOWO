@@ -32,7 +32,7 @@ def get_codec_model(name):
         model_codec = LearnedVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
-    elif name in ['SPVC']:
+    elif name in ['SPVC','SPVC_v2']:
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
@@ -50,7 +50,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D']:
+    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2']:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
@@ -66,7 +66,7 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 2:
+    if epoch <= 10:
         model.r_img, model.r_bpp, model.r_aux = 1,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,1,1,1
         model.r_app = 0
@@ -837,7 +837,7 @@ class Coder2D(nn.Module):
         self.igdn1 = GDN(channels, inverse=True)
         self.igdn2 = GDN(channels, inverse=True)
         self.igdn3 = GDN(channels, inverse=True)
-        if keyword in ['MLVC','RLVC']:
+        if keyword in ['MLVC','RLVC','rpm']:
             # for recurrent sequential model
             self.entropy_bottleneck = RecProbModel(channels)
             self.conv_type = 'rec'
@@ -1345,8 +1345,12 @@ class SPVC(nn.Module):
         device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
-        self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
+        if self.name == 'SPVC':
+            self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+            self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
+        elif self.name == 'SPVC_v2':
+            self.mv_codec = Coder2D('rpm', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+            self.res_codec = Coder2D('rpm', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
@@ -1375,7 +1379,10 @@ class SPVC(nn.Module):
             self.enc_t += [time.perf_counter() - t_0]
         
         # BATCH:compress optical flow
-        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
+        if self.name == 'SPVC':
+            mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
+        elif self.name == 'SPVC_v2':
+            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors.cuda(1))
         if not self.noMeasure:
             self.enc_t += [self.mv_codec.enc_t]
             self.dec_t += [self.mv_codec.dec_t]
@@ -1401,7 +1408,10 @@ class SPVC(nn.Module):
         
         # BATCH:compress residual
         res_tensors = x[1:].to(MC_frames.device) - MC_frames
-        res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
+        if self.name == 'SPVC':
+            res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
+        elif self.name == 'SPVC_v2':
+            res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         if not self.noMeasure:
             self.enc_t += [self.res_codec.enc_t]
             self.dec_t += [self.res_codec.dec_t]
@@ -1523,7 +1533,7 @@ class SCVC(nn.Module):
         
         # BATCH:compress optical flow
         t_0 = time.perf_counter()
-        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
+        mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
         t_mv = time.perf_counter() - t_0
         #print('MV entropy:',t_mv)
         
