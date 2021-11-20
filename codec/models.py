@@ -235,11 +235,9 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
 def parallel_compression(model, _range, cache):
     # we can summarize the result for each index to study error propagation
     # I compression
-    print(_range)
     if not isinstance(_range,range):
         # I frame compression
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][_range].unsqueeze(0), model.I_level)
-        print('I',bpp_est)
         cache['clip'][_range] = x_hat.squeeze(0)
         cache['img_loss'][_range] = img_loss
         cache['aux'][_range] = aux_loss
@@ -257,7 +255,6 @@ def parallel_compression(model, _range, cache):
     x = torch.stack(img_list, dim=0)
     n = len(idx_list)
     x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-    print('p',bpp_est)
     for pos,j in enumerate(idx_list):
         cache['clip'][j] = x_hat[pos].squeeze(0).detach()
         cache['img_loss'][j] = img_loss
@@ -662,7 +659,8 @@ def I_compression(Y1_raw, I_level):
     Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
     psnr = PSNR(Y1_raw, Y1_com)
     msssim = MSSSIM(Y1_raw, Y1_com)
-    bpp_est = loss = aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+    bpp_est = bpp_act.cuda(0)
+    loss = aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
     return Y1_com, bpp_est, loss, aux_loss, bpp_act, psnr, msssim
     
 def load_state_dict_only(model, state_dict, keyword):
@@ -1418,7 +1416,7 @@ class SPVC(nn.Module):
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        print(float(mv_est),float(res_est),h,w,bs)
+        #print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
         # calculate metrics/loss
