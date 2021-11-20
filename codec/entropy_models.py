@@ -105,7 +105,6 @@ class RecProbModel(CompressionModel):
         t_0 = time.perf_counter()
         if self.RPM_flag:
             assert self.prior_latent is not None, 'prior latent is none!'
-            print(self.prior_latent.size(),rpm_hidden.size())
             sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
             sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
             sigma = torch.exp(sigma)/10
