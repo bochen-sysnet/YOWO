@@ -266,6 +266,8 @@ def parallel_compression(model, _range, cache):
         cache['end_of_batch'][j] = True if pos == n-1 else False
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
+    # bi: fP=bP=6
+    # uni:fP=12,bp=0
     # input: 
     # - idx: the frame index of interest
     # output: 
@@ -1806,7 +1808,7 @@ def test_batch_proc(name = 'SPVC'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    if name == 'SPVC':
+    if name in ['SPVC','SPVC_v2']:
         model = SPVC(name,channels,noMeasure=False)
     elif name == 'SCVC':
         model = SCVC(name,channels,noMeasure=False)
@@ -1901,10 +1903,12 @@ def test_seq_proc(name='RLVC'):
 # hope forward coding works good enough, then we dont have to implement ...
     
 if __name__ == '__main__':
+    test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
+    exit(0)
     test_batch_proc('SCVC')
     test_batch_proc('AE3D')
     test_seq_proc('RLVC')
     test_seq_proc('DCVC')
-    #test_seq_proc('DCVC_v2')
+    test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
