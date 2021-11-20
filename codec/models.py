@@ -60,6 +60,9 @@ def init_training_params(model):
     model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
     model.I_level = 27 # [37,32,27,22] poor->good quality
     
+    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}"
+    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}"
+    
 def update_training(model, epoch):
     # warmup with all gamma set to 1
     # optimize for bpp,img loss and focus only reconstruction loss
@@ -414,7 +417,9 @@ class LearnedVideoCodecs(nn.Module):
         # hidden states
         hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
         if not self.noMeasure:
-            print(np.sum(self.enc_t),np.sum(self.dec_t),self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t),np.sum(self.dec_t))
+            print(self.fmt_enc_str.format(*self.enc_t)
+            print(self.fmt_dec_str.format(*self.dec_t)
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
@@ -1441,7 +1446,9 @@ class SPVC(nn.Module):
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
         if not self.noMeasure:
-            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs)
+            print(self.fmt_enc_str.format(*self.enc_t)
+            print(self.fmt_dec_str.format(*self.dec_t)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
