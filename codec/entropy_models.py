@@ -292,7 +292,7 @@ class MeanScaleHyperPriors(CompressionModel):
         self.sigma, self.mu = torch.split(gaussian_params, self.channels, dim=1) # for fast compression
         # post-process sigma to stablize training
         self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
-        self.sigma = torch.exp(self.sigma)*10
+        self.sigma = torch.exp(self.sigma)
         x_hat,x_likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
         return x_hat, (x_likelihood,z_likelihood)
         
