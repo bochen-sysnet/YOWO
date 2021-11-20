@@ -1847,6 +1847,7 @@ def test_batch_proc(name = 'SPVC'):
             f"bits_act: {float(bpp_act):.2f}. "
             f"aux_loss: {float(aux_loss):.2f}. "
             f"duration: {timer.avg:.3f}. ")
+    showTimer(model)
             
 def test_seq_proc(name='RLVC'):
     print('test',name)
@@ -1891,6 +1892,7 @@ def test_seq_proc(name='RLVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"psnr: {float(p):.2f}. "
             f"duration: {timer.avg:.3f}. ")
+    showTimer(model)
             
 # integrate all codec models
 # measure the speed of all codecs
