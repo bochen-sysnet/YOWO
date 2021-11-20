@@ -208,9 +208,8 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         _range, cache['max_seen'], cache['max_proc'] = index2range(frame_idx-1, len(cache['clip']), startNewClip)
         parallel_compression(model, _range, cache)
         
-def index2range(i, clip_len, startNewClip):
+def index2range(i, clip_len, startNewClip, bs=4):
     GOP = 13
-    bs = 4
     pos = i%GOP
     if pos == 0 or startNewClip:
         # compress as I frame
@@ -240,6 +239,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['psnr'][i] = psnr
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
+    cache['end_of_batch'][i] = True
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
@@ -276,7 +276,7 @@ def parallel_compression(model, _range, cache):
         cache['bpp_act'][j] = bpp_act.cpu()
         cache['end_of_batch'][j] = True if pos == n-1 else False
             
-def index2GOP(i, clip_len, fP = 6, bP = 6):
+def index2GOP(i, clip_len, fP = 12, bP = 0):
     # bi: fP=bP=6
     # uni:fP=12,bp=0
     # input: 
