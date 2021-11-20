@@ -872,6 +872,7 @@ class Coder2D(nn.Module):
             self.entropy_type = 'base'
         elif keyword in ['joint']:
             self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels,useAttention=True)
+            self.conv_type = 'none'
             self.entropy_type = 'joint'
         else:
             print('Bottleneck not implemented for:',keyword)
