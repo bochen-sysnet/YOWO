@@ -853,8 +853,12 @@ class Coder2D(nn.Module):
             self.entropy_bottleneck = EntropyBottleneck(channels)
             self.conv_type = 'non-rec'
             self.entropy_type = 'base'
-        elif keyword in ['joint']:
+        elif keyword == 'joint-attn':
             self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels,useAttention=True)
+            self.conv_type = 'none'
+            self.entropy_type = 'joint'
+        elif keyword == 'joint':
+            self.entropy_bottleneck = JointAutoregressiveHierarchicalPriors(channels,useAttention=False)
             self.conv_type = 'none'
             self.entropy_type = 'joint'
         else:
