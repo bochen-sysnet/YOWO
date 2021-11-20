@@ -1821,7 +1821,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,2))
+    train_iter = tqdm(range(0,5))
     model.eval()
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
@@ -1905,10 +1905,10 @@ def test_seq_proc(name='RLVC'):
 if __name__ == '__main__':
     test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
+    test_seq_proc('RLVC')
     exit(0)
     test_batch_proc('SCVC')
     test_batch_proc('AE3D')
-    test_seq_proc('RLVC')
     test_seq_proc('DCVC')
     test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
