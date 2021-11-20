@@ -1529,7 +1529,7 @@ class SCVC(nn.Module):
                                         GDN(channels),
                                         nn.Conv2d(channels, channels2, kernel_size=5, stride=2, padding=2)
                                         )
-        self.latent_codec = Coder2D('joint', channels=channels, noMeasure=noMeasure, downsample=False)
+        self.latent_codec = Coder2D('joint', channels=channels2, noMeasure=noMeasure, downsample=False)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
