@@ -57,7 +57,7 @@ class RecProbModel(CompressionModel):
             rpm_in = self.prior_latent
             self.sigma, self.mu, rpm_hidden = self.RPM(rpm_in, rpm_hidden.to(x.device))
             self.sigma = torch.maximum(self.sigma, torch.FloatTensor([-7.0]).to(x.device))
-            self.sigma = torch.exp(self.sigma)/10
+            self.sigma = torch.exp(self.sigma)
             x_hat,likelihood = self.gaussian_conditional(x, self.sigma, means=self.mu, training=training)
             rpm_hidden = rpm_hidden
         else:
@@ -107,7 +107,7 @@ class RecProbModel(CompressionModel):
             assert self.prior_latent is not None, 'prior latent is none!'
             sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
             sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
-            sigma = torch.exp(sigma)/10
+            sigma = torch.exp(sigma)
             indexes = self.gaussian_conditional.build_indexes(sigma)
             string = self.gaussian_conditional.compress(x, indexes, means=mu)
         else:
@@ -121,7 +121,7 @@ class RecProbModel(CompressionModel):
             assert self.prior_latent is not None, 'prior latent is none!'
             sigma, mu, rpm_hidden = self.RPM(self.prior_latent, rpm_hidden.to(self.prior_latent.device))
             sigma = torch.maximum(sigma, torch.FloatTensor([-7.0]).to(sigma.device))
-            sigma = torch.exp(sigma)/10
+            sigma = torch.exp(sigma)
             indexes = self.gaussian_conditional.build_indexes(sigma)
             x_hat = self.gaussian_conditional.decompress(string, indexes, means=mu)
         else:
