@@ -173,6 +173,7 @@ def compress_video_sequential(model, frame_idx, cache, startNewClip):
         cache['msssim'] = {}
         cache['hidden'] = None
         cache['max_proc'] = -1
+        cache['end_of_batch'] = {}
         # the first frame to be compressed in a video
     assert frame_idx>=1, 'Frame index less than 1'
     if cache['max_proc'] >= frame_idx-1:
