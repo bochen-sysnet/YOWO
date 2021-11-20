@@ -1713,6 +1713,7 @@ class AE3D(nn.Module):
         
         # entropy
         # compress each frame sequentially
+        print(latent.size())
         latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         
         # decoder
