@@ -1595,7 +1595,7 @@ class SCVC(nn.Module):
         
         # entropy model
         t_0 = time.perf_counter()
-        y_hat,y_act,y_est,y_aux = self.latent_codec(y, prior=prior)
+        y_hat,_,_,y_act,y_est,y_aux = self.latent_codec(y, prior=prior)
         t_y = time.perf_counter() - t_0
         #print('Y entropy:',t_y)
         
