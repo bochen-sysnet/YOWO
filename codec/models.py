@@ -252,7 +252,7 @@ def parallel_compression(model, ranges, cache):
     if len(ranges) == 2:
         ranges[1] = [I_frame_idx] + ranges[1]
     
-    # P compression
+    # P compression, not including I frame
     for _range in ranges:
         img_list = [cache['clip'][k] for k in _range]
         idx_list = _range[1:]
@@ -269,14 +269,8 @@ def parallel_compression(model, ranges, cache):
             cache['msssim'][j] = msssim[pos]
             cache['bpp_act'][j] = bpp_act.cpu()
             cache['end_of_batch'][j] = False
-            
-    # divide into two batches
-    if len(ranges)==2:
-        cache['end_of_batch'][ranges[0][1]] = True
-        cache['end_of_batch'][ranges[1][-1]] = True
-    else:
-        cache['end_of_batch'][ranges[0][-1]] = True
-    print(cache['end_of_batch'])
+        eob_idx = max(idx_list)
+        cache['end_of_batch'][eob_idx] = True
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # bi: fP=bP=6
@@ -321,7 +315,6 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
             _range = [j for j in range(mid+1,right+1)]
             ranges += [_range]
     max_seen, max_proc = i, right
-    print(i,clip_len,ranges)
     return ranges, max_seen, max_proc
     
 # DVC,RLVC,MLVC
