@@ -249,6 +249,9 @@ def parallel_compression(model, ranges, cache):
     cache['bpp_act'][I_frame_idx] = bpp_act
     cache['end_of_batch'][I_frame_idx] = True
     
+    if len(ranges) == 2:
+        ranges[1] = [I_frame_idx] + ranges[1]
+    
     # P compression
     for _range in ranges:
         img_list = [cache['clip'][k] for k in _range]
