@@ -257,6 +257,7 @@ def parallel_compression(model, ranges, cache):
         img_list = [cache['clip'][k] for k in _range]
         idx_list = _range[1:]
         n = len(idx_list)
+        print(I_frame_idx,idx_list)
         if n==0:continue
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
@@ -276,6 +277,7 @@ def parallel_compression(model, ranges, cache):
         cache['end_of_batch'][ranges[1][-1]] = True
     else:
         cache['end_of_batch'][ranges[0][-1]] = True
+    print(cache['end_of_batch'])
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # bi: fP=bP=6
