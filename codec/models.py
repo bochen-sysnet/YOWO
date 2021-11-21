@@ -256,8 +256,9 @@ def parallel_compression(model, ranges, cache):
     for _range in ranges:
         img_list = [cache['clip'][k] for k in _range]
         idx_list = _range[1:]
-        x = torch.stack(img_list, dim=0)
         n = len(idx_list)
+        if n==0:continue
+        x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0).detach()
