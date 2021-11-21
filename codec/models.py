@@ -206,19 +206,8 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
-        _range, cache['max_seen'], cache['max_proc'] = index2range(frame_idx-1, len(cache['clip']), startNewClip)
-        parallel_compression(model, _range, cache)
-        
-def index2range(i, clip_len, startNewClip, bs=4):
-    GOP = 13
-    pos = i%GOP
-    if pos == 0 or startNewClip:
-        # compress as I frame
-        return i,i,i
-    else:
-        # minimum of end of clip, end of batch, end of GOP
-        end = min(clip_len-1,i//GOP*GOP+((pos-1)//bs+1)*bs,(i//GOP+1)*GOP-1)
-        return range(i,end+1),i,end
+        ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']))
+        parallel_compression(model, ranges, cache)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
@@ -244,40 +233,48 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
         
-def parallel_compression(model, _range, cache):
+def parallel_compression(model, ranges, cache):
     # we can summarize the result for each index to study error propagation
     # I compression
-    if not isinstance(_range,range):
-        # I frame compression
-        x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][_range].unsqueeze(0), model.I_level)
-        cache['clip'][_range] = x_hat.squeeze(0)
-        cache['img_loss'][_range] = img_loss
-        cache['aux'][_range] = aux_loss
-        cache['bpp_est'][_range] = bpp_est
-        cache['psnr'][_range] = psnr
-        cache['msssim'][_range] = msssim
-        cache['bpp_act'][_range] = bpp_act
-        cache['end_of_batch'][_range] = True
-        return
+    # make it bidirectional?
+    # I frame compression
+    I_frame_idx = ranges[0][0]
+    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][I_frame_idx].unsqueeze(0), model.I_level)
+    cache['clip'][I_frame_idx] = x_hat.squeeze(0)
+    cache['img_loss'][I_frame_idx] = img_loss
+    cache['aux'][I_frame_idx] = aux_loss
+    cache['bpp_est'][I_frame_idx] = bpp_est
+    cache['psnr'][I_frame_idx] = psnr
+    cache['msssim'][I_frame_idx] = msssim
+    cache['bpp_act'][I_frame_idx] = bpp_act
+    cache['end_of_batch'][I_frame_idx] = True
+    
     # P compression
-    img_list = [cache['clip'][_range[0]-1]]; idx_list = []
-    for i in _range:
-        img_list.append(cache['clip'][i])
-        idx_list.append(i)
-    x = torch.stack(img_list, dim=0)
-    n = len(idx_list)
-    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-    for pos,j in enumerate(idx_list):
-        cache['clip'][j] = x_hat[pos].squeeze(0).detach()
-        cache['img_loss'][j] = img_loss
-        cache['aux'][j] = aux_loss/n
-        cache['bpp_est'][j] = bpp_est
-        cache['psnr'][j] = psnr[pos]
-        cache['msssim'][j] = msssim[pos]
-        cache['bpp_act'][j] = bpp_act.cpu()
-        cache['end_of_batch'][j] = True if pos == n-1 else False
+    for _range in ranges:
+        img_list = [cache['clip'][k] for k in _range]
+        idx_list = _range[1:]
+        x = torch.stack(img_list, dim=0)
+        n = len(idx_list)
+        print(I_frame_idx,idx_list)
+        x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
+        for pos,j in enumerate(idx_list):
+            cache['clip'][j] = x_hat[pos].squeeze(0).detach()
+            cache['img_loss'][j] = img_loss
+            cache['aux'][j] = aux_loss/n
+            cache['bpp_est'][j] = bpp_est
+            cache['psnr'][j] = psnr[pos]
+            cache['msssim'][j] = msssim[pos]
+            cache['bpp_act'][j] = bpp_act.cpu()
+            cache['end_of_batch'][j] = False
             
-def index2GOP(i, clip_len, fP = 12, bP = 0):
+    # divide into two batches
+    if len(ranges)==2:
+        cache['end_of_batch'][ranges[0][1]] = True
+        cache['end_of_batch'][ranges[1][-1]] = True
+    else:
+        cache['end_of_batch'][ranges[0][-1]] = True
+            
+def index2GOP(i, clip_len, fP = 6, bP = 6):
     # bi: fP=bP=6
     # uni:fP=12,bp=0
     # input: 
