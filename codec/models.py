@@ -324,20 +324,8 @@ class LearnedVideoCodecs(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
         super(LearnedVideoCodecs, self).__init__()
         self.name = name 
-        device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if name in ['MLVC','RLVC','DVC']:
-            self.image_coder_name = 'bpg' 
-        elif 'RAW' in name:
-            self.image_coder_name = 'raw'
-        else:
-            print('I frame compression not implemented:',name)
-            exit(1)
-        if self.image_coder_name == 'deepcod':
-            self._image_coder = DeepCOD()
-        else:
-            self._image_coder = None
         self.mv_codec = Coder2D(self.name, in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
         self.res_codec = Coder2D(self.name, in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         self.channels = channels
@@ -349,8 +337,6 @@ class LearnedVideoCodecs(nn.Module):
         self.split()
 
     def split(self):
-        if self._image_coder is not None:
-            self._image_coder.cuda(0)
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
