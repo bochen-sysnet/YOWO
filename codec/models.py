@@ -29,13 +29,15 @@ from core.utils import *
 
 def get_codec_model(name):
     if name in ['MLVC','RLVC','DVC','RAW']:
-        model_codec = LearnedVideoCodecs(name)
+        model_codec = IterPredVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
     elif name in ['SPVC','SPVC_v2']:
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
+    elif name in ['SVC']:
+        model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
     elif name in ['x264','x265']:
@@ -50,7 +52,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2']:
+    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2','SVC']:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
@@ -320,9 +322,9 @@ def index2GOP(i, clip_len, fP = 6, bP = 6):
 # DVC,RLVC,MLVC
 # Need to measure time and implement decompression for demo
 # cache should store start/end-of-GOP information for the action detector to stop; test will be based on it
-class LearnedVideoCodecs(nn.Module):
+class IterPredVideoCodecs(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
-        super(LearnedVideoCodecs, self).__init__()
+        super(IterPredVideoCodecs, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
@@ -1369,7 +1371,79 @@ class SVC(nn.Module):
     def forward(self, x, use_psnr=True):
         # input: raw frames=bs+1,c,h,w
         bs, c, h, w = x[1:].size()
+        Y0_com = x[:1]
+        hidden = self.init_hidden(h,w)
+        bpp_est = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        psnr = []
+        msssim = []
+        compressed_frames = []
+        for k in range(bs):
+            Y1_raw = x[k+1:k+2]
+            Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
+                self._process(Y0_com, Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
+            compressed_frames.append(Y1_com)
+            bpp_est += bpp_est_k
+            bpp_act += bpp_act_k
+            img_loss += img_loss_k
+            aux_loss += aux_loss_k
+            psnr += [psnr_k]
+            msssim += [msssim_k]
+        x_hat = torch.stack(compressed_frames, dim=0)
+        return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
+    def _process(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
+        # Y0_com: compressed previous frame, [1,c,h,w]
+        # Y1_raw: uncompressed current frame
+        batch_size, _, Height, Width = Y1_raw.shape
+        # otherwise, it's P frame
+        # hidden states
+        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
+        # estimate optical flow
+        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
+        # compress optical flow
+        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
+        # motion compensation
+        loc = get_grid_locations(batch_size, Height, Width).to(Y0_com.device)
+        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
+        # compress residual
+        res_tensor = Y1_raw.cuda(1) - Y1_MC
+        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
+        # reconstruction
+        Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
+        ##### compute bits
+        # estimated bits
+        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
+        # actual bits
+        bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
+        # auxilary loss
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        # calculate metrics/loss
+        psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
+        msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
+        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
+        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
+        rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
+        img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)
+        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
+        # hidden states
+        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        
+    def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
+        loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
+        return loss
+    
+    def init_hidden(self, h, w):
+        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
+        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
+        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
         
         
 class SPVC(nn.Module):
@@ -1791,6 +1865,8 @@ def test_batch_proc(name = 'SPVC'):
         model = SCVC(name,channels,noMeasure=False)
     elif name == 'AE3D':
         model = AE3D(name,noMeasure=False)
+    elif name == 'SVC':
+        model = SVC(name,channels)
     else:
         print('Not implemented.')
     import torch.optim as optim
@@ -1832,7 +1908,7 @@ def test_seq_proc(name='RLVC'):
     if name == 'DCVC' or name == 'DCVC_v2':
         model = DCVC(name,noMeasure=False)
     else:
-        model = LearnedVideoCodecs(name,noMeasure=False)
+        model = IterPredVideoCodecs(name,noMeasure=False)
     import torch.optim as optim
     from tqdm import tqdm
     parameters = set(p for n, p in model.named_parameters())
@@ -1882,6 +1958,8 @@ def test_seq_proc(name='RLVC'):
 # hope forward coding works good enough, then we dont have to implement ...
     
 if __name__ == '__main__':
+    test_batch_proc('SVC')
+    exit(0)
     test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
     test_batch_proc('SCVC')
