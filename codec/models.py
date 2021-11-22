@@ -1534,26 +1534,26 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
-        bpp_est = bpp_est.repeat(bs,1)
+        bpp_est = bpp_est.repeat(1,bs)
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        bpp_act = bpp_act.repeat(bs,1)
+        bpp_act = bpp_act.repeat(1,bs)
         #print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
-        aux_loss = aux_loss.repeat(bs,1)
+        aux_loss = aux_loss.repeat(1,bs)
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
         msssim = MSSSIM(x[1:], com_frames, use_list=True)
         mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
         warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
         rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
-        flow_loss = (l0+l1+l2+l3+l4).repeat(bs,1).cuda(0)/5*1024
+        flow_loss = (l0+l1+l2+l3+l4).repeat(1,bs).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        print(x.size(),img_loss.size(),rec_loss)
+        print(x.size(),img_loss.size(),rec_loss.size(),flow_loss.size())
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
