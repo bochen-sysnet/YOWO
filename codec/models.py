@@ -223,6 +223,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     else:
         hidden = cache['hidden']
     Y1_com,hidden,bpp_est,img_loss,aux_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
+    print(i,float(bpp_est),float(psnr), float(msssim))
     cache['hidden'] = hidden
     cache['clip'][i] = Y1_com.detach().squeeze(0)
     cache['img_loss'][i] = img_loss
