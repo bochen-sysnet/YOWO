@@ -264,12 +264,12 @@ def parallel_compression(model, ranges, cache):
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0).detach()
-            cache['img_loss'][j] = img_loss
+            cache['img_loss'][j] = img_loss[pos]
             cache['aux'][j] = aux_loss
-            cache['bpp_est'][j] = bpp_est
+            cache['bpp_est'][j] = bpp_est[pos]
             cache['psnr'][j] = psnr[pos]
             cache['msssim'][j] = msssim[pos]
-            cache['bpp_act'][j] = bpp_act.cpu()
+            cache['bpp_act'][j] = bpp_act[pos]
             cache['end_of_batch'][j] = False
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
@@ -681,18 +681,26 @@ def MSSSIM(Y1_raw, Y1_com, use_list=False):
     if not use_list:
         quality = pytorch_msssim.ms_ssim(Y1_raw, Y1_com)
     else:
-        b = Y1_raw.size()[0]
+        bs = Y1_raw.size()[0]
         quality = []
-        for i in range(b):
+        for i in range(bs):
             quality.append(pytorch_msssim.ms_ssim(Y1_raw[i].unsqueeze(0), Y1_com[i].unsqueeze(0)))
     return quality
     
-def calc_loss(Y1_raw, Y1_com, r, use_psnr):
-    if use_psnr:
-        loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*r
+def calc_loss(Y1_raw, Y1_com, r, use_psnr, use_list=False):
+    if not use_list:
+        if use_psnr:
+            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*r
+        else:
+            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
+            loss = r*(1-metrics)
     else:
-        metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-        loss = r*(1-metrics)
+        bs = Y1_raw.size()[0]
+        out = []
+        Y1_com = Y1_com.to(Y1_raw.device)
+        for i in range(bs):
+            out.append(calc_loss(Y1_raw[i:i+1],Y1_com[i:i+1],r, use_psnr, use_list=False))
+        out = torch.FloatTensor(out).to(Y1_raw.device)
     return loss
 
 # pyramid flow estimation
@@ -1373,10 +1381,10 @@ class SVC(nn.Module):
         bs, c, h, w = x[1:].size()
         Y0_com = x[:1]
         hidden = self.init_hidden(h,w)
-        bpp_est = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_est = []
+        img_loss = []
         aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
-        bpp_act = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        bpp_act = []
         psnr = []
         msssim = []
         compressed_frames = []
@@ -1385,17 +1393,14 @@ class SVC(nn.Module):
             Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                 self._process(Y0_com, Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
             compressed_frames.append(Y1_com)
-            bpp_est += bpp_est_k
-            bpp_act += bpp_act_k
-            img_loss += img_loss_k
+            bpp_est += [bpp_est_k]
+            bpp_act += [bpp_act_k]
+            img_loss += [img_loss_k]
             aux_loss += aux_loss_k
             psnr += [psnr_k]
             msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
-        bpp_est /= bs
-        bpp_act /= bs
         aux_loss /= bs
-        img_loss /= bs
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def _process(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
@@ -1506,8 +1511,6 @@ class SPVC(nn.Module):
             warped_frame_list.append(warped_frame)
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         if not self.noMeasure:
             self.meters['E-MC'].update(t_comp)
@@ -1540,6 +1543,8 @@ class SPVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
         msssim = MSSSIM(x[1:], com_frames, use_list=True)
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
         flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
