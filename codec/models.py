@@ -1358,6 +1358,8 @@ class SVC(nn.Module):
         init_training_params(self)
         self.epoch = -1
         self.noMeasure = noMeasure
+        # option 1: use raw frames for flow estimation
+        # option 2: 
         
         # split on multi-gpus
         self.split()
@@ -1373,25 +1375,14 @@ class SVC(nn.Module):
         bs, c, h, w = x[1:].size()
         Y0_com = x[:1]
         hidden = self.init_hidden(h,w)
-        bpp_est = []
-        img_loss = []
-        aux_loss = []
-        bpp_act = []
-        psnr = []
-        msssim = []
-        compressed_frames = []
+        bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];compressed_frames = []
         for k in range(bs):
             Y1_raw = x[k+1:k+2]
             # can replace Y0_com with raw frames
             Y0_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                 self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
             compressed_frames.append(Y0_com)
-            bpp_est += [bpp_est_k]
-            bpp_act += [bpp_act_k]
-            img_loss += [img_loss_k]
-            aux_loss += [aux_loss_k]
-            psnr += [psnr_k]
-            msssim += [msssim_k]
+            bpp_est += [bpp_est_k];bpp_act += [bpp_act_k];img_loss += [img_loss_k];aux_loss += [aux_loss_k];psnr += [psnr_k];msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
@@ -1416,6 +1407,7 @@ class SVC(nn.Module):
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
         # reconstruction
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
+        
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
@@ -1971,7 +1963,6 @@ if __name__ == '__main__':
     test_batch_proc('SVC')
     test_batch_proc('SPVC')
     test_batch_proc('AE3D')
-    exit(0)
     test_batch_proc('SCVC')
     test_seq_proc('DCVC')
     test_seq_proc('DCVC_v2')
