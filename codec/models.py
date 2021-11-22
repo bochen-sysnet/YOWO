@@ -1553,7 +1553,6 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        print(x.size(),img_loss.size(),rec_loss.size(),flow_loss.size())
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
@@ -1900,10 +1899,10 @@ def test_batch_proc(name = 'SPVC'):
         timer.update(d/(batch_size-1))
         # measure end
         
-        img_loss = torch.stack(img_loss,dim=0).mean(dim=0)
-        bpp_act = torch.stack(bpp_act,dim=0).mean(dim=0)
-        bpp_est = torch.stack(bpp_est,dim=0).mean(dim=0)
-        aux_loss = torch.stack(aux_loss,dim=0).mean(dim=0)
+        img_loss = torch.sum(img_loss)
+        bpp_act = torch.sum(bpp_act)
+        bpp_est = torch.sum(bpp_est)
+        aux_loss = torch.sum(aux_loss)
         loss = model.loss(img_loss,bpp_est,aux_loss)
         loss.backward()
         optimizer.step()
