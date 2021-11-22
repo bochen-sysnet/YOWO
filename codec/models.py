@@ -1382,9 +1382,9 @@ class SVC(nn.Module):
         compressed_frames = []
         for k in range(bs):
             Y1_raw = x[k+1:k+2]
-            Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
+            Y0_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                 self._process(Y0_com, Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
-            compressed_frames.append(Y1_com)
+            compressed_frames.append(Y0_com.detach())
             bpp_est += [bpp_est_k]
             bpp_act += [bpp_act_k]
             img_loss += [img_loss_k]
@@ -1406,7 +1406,10 @@ class SVC(nn.Module):
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         # motion compensation
-        Y1_MC,Y1_warp = motion_compensation(self.MC_network,Y0_com,mv_hat)
+        loc = get_grid_locations(batch_size, Height, Width).to(Y0_com.device)
+        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
@@ -1441,7 +1444,6 @@ class SVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        
         
 class SPVC(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
