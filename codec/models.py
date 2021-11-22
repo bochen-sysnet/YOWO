@@ -1905,10 +1905,10 @@ def test_batch_proc(name = 'SPVC'):
         train_iter.set_description(
             f"Batch: {i:4}. "
             f"loss: {float(loss):.2f}. "
-            f"img_loss: {float(img_loss):.2f}. "
-            f"bits_est: {float(bpp_est):.2f}. "
-            f"bits_act: {float(bpp_act):.2f}. "
-            f"aux_loss: {float(aux_loss):.2f}. "
+            f"img_loss: {float(img_loss[0]):.2f}. "
+            f"bits_est: {float(bpp_est[0]):.2f}. "
+            f"bits_act: {float(bpp_act[0]):.2f}. "
+            f"aux_loss: {float(aux_loss[0]):.2f}. "
             f"duration: {timer.avg:.3f}. ")
     showTimer(model)
             
