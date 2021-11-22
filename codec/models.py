@@ -223,7 +223,6 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     else:
         hidden = cache['hidden']
     Y1_com,hidden,bpp_est,img_loss,aux_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
-    print(i,float(bpp_est),float(psnr), float(msssim))
     cache['hidden'] = hidden
     cache['clip'][i] = Y1_com.detach().squeeze(0)
     cache['img_loss'][i] = img_loss
@@ -1385,7 +1384,6 @@ class SVC(nn.Module):
             Y1_raw = x[k+1:k+2]
             Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                 self._process(Y0_com, Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
-            print(k,float(bpp_est_k),float(psnr_k), float(msssim_k))
             compressed_frames.append(Y1_com)
             bpp_est += bpp_est_k
             bpp_act += bpp_act_k
