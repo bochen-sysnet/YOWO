@@ -687,21 +687,12 @@ def MSSSIM(Y1_raw, Y1_com, use_list=False):
             quality.append(pytorch_msssim.ms_ssim(Y1_raw[i].unsqueeze(0), Y1_com[i].unsqueeze(0)))
     return quality
     
-def calc_loss(Y1_raw, Y1_com, r, use_psnr, use_list=False):
-    if not use_list:
-        if use_psnr:
-            loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*r
-        else:
-            metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-            loss = r*(1-metrics)
+def calc_loss(Y1_raw, Y1_com, r, use_psnr):
+    if use_psnr:
+        loss = torch.mean(torch.pow(Y1_raw - Y1_com.to(Y1_raw.device), 2))*r
     else:
-        bs = Y1_raw.size()[0]
-        out = []
-        Y1_com = Y1_com.to(Y1_raw.device)
-        for i in range(bs):
-            out.append(calc_loss(Y1_raw[i:i+1],Y1_com[i:i+1],r, use_psnr, use_list=False))
-        print(out)
-        loss = torch.cat(out,dim=0)
+        metrics = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
+        loss = r*(1-metrics)
     return loss
 
 # pyramid flow estimation
@@ -1546,14 +1537,15 @@ class SPVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
         msssim = MSSSIM(x[1:], com_frames, use_list=True)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
-        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
-        flow_loss = (l0+l1+l2+l3+l4).repeat(bs).cuda(0)/5*1024
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
+        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
+        flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
+        img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
@@ -1695,14 +1687,15 @@ class SCVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
-        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
-        flow_loss = (l0+l1+l2+l3+l4).repeat(bs).cuda(0)/5*1024
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
+        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
+        flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_rec*rec_loss + \
                     self.r_flow*flow_loss
+        img_loss = img_loss.repeat(bs)
         
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
@@ -1803,6 +1796,9 @@ class AE3D(nn.Module):
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
         latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
+        bpp_act = bpp_act.repeat(bs)
+        bpp_est = bpp_est.repeat(bs)
+        aux_loss = aux_loss.repeat(bs)
         
         # decoder
         t_0 = time.perf_counter()
@@ -1821,7 +1817,8 @@ class AE3D(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         
         # calculate img loss
-        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr, use_list=True)
+        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        img_loss = img_loss.repeat(bs)
         
         if not self.noMeasure:
             print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
@@ -1973,9 +1970,9 @@ def test_seq_proc(name='RLVC'):
 if __name__ == '__main__':
     test_batch_proc('SVC')
     test_batch_proc('SPVC')
+    test_batch_proc('AE3D')
     exit(0)
     test_batch_proc('SCVC')
-    test_batch_proc('AE3D')
     test_seq_proc('DCVC')
     test_seq_proc('DCVC_v2')
     test_seq_proc('DVC')
