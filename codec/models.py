@@ -700,7 +700,7 @@ def calc_loss(Y1_raw, Y1_com, r, use_psnr, use_list=False):
         Y1_com = Y1_com.to(Y1_raw.device)
         for i in range(bs):
             out.append(calc_loss(Y1_raw[i:i+1],Y1_com[i:i+1],r, use_psnr, use_list=False))
-        out = torch.FloatTensor(out).to(Y1_raw.device)
+        loss = torch.FloatTensor(out).to(Y1_raw.device)
     return loss
 
 # pyramid flow estimation
@@ -1534,8 +1534,10 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
+        bpp_est = bpp_est.repeat(bs,1)
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
+        bpp_act = bpp_act.repeat(bs,1)
         #print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
@@ -1818,7 +1820,7 @@ class AE3D(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         
         # calculate img loss
-        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr, use_list=True)
         
         if not self.noMeasure:
             print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
