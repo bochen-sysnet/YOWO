@@ -265,7 +265,7 @@ def parallel_compression(model, ranges, cache):
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0).detach()
             cache['img_loss'][j] = img_loss[pos]
-            cache['aux'][j] = aux_loss
+            cache['aux'][j] = aux_loss[pos]
             cache['bpp_est'][j] = bpp_est[pos]
             cache['psnr'][j] = psnr[pos]
             cache['msssim'][j] = msssim[pos]
@@ -1383,7 +1383,7 @@ class SVC(nn.Module):
         hidden = self.init_hidden(h,w)
         bpp_est = []
         img_loss = []
-        aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        aux_loss = []
         bpp_act = []
         psnr = []
         msssim = []
@@ -1400,7 +1400,6 @@ class SVC(nn.Module):
             psnr += [psnr_k]
             msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
-        aux_loss /= bs
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def _process(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
@@ -1444,7 +1443,6 @@ class SVC(nn.Module):
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        print(pix_loss, bpp_loss, aux_loss)
         loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         return loss
     
@@ -1541,6 +1539,7 @@ class SPVC(nn.Module):
         #print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
+        aux_loss = aux_loss.repeat(bs,1)
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
         msssim = MSSSIM(x[1:], com_frames, use_list=True)
