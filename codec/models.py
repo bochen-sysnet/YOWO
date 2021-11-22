@@ -1384,6 +1384,7 @@ class SVC(nn.Module):
             Y1_raw = x[k+1:k+2]
             Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                 self._process(Y0_com, Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
+            print(k,float(bpp_est_k),float(psnr_k), float(msssim_k))
             compressed_frames.append(Y1_com)
             bpp_est += bpp_est_k
             bpp_act += bpp_act_k
