@@ -1897,6 +1897,9 @@ def test_batch_proc(name = 'SPVC'):
         timer.update(d/(batch_size-1))
         # measure end
         
+        img_loss = torch.stack(img_loss,dim=0).mean(dim=0)
+        bpp_est = torch.stack(bpp_est,dim=0).mean(dim=0)
+        aux_loss = torch.stack(aux_loss,dim=0).mean(dim=0)
         loss = model.loss(img_loss,bpp_est,aux_loss)
         loss.backward()
         optimizer.step()
