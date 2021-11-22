@@ -1443,7 +1443,6 @@ class SVC(nn.Module):
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        print(pix_loss, bpp_loss, aux_loss)
         loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         return loss
     
@@ -1899,12 +1898,7 @@ def test_batch_proc(name = 'SPVC'):
         d = time.perf_counter() - t_0
         timer.update(d/(batch_size-1))
         # measure end
-        
-        img_loss = torch.sum(torch.FloatTensor(img_loss))
-        bpp_act = torch.sum(torch.FloatTensor(bpp_act))
-        bpp_est = torch.sum(torch.FloatTensor(bpp_est))
-        aux_loss = torch.sum(torch.FloatTensor(aux_loss))
-        loss = model.loss(img_loss,bpp_est,aux_loss)
+        loss = model.loss(img_loss[0],bpp_est[0],aux_loss[0])
         loss.backward()
         optimizer.step()
         
