@@ -1970,9 +1970,8 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     test_batch_proc('SVC')
-    exit(0)
-    test_batch_proc('SPVC_v2')
     test_batch_proc('SPVC')
+    exit(0)
     test_batch_proc('SCVC')
     test_batch_proc('AE3D')
     test_seq_proc('DCVC')
