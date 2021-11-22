@@ -1443,6 +1443,7 @@ class SVC(nn.Module):
         return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
+        print(pix_loss, bpp_loss, aux_loss)
         loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         return loss
     
