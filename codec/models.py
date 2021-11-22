@@ -700,7 +700,7 @@ def calc_loss(Y1_raw, Y1_com, r, use_psnr, use_list=False):
         Y1_com = Y1_com.to(Y1_raw.device)
         for i in range(bs):
             out.append(calc_loss(Y1_raw[i:i+1],Y1_com[i:i+1],r, use_psnr, use_list=False))
-        loss = torch.FloatTensor(out).to(Y1_raw.device)
+        loss = torch.cat(out,dim=0)
     return loss
 
 # pyramid flow estimation
@@ -1697,7 +1697,7 @@ class SCVC(nn.Module):
         mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
         warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
         rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
-        flow_loss = (l0+l1+l2+l3+l4).repeat(bs,1).cuda(0)/5*1024
+        flow_loss = (l0+l1+l2+l3+l4).repeat(bs).cuda(0)/5*1024
         img_loss = self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_rec*rec_loss + \
