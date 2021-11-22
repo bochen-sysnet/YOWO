@@ -269,7 +269,7 @@ def parallel_compression(model, ranges, cache):
             cache['bpp_est'][j] = bpp_est[pos]
             cache['psnr'][j] = psnr[pos]
             cache['msssim'][j] = msssim[pos]
-            cache['bpp_act'][j] = bpp_act[pos]
+            cache['bpp_act'][j] = bpp_act[pos].cpu()
             cache['end_of_batch'][j] = False
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
@@ -1543,10 +1543,10 @@ class SPVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
         msssim = MSSSIM(x[1:], com_frames, use_list=True)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
-        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
-        flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
+        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
+        flow_loss = (l0+l1+l2+l3+l4).repeat(bs,1).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
@@ -1655,8 +1655,6 @@ class SCVC(nn.Module):
             warped_frame_list.append(warped_frame)
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
         t_comp = time.perf_counter() - t_0
         #print('Compensation:',t_comp)
         
@@ -1694,10 +1692,14 @@ class SCVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
-        rec_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
+        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr, use_list=True)
+        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr, use_list=True)
+        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr, use_list=True)
+        flow_loss = (l0+l1+l2+l3+l4).repeat(bs,1).cuda(0)/5*1024
         img_loss = self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
-                    self.r_rec*rec_loss
+                    self.r_rec*rec_loss + \
+                    self.r_flow*flow_loss
         
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
