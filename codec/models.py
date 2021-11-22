@@ -1371,28 +1371,31 @@ class SVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, use_psnr=True):
-        # input: raw frames=bs+1,c,h,w
+        return self._seq_process(x, use_psnr)
+        
+    def _seq_process(self, x, use_psnr=True): 
+        # input: raw frames=bs+1,c,h,w 
         bs, c, h, w = x[1:].size()
         Y0_com = x[:1]
-        hidden = self.init_hidden(h,w)
+        self.hidden = self.init_hidden(h,w)
         bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];compressed_frames = []
         for k in range(bs):
             Y1_raw = x[k+1:k+2]
             # can replace Y0_com with raw frames
-            Y0_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
-                self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
+            Y0_com, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
+                self._process(Y0_com.detach(), Y1_raw, RPM_flag=(k>0), use_psnr=use_psnr)
             compressed_frames.append(Y0_com)
             bpp_est += [bpp_est_k];bpp_act += [bpp_act_k];img_loss += [img_loss_k];aux_loss += [aux_loss_k];psnr += [psnr_k];msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
-    def _process(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
+    def _process(self, Y0_com, Y1_raw, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame, [1,c,h,w]
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
         # otherwise, it's P frame
         # hidden states
-        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden_states
+        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = self.hidden
         # estimate optical flow
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
         # compress optical flow
@@ -1421,11 +1424,11 @@ class SVC(nn.Module):
         warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
         mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
         rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
-        img_loss = (self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss)
-        img_loss += (l0+l1+l2+l3+l4)/5*1024*self.r_flow
+        flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
+        img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
         # hidden states
-        hidden_states = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), hidden_states, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        self.hidden = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        return Y1_com.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
@@ -1962,9 +1965,9 @@ def test_seq_proc(name='RLVC'):
 if __name__ == '__main__':
     test_batch_proc('SVC')
     test_batch_proc('SPVC')
-    test_batch_proc('AE3D')
+    #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
-    test_seq_proc('DVC')
-    test_seq_proc('RLVC')
+    #test_seq_proc('DVC')
+    #test_seq_proc('RLVC')
