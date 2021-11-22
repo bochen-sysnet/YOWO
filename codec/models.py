@@ -1406,10 +1406,7 @@ class SVC(nn.Module):
         # compress optical flow
         mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
         # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).to(Y0_com.device)
-        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
+        Y1_MC,Y1_warp = motion_compensation(self.MC_network,Y0_com,mv_hat)
         # compress residual
         res_tensor = Y1_raw.cuda(1) - Y1_MC
         res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
