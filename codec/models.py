@@ -265,7 +265,7 @@ def parallel_compression(model, ranges, cache):
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0).detach()
             cache['img_loss'][j] = img_loss
-            cache['aux'][j] = aux_loss/n
+            cache['aux'][j] = aux_loss
             cache['bpp_est'][j] = bpp_est
             cache['psnr'][j] = psnr[pos]
             cache['msssim'][j] = msssim[pos]
@@ -1392,6 +1392,10 @@ class SVC(nn.Module):
             psnr += [psnr_k]
             msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
+        bpp_est /= bs
+        bpp_act /= bs
+        aux_loss /= bs
+        img_loss /= bs
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def _process(self, Y0_com, Y1_raw, hidden_states, RPM_flag, use_psnr=True):
