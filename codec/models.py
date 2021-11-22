@@ -1396,7 +1396,7 @@ class SVC(nn.Module):
             bpp_est += [bpp_est_k]
             bpp_act += [bpp_act_k]
             img_loss += [img_loss_k]
-            aux_loss += aux_loss_k
+            aux_loss += [aux_loss_k]
             psnr += [psnr_k]
             msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
