@@ -700,6 +700,7 @@ def calc_loss(Y1_raw, Y1_com, r, use_psnr, use_list=False):
         Y1_com = Y1_com.to(Y1_raw.device)
         for i in range(bs):
             out.append(calc_loss(Y1_raw[i:i+1],Y1_com[i:i+1],r, use_psnr, use_list=False))
+        print(out)
         loss = torch.cat(out,dim=0)
     return loss
 
