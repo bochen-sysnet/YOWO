@@ -1343,12 +1343,39 @@ def motion_compensation(mc_model,x,motion):
     MC_input = torch.cat((motion, x.to(motion.device), warped_frames), axis=1)
     MC_frames = mc_model(MC_input)
     return MC_frames,warped_frames
+    
+class SVC(nn.Module):
+    def __init__(self, name, channels=128, noMeasure=True):
+        super(SVC, self).__init__()
+        self.name = name 
+        self.optical_flow = OpticalFlowNet()
+        self.MC_network = MCNet()
+        self.mv_codec = Coder2D('rpm', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+        self.res_codec = Coder2D('rpm', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
+        self.channels = channels
+        init_training_params(self)
+        self.epoch = -1
+        self.noMeasure = noMeasure
+        
+        # split on multi-gpus
+        self.split()
+
+    def split(self):
+        self.optical_flow.cuda(0)
+        self.mv_codec.cuda(0)
+        self.MC_network.cuda(1)
+        self.res_codec.cuda(1)
+        
+    def forward(self, x, use_psnr=True):
+        # input: raw frames=bs+1,c,h,w
+        bs, c, h, w = x[1:].size()
+        
+        
         
 class SPVC(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
         super(SPVC, self).__init__()
         self.name = name 
-        device = torch.device('cuda')
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
         if self.name == 'SPVC':
