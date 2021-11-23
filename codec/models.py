@@ -98,9 +98,7 @@ def update_training(model, epoch):
 def compress_video_group(model, frame_idx, cache, startNewClip):
     if startNewClip:
         imgByteArr = io.BytesIO()
-        print(cache['clip'][0].size())
-        exit(0)
-        width,height = cache['clip'][0]
+        width,height = 224,224
         fps = 25
         Q = 15#15,19,23,27
         GOP = 13
