@@ -1363,6 +1363,7 @@ class SVC(nn.Module):
         
         # split on multi-gpus
         self.split()
+        self.use_batch = True
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -1371,31 +1372,87 @@ class SVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, use_psnr=True):
-        return self._seq_process(x, use_psnr)
+        if self.use_batch:
+            return self._batch_process(x, use_psnr)
+        else:
+            return self._seq_process(x, use_psnr)
+        
+    def _batch_process(self, x, use_psnr=True):
+        bs, c, h, w = x[1:].size()
+        
+        # flow estimation
+        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
+        
+        # flow compression
+        mv_hat, mv_act, mv_est, mv_aux = self._compress_sequence(mv_tensor)
+        
+        # motion compensation
+        loc = get_grid_locations(bs, h, w).to(x.device)
+        Y1_warp = F.grid_sample(x[:-1], loc + mv_hat.permute(0,2,3,1), align_corners=True)
+        MC_input = torch.cat((mv_hat, x[:-1], Y1_warp), axis=1)
+        Y1_MC = self.MC_network(MC_input.cuda(1))
+        
+        # residual compression
+        res_tensor = x[1:].cuda(1) - Y1_MC
+        res_hat, res_act, res_est, res_aux = self._compress_sequence(mv_tensor)
+        
+        # reconstruction
+        x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1)
+        
+        # estimated bits
+        bpp_est = (mv_est + res_est.cuda(0))/(h * w * bs)
+        # actual bits
+        bpp_act = (mv_act + res_act.to(mv_act.device))/(h * w * bs)
+        # auxilary loss
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        
+        # compute loss and metrics
+        psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
+        msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
+        warp_loss = calc_loss(x[1:], Y1_warp.to(x.device), self.r, use_psnr)
+        mc_loss = calc_loss(x[1:], Y1_MC.to(x.device), self.r, use_psnr)
+        rec_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
+        flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
+        img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
+        
+        return x_hat, bpp_est.repeat(bs), img_loss.repeat(bs), aux_loss.repeat(bs), bpp_act.repeat(bs), psnr, msssim
+        
+    def _compress_sequence(self, mv_tensor):
+        bs,_,h,w = mv_tensor.size()
+        rae_mv_hidden, _, rpm_mv_hidden, _ = self.init_hidden(h,w)
+        mv_hat=[]
+        mv_act=torch.FloatTensor([0]).squeeze(0).cuda()
+        mv_est=torch.FloatTensor([0]).squeeze(0).cuda()
+        mv_aux=torch.FloatTensor([0]).squeeze(0).cuda()
+        for k in range(bs):
+            mv_hat_k,rae_mv_hidden,rpm_mv_hidden,mv_act_k,mv_est_k,mv_aux_k = self.mv_codec(mv_tensor[k:k+1], rae_mv_hidden, rpm_mv_hidden, RPM_flag=(k>0))
+            mv_hat += [mv_hat_k];mv_act += mv_act_k.cuda();mv_est += mv_est_k.cuda();mv_aux += mv_aux_k.cuda()
+        mv_hat = torch.cat(mv_hat, dim=0)
+        return mv_hat, mv_act, mv_est, mv_aux
         
     def _seq_process(self, x, use_psnr=True): 
         # input: raw frames=bs+1,c,h,w 
         bs, c, h, w = x[1:].size()
         Y0_com = x[:1]
-        self.hidden = self.init_hidden(h,w)
+        hidden = self.init_hidden(h,w)
         bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];compressed_frames = []
         for k in range(bs):
             Y1_raw = x[k+1:k+2]
             # can replace Y0_com with raw frames
-            Y0_com, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
-                self._process(Y0_com.detach(), Y1_raw, RPM_flag=(k>0), use_psnr=use_psnr)
+            Y0_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
+                self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
             compressed_frames.append(Y0_com)
             bpp_est += [bpp_est_k];bpp_act += [bpp_act_k];img_loss += [img_loss_k];aux_loss += [aux_loss_k];psnr += [psnr_k];msssim += [msssim_k]
         x_hat = torch.stack(compressed_frames, dim=0)
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
-    def _process(self, Y0_com, Y1_raw, RPM_flag, use_psnr=True):
+    def _process(self, Y0_com, Y1_raw, hidden, RPM_flag, use_psnr=True):
         # Y0_com: compressed previous frame, [1,c,h,w]
         # Y1_raw: uncompressed current frame
         batch_size, _, Height, Width = Y1_raw.shape
         # otherwise, it's P frame
         # hidden states
-        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = self.hidden
+        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden
         # estimate optical flow
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
         # compress optical flow
@@ -1427,8 +1484,8 @@ class SVC(nn.Module):
         flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
         # hidden states
-        self.hidden = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        hidden = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
+        return Y1_com.cuda(0), hidden, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
