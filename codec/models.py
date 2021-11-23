@@ -1229,7 +1229,7 @@ class SVC(nn.Module):
                 Y0_com = x_hat[start-1]
             for k in g[start]:
                 if k>bs:continue
-                Y1_raw = x[k+1:k+2]
+                Y1_raw = x[k:k+1]
                 print(start,k,Y0_com.size(),Y1_raw.size())
                 Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                     self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in g[0]), use_psnr=use_psnr)
