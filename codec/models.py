@@ -1217,7 +1217,7 @@ class SVC(nn.Module):
         # input: raw frames=bs+1,c,h,w 
         bs, c, h, w = x[1:].size()
         hidden = self.init_hidden(h,w)
-        bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];x_hat = {}
+        bpp_est = {};img_loss = {};aux_loss = {};bpp_act = {};psnr = {};msssim = {};x_hat = {}
         # graph-based compression 
         g = generate_graph('3layers')
         start = 0
