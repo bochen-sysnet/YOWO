@@ -115,7 +115,6 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
         raw_clip = cache['clip']
         for img in raw_clip:
-            print(img.size())
             process.stdin.write(np.array(img).tobytes())
         # Close and flush stdin
         process.stdin.close()
