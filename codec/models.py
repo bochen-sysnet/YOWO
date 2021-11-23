@@ -100,7 +100,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         imgByteArr = io.BytesIO()
         width,height = 224,224
         fps = 25
-        Q = int(model.name[5:]) # 23#15,19,23,27
+        Q = 23#15,19,23,27
         GOP = 13
         output_filename = 'tmp/videostreams/output.mp4'
         if 'x265' in model.name:
@@ -110,7 +110,6 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         else:
             print('Codec not supported')
             exit(1)
-        print(cmd)
         # bgr24, rgb24, rgb?
         #process = sp.Popen(shlex.split(f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec {libname} -pix_fmt yuv420p -crf 24 {output_filename}'), stdin=sp.PIPE)
         process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
