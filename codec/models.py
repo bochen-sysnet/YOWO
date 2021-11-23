@@ -148,9 +148,8 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         cache['aux'] = {}
         bpp = video_size*1.0/len(clip)/(height*width)
         for i in range(frame_idx-1,len(clip)):
-            Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda()
-            Y1_com = clip[i]
-            print(Y1_raw.size(),Y1_com.size())
+            Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda().unsqueeze(0)
+            Y1_com = clip[i].unsqueeze(0)
             cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
             cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
             cache['psnr'][i] = PSNR(Y1_raw, Y1_com)
