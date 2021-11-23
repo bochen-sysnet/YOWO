@@ -36,7 +36,7 @@ def get_codec_model(name):
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
-    elif name in ['SVC']:
+    elif 'SVC' in name:
         model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
@@ -52,7 +52,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2','SVC']:
+    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2'] or 'SVC' in model.name:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
@@ -1404,7 +1404,7 @@ class SVC(nn.Module):
         # actual bits
         bpp_act = (mv_act + res_act.to(mv_act.device))/(h * w * bs)
         # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/(2 * bs)
         
         # compute loss and metrics
         psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
@@ -1584,7 +1584,7 @@ class SPVC(nn.Module):
         bpp_act = bpp_act.repeat(bs)
         #print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
-        aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/2
+        aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
         # calculate metrics/loss
         psnr = PSNR(x[1:], com_frames, use_list=True)
