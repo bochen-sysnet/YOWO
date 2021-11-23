@@ -1397,7 +1397,7 @@ class SVC(nn.Module):
         res_hat, res_act, res_est, res_aux = self._compress_sequence(self.res_codec, res_tensor)
         
         # reconstruction
-        x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1)
+        x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1).to(x.device)
         
         # estimated bits
         bpp_est = (mv_est + res_est.cuda(0))/(h * w * bs)
@@ -1407,11 +1407,11 @@ class SVC(nn.Module):
         aux_loss = (mv_aux + res_aux.to(mv_aux.device))/(2 * bs)
         
         # compute loss and metrics
-        psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
-        msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
+        psnr = PSNR(x[1:], x_hat, use_list=True)
+        msssim = MSSSIM(x[1:], x_hat, use_list=True)
         warp_loss = calc_loss(x[1:], Y1_warp.to(x.device), self.r, use_psnr)
         mc_loss = calc_loss(x[1:], Y1_MC.to(x.device), self.r, use_psnr)
-        rec_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
+        rec_loss = calc_loss(x[1:], x_hat, self.r, use_psnr)
         flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
         img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
         
