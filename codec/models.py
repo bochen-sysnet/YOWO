@@ -1146,7 +1146,7 @@ class SVC(nn.Module):
         
         # split on multi-gpus
         self.split()
-        self.use_batch = True
+        self.use_batch = False
 
     def split(self):
         self.optical_flow.cuda(0)
