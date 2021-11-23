@@ -157,6 +157,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
             cache['msssim'][i] = MSSSIM(Y1_raw, Y1_com)
             cache['bpp_act'][i] = torch.FloatTensor([bpp])
             cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
+            cache['end_of_batch'][i] = (i%4==0 or i==(len(clip)-1))
         cache['clip'] = clip
     cache['max_seen'] = frame_idx-1
     return True
