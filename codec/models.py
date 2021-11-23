@@ -100,7 +100,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         imgByteArr = io.BytesIO()
         width,height = 224,224
         fps = 25
-        Q = 23#15,19,23,27
+        Q = int(model.name[5:]) # 23#15,19,23,27
         GOP = 13
         output_filename = 'tmp/videostreams/output.mp4'
         if 'x265' in model.name:
