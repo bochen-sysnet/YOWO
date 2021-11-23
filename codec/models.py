@@ -1224,6 +1224,7 @@ class SVC(nn.Module):
         start = 0
         # BFS
         for start in g:
+            if start>bs:continue
             if start == 0:
                 Y0_com = x[:1]
             else:
