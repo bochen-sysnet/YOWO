@@ -100,7 +100,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         imgByteArr = io.BytesIO()
         width,height = 224,224
         fps = 25
-        Q = 19#15,19,23,27
+        Q = 23#15,19,23,27
         GOP = 13
         output_filename = 'tmp/videostreams/output.mp4'
         if model.name == 'x265':
@@ -1232,7 +1232,6 @@ class SVC(nn.Module):
             for k in g[start]:
                 if k>bs:continue
                 Y1_raw = x[k:k+1]
-                print(start,k,Y0_com.size(),Y1_raw.size())
                 Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                     self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in g[0]), use_psnr=use_psnr)
                 k = k-1
