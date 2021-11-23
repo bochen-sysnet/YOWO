@@ -1726,7 +1726,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 6
+    batch_size = 7
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
