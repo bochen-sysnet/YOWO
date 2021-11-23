@@ -1219,7 +1219,8 @@ class SVC(nn.Module):
         hidden = self.init_hidden(h,w)
         bpp_est = {};img_loss = {};aux_loss = {};bpp_act = {};psnr = {};msssim = {};x_hat = {}
         # graph-based compression 
-        g = generate_graph('3layers')
+        #g = generate_graph('3layers')
+        g = generate_graph('default')
         start = 0
         # BFS
         for start in g:
