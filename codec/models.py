@@ -1216,17 +1216,23 @@ class SVC(nn.Module):
     def _seq_process(self, x, use_psnr=True): 
         # input: raw frames=bs+1,c,h,w 
         bs, c, h, w = x[1:].size()
-        Y0_com = x[:1]
         hidden = self.init_hidden(h,w)
-        bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];compressed_frames = []
-        for k in range(bs):
-            Y1_raw = x[k+1:k+2]
-            # can replace Y0_com with raw frames
-            Y0_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
-                self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k>0), use_psnr=use_psnr)
-            compressed_frames.append(Y0_com)
-            bpp_est += [bpp_est_k];bpp_act += [bpp_act_k];img_loss += [img_loss_k];aux_loss += [aux_loss_k];psnr += [psnr_k];msssim += [msssim_k]
-        x_hat = torch.stack(compressed_frames, dim=0)
+        bpp_est = [];img_loss = [];aux_loss = [];bpp_act = [];psnr = [];msssim = [];x_hat = {}
+        # graph-based compression 
+        g = generate_graph('3layers')
+        start = 0
+        # BFS
+        for start in graph:
+            if start == 0:
+                Y0_com = x[:1]
+            else:
+                Y0_com = x_hat[start-1]
+            for k in graph[start]:
+                Y1_raw = x[k+1:k+2]
+                Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
+                    self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in graph[0]), use_psnr=use_psnr)
+                k = k-1
+                x_hat[k] = Y1_com;bpp_est[k] = bpp_est_k;bpp_act[k] = bpp_act_k;img_loss[k] = img_loss_k;aux_loss[k] = aux_loss_k;psnr[k] = psnr_k;msssim[k] = msssim_k
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
         
     def _process(self, Y0_com, Y1_raw, hidden, RPM_flag, use_psnr=True):
@@ -1280,6 +1286,20 @@ class SVC(nn.Module):
         rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
         return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
+        
+def generate_graph(graph_type='default'):
+    # 7 nodes, 6 edges
+    # the order to iterate graph also matters, leave it now
+    # BFS or DFS?
+    if graph_type == 'default':
+        g = {}
+        for k in range(6):
+            g[k] = [k+1]
+    elif graph_type == '3layers':
+        g = {0:[1,4],1:[2,3],4:[5,6]}
+    else:
+        print('Undefined graph type:',graph_type)
+        exit(1)
         
 class SPVC(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
@@ -1804,7 +1824,7 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     test_batch_proc('SVC')
-    test_batch_proc('SPVC')
+    #test_batch_proc('SPVC')
     #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
