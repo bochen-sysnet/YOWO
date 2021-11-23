@@ -1302,6 +1302,7 @@ def generate_graph(graph_type='default'):
     else:
         print('Undefined graph type:',graph_type)
         exit(1)
+    return g
         
 class SPVC(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
