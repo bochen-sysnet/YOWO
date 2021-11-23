@@ -40,7 +40,7 @@ def get_codec_model(name):
         model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
-    elif name in ['x264','x265']:
+    elif 'x26' in name:
         model_codec = StandardVideoCodecs(name)
     else:
         print('Cannot recognize codec:', name)
@@ -50,7 +50,7 @@ def get_codec_model(name):
 def compress_video(model, frame_idx, cache, startNewClip):
     if model.name in ['MLVC','RLVC','DVC','DCVC','DCVC_v2']:
         compress_video_sequential(model, frame_idx, cache, startNewClip)
-    elif model.name in ['x265','x264']:
+    elif 'x26' in model.name:
         compress_video_group(model, frame_idx, cache, startNewClip)
     elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2'] or 'SVC' in model.name:
         compress_video_batch(model, frame_idx, cache, startNewClip)
@@ -100,12 +100,12 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         imgByteArr = io.BytesIO()
         width,height = 224,224
         fps = 25
-        Q = 23#15,19,23,27
+        Q = int(model.name[5:]) # 23#15,19,23,27
         GOP = 13
         output_filename = 'tmp/videostreams/output.mp4'
-        if model.name == 'x265':
+        if 'x265' in model.name:
             cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx265 -pix_fmt yuv420p -preset veryfast -tune zerolatency -x265-params "crf={Q}:keyint={GOP}:verbose=1" {output_filename}'
-        elif model.name == 'x264':
+        elif 'x264' in model.name:
             cmd = f'/usr/bin/ffmpeg -y -s {width}x{height} -pixel_format bgr24 -f rawvideo -r {fps} -i pipe: -vcodec libx264 -pix_fmt yuv420p -preset veryfast -tune zerolatency -crf {Q} -g {GOP} -bf 2 -b_strategy 0 -sc_threshold 0 -loglevel debug {output_filename}'
         else:
             print('Codec not supported')
