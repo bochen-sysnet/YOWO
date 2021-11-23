@@ -115,6 +115,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         process = sp.Popen(shlex.split(cmd), stdin=sp.PIPE)
         raw_clip = cache['clip']
         for img in raw_clip:
+            print(img.size())
             process.stdin.write(np.array(img).tobytes())
         # Close and flush stdin
         process.stdin.close()
@@ -150,6 +151,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         for i in range(frame_idx-1,len(clip)):
             Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda()
             Y1_com = clip[i]
+            print(Y1_raw.size(),Y1_com.size())
             cache['img_loss'][i] = torch.FloatTensor([0]).squeeze(0).cuda(0)
             cache['bpp_est'][i] = torch.FloatTensor([0]).cuda(0)
             cache['psnr'][i] = PSNR(Y1_raw, Y1_com)
