@@ -1394,7 +1394,7 @@ class SVC(nn.Module):
         
         # residual compression
         res_tensor = x[1:].cuda(1) - Y1_MC
-        res_hat, res_act, res_est, res_aux = self._compress_sequence(mv_tensor)
+        res_hat, res_act, res_est, res_aux = self._compress_sequence(res_tensor)
         
         # reconstruction
         x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1)
