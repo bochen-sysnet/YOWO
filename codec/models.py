@@ -146,6 +146,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
         cache['psnr'] = {}
         cache['msssim'] = {}
         cache['aux'] = {}
+        cache['end_of_batch'] = {}
         bpp = video_size*1.0/len(clip)/(height*width)
         for i in range(frame_idx-1,len(clip)):
             Y1_raw = transforms.ToTensor()(raw_clip[i]).cuda().unsqueeze(0)
@@ -156,6 +157,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
             cache['msssim'][i] = MSSSIM(Y1_raw, Y1_com)
             cache['bpp_act'][i] = torch.FloatTensor([bpp])
             cache['aux'][i] = torch.FloatTensor([0]).cuda(0)
+            cache['end_of_batch'][i] = (i%4==0)
         cache['clip'] = clip
     cache['max_seen'] = frame_idx-1
     return True
