@@ -1384,7 +1384,7 @@ class SVC(nn.Module):
         mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
         
         # flow compression
-        mv_hat, mv_act, mv_est, mv_aux = self._compress_sequence(mv_tensor)
+        mv_hat, mv_act, mv_est, mv_aux = self._compress_sequence(self.mv_codec, mv_tensor)
         
         # motion compensation
         loc = get_grid_locations(bs, h, w).to(x.device)
@@ -1394,7 +1394,7 @@ class SVC(nn.Module):
         
         # residual compression
         res_tensor = x[1:].cuda(1) - Y1_MC
-        res_hat, res_act, res_est, res_aux = self._compress_sequence(res_tensor)
+        res_hat, res_act, res_est, res_aux = self._compress_sequence(self.res_codec, res_tensor)
         
         # reconstruction
         x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1)
@@ -1417,7 +1417,7 @@ class SVC(nn.Module):
         
         return x_hat, bpp_est.repeat(bs), img_loss.repeat(bs), aux_loss.repeat(bs), bpp_act.repeat(bs), psnr, msssim
         
-    def _compress_sequence(self, mv_tensor):
+    def _compress_sequence(self, codec, mv_tensor):
         bs,_,h,w = mv_tensor.size()
         rae_mv_hidden, _, rpm_mv_hidden, _ = self.init_hidden(h,w)
         mv_hat=[]
@@ -1425,7 +1425,7 @@ class SVC(nn.Module):
         mv_est=torch.FloatTensor([0]).squeeze(0).cuda()
         mv_aux=torch.FloatTensor([0]).squeeze(0).cuda()
         for k in range(bs):
-            mv_hat_k,rae_mv_hidden,rpm_mv_hidden,mv_act_k,mv_est_k,mv_aux_k = self.mv_codec(mv_tensor[k:k+1], rae_mv_hidden, rpm_mv_hidden, RPM_flag=(k>0))
+            mv_hat_k,rae_mv_hidden,rpm_mv_hidden,mv_act_k,mv_est_k,mv_aux_k = codec(mv_tensor[k:k+1], rae_mv_hidden, rpm_mv_hidden, RPM_flag=(k>0))
             mv_hat += [mv_hat_k];mv_act += mv_act_k.cuda();mv_est += mv_est_k.cuda();mv_aux += mv_aux_k.cuda()
         mv_hat = torch.cat(mv_hat, dim=0)
         return mv_hat, mv_act, mv_est, mv_aux
