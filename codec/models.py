@@ -1828,7 +1828,7 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     test_batch_proc('SVC')
-    #test_batch_proc('SPVC')
+    test_batch_proc('SPVC')
     #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
