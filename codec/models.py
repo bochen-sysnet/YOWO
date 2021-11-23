@@ -613,6 +613,7 @@ class StandardVideoCodecs(nn.Module):
         super(StandardVideoCodecs, self).__init__()
         self.name = name # x264, x265?
         self.placeholder = torch.nn.Parameter(torch.zeros(1))
+        init_training_params(self)
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         if app_loss is None:
