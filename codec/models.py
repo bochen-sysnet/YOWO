@@ -1222,17 +1222,17 @@ class SVC(nn.Module):
         g = generate_graph('3layers')
         start = 0
         # BFS
-        for start in graph:
+        for start in g:
             if start == 0:
                 Y0_com = x[:1]
             else:
                 Y0_com = x_hat[start-1]
-            for k in graph[start]:
+            for k in g[start]:
                 if k>bs:continue
                 print(start,k)
                 Y1_raw = x[k+1:k+2]
                 Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
-                    self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in graph[0]), use_psnr=use_psnr)
+                    self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in g[0]), use_psnr=use_psnr)
                 k = k-1
                 x_hat[k] = Y1_com;bpp_est[k] = bpp_est_k;bpp_act[k] = bpp_act_k;img_loss[k] = img_loss_k;aux_loss[k] = aux_loss_k;psnr[k] = psnr_k;msssim[k] = msssim_k
         return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
