@@ -1228,6 +1228,7 @@ class SVC(nn.Module):
             else:
                 Y0_com = x_hat[start-1]
             for k in graph[start]:
+                if k>bs:continue
                 Y1_raw = x[k+1:k+2]
                 Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
                     self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in graph[0]), use_psnr=use_psnr)
@@ -1721,7 +1722,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('test',name)
-    batch_size = 5
+    batch_size = 7
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
