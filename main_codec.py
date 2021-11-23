@@ -82,7 +82,7 @@ if cfg.TRAIN.RESUME_PATH:
     print("===================================================================")
     del checkpoint
     # try to load codec model 
-    if 'x26' in cfg.TRAIN.CODEC_NAME or 'RAW' == cfg.TRAIN.CODEC_NAME:
+    if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
     elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC_v2']:
