@@ -1344,6 +1344,7 @@ class SPVC(nn.Module):
             for k in g[start]:
                 if k>bs:continue
                 ref_index[k-1] = start
+        print(ref_index)
         mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[ref_index], x_tar)
         if not self.noMeasure:
             self.meters['E-FL'].update(time.perf_counter() - t_0)
@@ -1370,7 +1371,7 @@ class SPVC(nn.Module):
             for k in g[start]:
                 # k = 1...6
                 if k>bs:continue
-                mv = mv_hat[k:k+1]
+                mv = mv_hat[k-1:k]
                 MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
                 MC_frame_list[k-1] = MC_frame
                 warped_frame_list[k-1] = warped_frame
