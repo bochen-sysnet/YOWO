@@ -85,10 +85,10 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC_v2']:
+    elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC_v2','SPVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_RLVC_ckpt.pth"
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_SPVC_ckpt.pth"
         checkpoint = torch.load(pretrained_model_path)
         load_state_dict_whatever(model_codec, checkpoint['state_dict'])
         del checkpoint
