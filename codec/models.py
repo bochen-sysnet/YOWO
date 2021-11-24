@@ -1336,8 +1336,8 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         # obtain reference frames from a graph
         x_tar = x[1:]
-        g = generate_graph('3layers')
-        #g = generate_graph('default')
+        #g = generate_graph('3layers')
+        g = generate_graph('default')
         ref_index = [-1 for _ in x_tar]
         for start in g:
             if start>bs:continue
