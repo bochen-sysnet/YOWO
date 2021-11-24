@@ -1330,13 +1330,21 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, use_psnr=True):
-        ref_frame = x[:1]
-        
         bs, c, h, w = x[1:].size()
         
         # BATCH:compute optical flow
         t_0 = time.perf_counter()
-        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
+        # obtain reference frames from a graph
+        x_tar = x[1:]
+        g = generate_graph('3layers')
+        #g = generate_graph('default')
+        ref_index = [-1 for _ in x_tar]
+        for start in g:
+            if start>bs:continue
+            for k in g[start]:
+                if k>bs:continue
+                ref_index[k-1] = start
+        mv_tensors, l0, l1, l2, l3, l4 = self.optical_flow(x[ref_index], x_tar)
         if not self.noMeasure:
             self.meters['E-FL'].update(time.perf_counter() - t_0)
         
@@ -1351,14 +1359,21 @@ class SPVC(nn.Module):
         
         # SEQ:motion compensation
         t_0 = time.perf_counter()
-        MC_frame_list = []
-        warped_frame_list = []
-        for i in range(x.size(0)-1):
-            MC_frame,warped_frame = motion_compensation(self.MC_network,ref_frame,mv_hat[i:i+1])
-            # using compensated frame as reference increases the error
-            ref_frame = MC_frame.detach()
-            MC_frame_list.append(MC_frame)
-            warped_frame_list.append(warped_frame)
+        MC_frame_list = [None for _ in x_tar]
+        warped_frame_list = [None for _ in x_tar]
+        for start in g:
+            if start>bs:continue
+            if start == 0:
+                Y0_com = x[:1]
+            else:
+                Y0_com = MC_frame_list[start-1]
+            for k in g[start]:
+                # k = 1...6
+                if k>bs:continue
+                mv = mv_hat[k:k+1]
+                MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
+                MC_frame_list[k-1] = MC_frame
+                warped_frame_list[k-1] = warped_frame
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
         t_comp = time.perf_counter() - t_0
@@ -1367,7 +1382,7 @@ class SPVC(nn.Module):
             self.meters['D-MC'].update(t_comp)
         
         # BATCH:compress residual
-        res_tensors = x[1:].to(MC_frames.device) - MC_frames
+        res_tensors = x_tar.to(MC_frames.device) - MC_frames
         if self.name == 'SPVC':
             res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
         elif self.name == 'SPVC_v2':
@@ -1394,11 +1409,11 @@ class SPVC(nn.Module):
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
         # calculate metrics/loss
-        psnr = PSNR(x[1:], com_frames, use_list=True)
-        msssim = MSSSIM(x[1:], com_frames, use_list=True)
-        mc_loss = calc_loss(x[1:], MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x[1:], warped_frames, self.r, use_psnr)
-        rec_loss = calc_loss(x[1:], com_frames, self.r, use_psnr)
+        psnr = PSNR(x_tar, com_frames, use_list=True)
+        msssim = MSSSIM(x_tar, com_frames, use_list=True)
+        mc_loss = calc_loss(x_tar, MC_frames, self.r, use_psnr)
+        warp_loss = calc_loss(x_tar, warped_frames, self.r, use_psnr)
+        rec_loss = calc_loss(x_tar, com_frames, self.r, use_psnr)
         flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
