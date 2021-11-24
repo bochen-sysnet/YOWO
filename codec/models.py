@@ -824,8 +824,10 @@ class Coder2D(nn.Module):
             self.entropy_type = 'rpm'
         elif keyword in ['attn']:
             # for batch model
-            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
-            self.conv_type = 'attn'
+            #self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
+            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
+            #self.conv_type = 'attn'
+            self.conv_type = 'non-rec'
             self.entropy_type = 'mshp'
         elif keyword in ['mshp']:
             # for image codec, single frame
