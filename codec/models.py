@@ -959,7 +959,6 @@ class Coder2D(nn.Module):
         
         # calculate bpp (estimated) if it is training else it will be set to 0
         if self.noMeasure:
-            print([self.entropy_bottleneck.get_estimate_bits(l) for l in likelihoods])
             bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         else:
             bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)

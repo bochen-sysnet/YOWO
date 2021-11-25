@@ -304,7 +304,10 @@ class MeanScaleHyperPriors(CompressionModel):
     def get_estimate_bits(self, likelihoods):
         (x_likelihood,z_likelihood) = likelihoods
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
-        bits_est = torch.sum(torch.log(x_likelihood)) / (-log2) + torch.sum(torch.log(z_likelihood)) / (-log2)
+        x_est = torch.sum(torch.log(x_likelihood)) / (-log2)
+        z_est = torch.sum(torch.log(z_likelihood)) / (-log2)
+        print(x_est,z_est)
+        bits_est = x_est + z_est
         return bits_est
         
     def compress(self, x):
