@@ -1421,7 +1421,7 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        print(psnr)
+        print([float(p) for p in psnr])
         img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
