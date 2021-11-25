@@ -1406,7 +1406,7 @@ class SPVC(nn.Module):
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         bpp_act = bpp_act.repeat(bs)
-        #print(float(mv_est),float(res_est),h,w,bs)
+        print(float(mv_est),float(res_est),h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
@@ -1421,6 +1421,7 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
+        print(psnr)
         img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
