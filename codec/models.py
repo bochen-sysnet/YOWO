@@ -1314,11 +1314,17 @@ class SPVC(nn.Module):
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
         if self.name == 'SPVC':
+            # use attention in encoder and entropy model
             self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         elif self.name == 'SPVC_v2':
+            # use rpm for encoder and entropy
             self.mv_codec = Coder2D('rpm', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('rpm', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
+        elif self.name == 'SPVC_v3':
+            # fully factorized encoder and entropy
+            self.mv_codec = Coder2D('mshp', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
+            self.res_codec = Coder2D('mshp', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
         self.channels = channels
         init_training_params(self)
         # split on multi-gpus
@@ -1351,7 +1357,7 @@ class SPVC(nn.Module):
             self.meters['E-FL'].update(time.perf_counter() - t_0)
         
         # BATCH:compress optical flow
-        if self.name == 'SPVC':
+        if self.name == 'SPVC' or self.name == 'SPVC_v3':
             mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
         elif self.name == 'SPVC_v2':
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors.cuda(1))
@@ -1385,7 +1391,7 @@ class SPVC(nn.Module):
         
         # BATCH:compress residual
         res_tensors = x_tar.to(MC_frames.device) - MC_frames
-        if self.name == 'SPVC':
+        if self.name == 'SPVC' or self.name == 'SPVC_v3':
             res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
         elif self.name == 'SPVC_v2':
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)

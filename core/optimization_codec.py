@@ -7,7 +7,7 @@ from torch.cuda.amp import autocast as autocast
 from tqdm import tqdm
 from codec.models import update_training
 
-def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score):
+def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, score):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -17,7 +17,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
     psnr_module = AverageMeter()
     msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
-    scalers = [torch.cuda.amp.GradScaler(enabled=True) for _ in optimizers]
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
     l_loader = len(train_dataset)//batch_size
 
@@ -68,18 +68,12 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             psnr_module.update(psnr.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             msssim_module.update(msssim.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        n_optimizers = len(optimizers)
-        for i in range(n_optimizers):
-            if i != n_optimizers-1:
-                scalers[i].scale(loss).backward(retain_graph=True)
-            else:
-                scalers[i].scale(loss).backward()
+        scaler.scale(loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
-            for i in range(n_optimizers):
-                scalers[i].step(optimizers[i])
-                scalers[i].update()
-                optimizers[i].zero_grad()
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
@@ -118,7 +112,7 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
 
 
 
-def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, score):
+def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, score):
     t0 = time.time()
     loss_module.reset_meters()
     aux_loss_module = AverageMeter()
@@ -128,7 +122,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     psnr_module = AverageMeter()
     msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
-    scalers = [torch.cuda.amp.GradScaler(enabled=True) for _ in optimizers]
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
     batch_size = cfg.TRAIN.BATCH_SIZE
     l_loader = len(train_dataset)//batch_size
 
@@ -179,21 +173,12 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     psnr_module.update(psnr.cpu().data.item(),l)
                     msssim_module.update(msssim.cpu().data.item(), l)
                 # backward prop
-                n_optimizers = len(optimizers)
-                for i in range(n_optimizers):
-                    if not loss.requires_grad:break
-                    if i != n_optimizers-1:
-                        scalers[i].scale(loss).backward(retain_graph=True)
-                    else:
-                        # finish graph if it is the last frame or data_idx is at the end of a batch
-                        # if not retain the graph, make sure all compressed data are used or repeat compression for new data(out of batch)
-                        scalers[i].scale(loss).backward()
+                scaler.scale(loss).backward()
                 # update model after compress each video
                 if train_dataset.last_frame:
-                    for i in range(n_optimizers):
-                        scalers[i].step(optimizers[i])
-                        scalers[i].update()
-                        optimizers[i].zero_grad()
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad()
                 # init batch
                 frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
                 bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []

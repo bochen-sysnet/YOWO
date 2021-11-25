@@ -59,11 +59,9 @@ logging('Total number of trainable codec parameters: {}'.format(pytorch_total_pa
 
 ####### Create optimizer
 # ---------------------------------------------------------------
-optimizers = []
 parameters = [p for n, p in model_codec.named_parameters() if (not n.endswith(".quantiles"))]
 aux_parameters = [p for n, p in model_codec.named_parameters() if n.endswith(".quantiles")]
-optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 1}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
-optimizers += [optimizer]
+optimizer = torch.optim.Adam([{'params': parameters},{'params': aux_parameters, 'lr': 0.1*cfg.TRAIN.LEARNING_RATE}], lr=cfg.TRAIN.LEARNING_RATE, weight_decay=cfg.SOLVER.WEIGHT_DECAY)
 # initialize best score
 best_score = 0 
 best_codec_score = [0,1]
@@ -152,12 +150,11 @@ if cfg.TRAIN.EVALUATE:
 else:
     for epoch in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH + 1):
         # Adjust learning rate
-        for optimizer in optimizers:
-            r = adjust_codec_learning_rate(optimizer, epoch, cfg)
+        r = adjust_codec_learning_rate(optimizer, epoch, cfg)
         
         # Train and test model
         logging('training at epoch %d, r=%.2f' % (epoch,r))
-        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizers, best_codec_score)
+        train(cfg, epoch, model, model_codec, train_dataset, loss_module, optimizer, best_codec_score)
         if epoch >= 1:
             logging('testing at epoch %d' % (epoch))
             score = test(cfg, epoch, model, model_codec, test_dataset, loss_module)
