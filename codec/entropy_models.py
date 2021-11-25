@@ -306,6 +306,8 @@ class MeanScaleHyperPriors(CompressionModel):
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
         x_est = torch.sum(torch.log(x_likelihood)) / (-log2)
         z_est = torch.sum(torch.log(z_likelihood)) / (-log2)
+        print([torch.sum(torch.log(l)) / (-log2) for l in x_likelihood])
+        print([torch.sum(torch.log(l)) / (-log2) for l in z_likelihood])
         print(x_est,z_est)
         bits_est = x_est + z_est
         return bits_est
