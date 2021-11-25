@@ -824,10 +824,10 @@ class Coder2D(nn.Module):
             self.entropy_type = 'rpm'
         elif keyword in ['attn']:
             # for batch model
-            #self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
-            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
-            #self.conv_type = 'attn'
-            self.conv_type = 'non-rec'
+            self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=True)
+            #self.entropy_bottleneck = MeanScaleHyperPriors(channels,useAttention=False)
+            self.conv_type = 'attn'
+            #self.conv_type = 'non-rec'
             self.entropy_type = 'mshp'
         elif keyword in ['mshp']:
             # for image codec, single frame
@@ -1406,7 +1406,7 @@ class SPVC(nn.Module):
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         bpp_act = bpp_act.repeat(bs)
-        print(float(mv_est),float(res_est),bpp_est,h,w,bs)
+        #print(float(mv_est),float(res_est),bpp_est,h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
@@ -1421,7 +1421,7 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        print([float(p) for p in psnr])
+        #print([float(p) for p in psnr])
         img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
