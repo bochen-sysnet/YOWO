@@ -68,7 +68,8 @@ def train_ava_codec(cfg, epoch, model, model_codec, train_dataset, loss_module, 
             psnr_module.update(psnr.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
             msssim_module.update(msssim.cpu().data.item(), cfg.TRAIN.BATCH_SIZE)
 
-        scaler.scale(loss).backward()
+        if loss.requires_grad:
+            scaler.scale(loss).backward()
         steps = cfg.TRAIN.TOTAL_BATCH_SIZE // cfg.TRAIN.BATCH_SIZE
         if batch_idx % steps == 0:
             scaler.step(optimizer)
@@ -173,7 +174,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     psnr_module.update(psnr.cpu().data.item(),l)
                     msssim_module.update(msssim.cpu().data.item(), l)
                 # backward prop
-                scaler.scale(loss).backward()
+                if loss.requires_grad:
+                    scaler.scale(loss).backward()
                 # update model after compress each video
                 if train_dataset.last_frame:
                     scaler.step(optimizer)
