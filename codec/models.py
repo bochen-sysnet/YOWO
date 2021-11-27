@@ -1377,7 +1377,7 @@ class SPVC(nn.Module):
                 # k = 1...6
                 if k>bs:continue
                 mv = mv_hat[k-1:k]
-                MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
+                MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com.detach(),mv)
                 MC_frame_list[k-1] = MC_frame
                 warped_frame_list[k-1] = warped_frame
         MC_frames = torch.cat(MC_frame_list,dim=0)
