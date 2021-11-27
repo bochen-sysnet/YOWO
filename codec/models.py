@@ -32,7 +32,7 @@ def get_codec_model(name):
         model_codec = IterPredVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
-    elif 'SPVC' in name::
+    elif 'SPVC' in name:
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
