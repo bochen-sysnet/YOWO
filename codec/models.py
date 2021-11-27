@@ -265,12 +265,12 @@ def parallel_compression(model, ranges, cache):
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         for pos,j in enumerate(idx_list):
-            cache['clip'][j] = x_hat[pos].squeeze(0).detach()
-            cache['img_loss'][j] = img_loss[pos]
-            cache['aux'][j] = aux_loss[pos]
-            cache['bpp_est'][j] = bpp_est[pos]
-            cache['psnr'][j] = psnr[pos]
-            cache['msssim'][j] = msssim[pos]
+            cache['clip'][j] = x_hat[pos].squeeze(0).cpu().detach()
+            cache['img_loss'][j] = img_loss[pos].cpu()
+            cache['aux'][j] = aux_loss[pos].cpu()
+            cache['bpp_est'][j] = bpp_est[pos].cpu()
+            cache['psnr'][j] = psnr[pos].cpu()
+            cache['msssim'][j] = msssim[pos].cpu()
             cache['bpp_act'][j] = bpp_act[pos].cpu()
             cache['end_of_batch'][j] = False
         eob_idx = max(idx_list)
@@ -635,11 +635,11 @@ def I_compression(Y1_raw, I_level):
     post_bits = os.path.getsize(binname + '.bin')*8/(Height * Width * batch_size)
     bpp_act = torch.FloatTensor([post_bits]).squeeze(0)
     bpg_img = Image.open(postname + '.jpg').convert('RGB')
-    Y1_com = transforms.ToTensor()(bpg_img).cuda().unsqueeze(0)
+    Y1_com = transforms.ToTensor()(bpg_img).unsqueeze(0)
     psnr = PSNR(Y1_raw, Y1_com)
     msssim = MSSSIM(Y1_raw, Y1_com)
-    bpp_est = bpp_act.cuda(0)
-    loss = aux_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+    bpp_est = bpp_act
+    loss = aux_loss = torch.FloatTensor([0]).squeeze(0)
     return Y1_com, bpp_est, loss, aux_loss, bpp_act, psnr, msssim
     
 def load_state_dict_only(model, state_dict, keyword):
@@ -1334,6 +1334,7 @@ class SPVC(nn.Module):
         self.res_codec.cuda(1)
         
     def forward(self, x, use_psnr=True):
+        x = x.cuda(0)
         bs, c, h, w = x[1:].size()
         
         # BATCH:compute optical flow

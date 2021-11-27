@@ -119,7 +119,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     aux_loss_module = AverageMeter()
     img_loss_module = AverageMeter()
     be_loss_module = AverageMeter()
-    ba_loss_module = AverageMeter()
     psnr_module = AverageMeter()
     msssim_module = AverageMeter()
     all_loss_module = AverageMeter()
@@ -133,7 +132,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     doAD = update_training(model_codec,epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
-    bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
+    bpp_est_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
         # align batches
         for j in range(batch_size):
@@ -148,7 +147,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             bpp_est_list.append(additional['bpp_est'])
             aux_loss_list.append(additional['aux_loss'])
             img_loss_list.append(additional['img_loss'])
-            bpp_act_list.append(additional['bpp_act'])
             psnr_list.append(additional['psnr'])
             msssim_list.append(additional['msssim'])
             if train_dataset.last_frame or additional['end_of_batch']:
@@ -163,13 +161,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
                     loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
-                    ba_loss = torch.stack(bpp_act_list,dim=0).mean(dim=0)
                     psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
                     msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
                     aux_loss_module.update(aux_loss.cpu().data.item(), l)
                     img_loss_module.update(img_loss.cpu().data.item(), l)
                     be_loss_module.update(be_loss.cpu().data.item(), l)
-                    ba_loss_module.update(ba_loss.cpu().data.item(), l)
                     all_loss_module.update(loss.cpu().data.item(), l)
                     psnr_module.update(psnr.cpu().data.item(),l)
                     msssim_module.update(msssim.cpu().data.item(), l)
@@ -183,7 +179,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     optimizer.zero_grad()
                 # init batch
                 frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
-                bpp_est_list = []; bpp_act_list = []; psnr_list = []; msssim_list = []
+                bpp_est_list = []; psnr_list = []; msssim_list = []
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
@@ -192,7 +188,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             aux_loss_module.reset()
             be_loss_module.reset()
             all_loss_module.reset()
-            ba_loss_module.reset()
             psnr_module.reset()
             msssim_module.reset()
          
@@ -213,7 +208,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"BE: {be_loss_module.val:.2f} ({be_loss_module.avg:.2f}). "
             f"AX: {aux_loss_module.val:.2f} ({aux_loss_module.avg:.2f}). "
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
-            f"BA: {ba_loss_module.val:.2f} ({ba_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
             f"M: {msssim_module.val:.4f} ({msssim_module.avg:.4f}). ")
 
