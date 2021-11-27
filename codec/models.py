@@ -32,7 +32,7 @@ def get_codec_model(name):
         model_codec = IterPredVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
-    elif name in ['SPVC','SPVC_v2']:
+    elif 'SPVC' in name::
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
@@ -52,7 +52,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SPVC','SCVC','AE3D','SPVC_v2'] or 'SVC' in model.name:
+    elif model.name in ['SCVC','AE3D','SPVC_v2'] or 'SVC' in model.name or 'SPVC' in model.name:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
