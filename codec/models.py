@@ -52,7 +52,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SCVC','AE3D','SPVC_v2'] or 'SVC' in model.name or 'SPVC' in model.name:
+    elif model.name in ['SCVC','AE3D'] or 'SVC' in model.name or 'SPVC' in model.name:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
@@ -68,7 +68,7 @@ def init_training_params(model):
                     'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter()}
     
 def showTimer(model):
-    if model.name in ['SPVC','SPVC_v2','RLVC','DVC']:
+    if model.name in ['SPVC','SPVC-R','RLVC','DVC']:
         print('------------',model.name,'------------')
         print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg))
         print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg))
@@ -86,7 +86,7 @@ def update_training(model, epoch):
     else:
         model.r_img, model.r_bpp, model.r_aux = 1,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,0,0,0
-        model.r_app = 1
+        model.r_app = 1 # [1,2,4,8]
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
@@ -203,9 +203,6 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
         cache['msssim'] = {}
         cache['psnr'] = {}
         cache['end_of_batch'] = {}
-        # frame shape
-        _,h,w = cache['clip'][0].shape
-        cache['hidden'] = model.init_hidden(h,w)
         cache['max_proc'] = -1
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
@@ -1313,11 +1310,11 @@ class SPVC(nn.Module):
         self.name = name 
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if self.name in ['SPVC','SPVC-I']:
+        if self.name in ['SPVC','SPVC-I','SPVC-L']:
             # use attention in encoder and entropy model
             self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
-        elif self.name == 'SPVC_v2':
+        elif self.name == 'SPVC-R':
             # use rpm for encoder and entropy
             self.mv_codec = Coder2D('rpm', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('rpm', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
@@ -1341,7 +1338,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         # obtain reference frames from a graph
         x_tar = x[1:]
-        if self.name == 'SPVC_v3':
+        if self.name == 'SPVC-L':
             g = generate_graph('default')
         else:
             g = generate_graph('3layers')
@@ -1358,7 +1355,7 @@ class SPVC(nn.Module):
         # BATCH:compress optical flow
         if self.name == 'SPVC':
             mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
-        elif self.name == 'SPVC_v2':
+        elif self.name == 'SPVC-R':
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         if not self.noMeasure:
             self.meters['E-MV'].update(self.mv_codec.enc_t)
@@ -1392,7 +1389,7 @@ class SPVC(nn.Module):
         res_tensors = x_tar.to(MC_frames.device) - MC_frames
         if self.name == 'SPVC':
             res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
-        elif self.name == 'SPVC_v2':
+        elif self.name == 'SPVC-R':
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
         if not self.noMeasure:
             self.meters['E-RES'].update(self.res_codec.enc_t)
@@ -1411,7 +1408,6 @@ class SPVC(nn.Module):
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
         bpp_act = bpp_act.repeat(bs)
-        #print(float(mv_est),float(res_est),bpp_est,h,w,bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
@@ -1426,7 +1422,6 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        #print([float(p) for p in psnr])
         img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
@@ -1847,7 +1842,6 @@ def test_seq_proc(name='RLVC'):
 # in training, counts total time, in testing, counts enc/dec time
 # how to deal with big batch in training? hybrid mode
 # update CNN alternatively?
-# hope forward coding works good enough, then we dont have to implement ...
     
 if __name__ == '__main__':
     test_batch_proc('SVC')
