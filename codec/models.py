@@ -225,12 +225,12 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     Y1_com,hidden,bpp_est,img_loss,aux_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
     cache['hidden'] = hidden
     cache['clip'][i] = Y1_com.detach().squeeze(0).cuda(0)
-    cache['img_loss'][i] = img_loss
-    cache['aux'][i] = aux_loss
-    cache['bpp_est'][i] = bpp_est.cpu()
-    cache['psnr'][i] = psnr
-    cache['msssim'][i] = msssim
-    cache['bpp_act'][i] = bpp_act.cpu()
+    cache['img_loss'][i] = img_loss.cuda(0)
+    cache['aux'][i] = aux_loss.cuda(0)
+    cache['bpp_est'][i] = bpp_est.cuda(0)
+    cache['psnr'][i] = psnr.cuda(0)
+    cache['msssim'][i] = msssim.cuda(0)
+    cache['bpp_act'][i] = bpp_act.cuda(0)
     cache['end_of_batch'][i] = (i%4==0)
     #print(i,float(bpp_est),float(bpp_act),float(psnr))
     # we can record PSNR wrt the distance to I-frame to show error propagation)
