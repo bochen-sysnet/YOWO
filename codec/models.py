@@ -79,14 +79,14 @@ def update_training(model, epoch):
     # optimize bpp and app loss only
     
     # setup training weights
-    if epoch <= 5:
+    if epoch <= 1:
         model.r_img, model.r_bpp, model.r_aux = 1,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,1,1,1
         model.r_app = 0
     else:
         model.r_img, model.r_bpp, model.r_aux = 1,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,0,0,0
-        model.r_app = 1 # [1,2,4,8]
+        model.r_app = 0 # [1,2,4,8]
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
