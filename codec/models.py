@@ -93,6 +93,7 @@ def update_training(model, epoch):
     
     model.epoch = epoch
     
+    print(doAD)
     return doAD
         
 def compress_video_group(model, frame_idx, cache, startNewClip):
