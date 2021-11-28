@@ -227,7 +227,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     cache['clip'][i] = Y1_com.detach().squeeze(0).cuda(0)
     cache['img_loss'][i] = img_loss
     cache['aux'][i] = aux_loss
-    cache['bpp_est'][i] = bpp_est
+    cache['bpp_est'][i] = bpp_est.cpu()
     cache['psnr'][i] = psnr
     cache['msssim'][i] = msssim
     cache['bpp_act'][i] = bpp_act.cpu()
