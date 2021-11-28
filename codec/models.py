@@ -244,10 +244,10 @@ def parallel_compression(model, ranges, cache):
     cache['clip'][I_frame_idx] = x_hat.squeeze(0).cuda()
     cache['img_loss'][I_frame_idx] = img_loss
     cache['aux'][I_frame_idx] = aux_loss
-    cache['bpp_est'][I_frame_idx] = bpp_est
+    cache['bpp_est'][I_frame_idx] = bpp_est.cuda()
     cache['psnr'][I_frame_idx] = psnr
     cache['msssim'][I_frame_idx] = msssim
-    cache['bpp_act'][I_frame_idx] = bpp_act
+    cache['bpp_act'][I_frame_idx] = bpp_act.cuda()
     cache['end_of_batch'][I_frame_idx] = True
     
     if len(ranges) == 2:
