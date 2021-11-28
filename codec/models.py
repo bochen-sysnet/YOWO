@@ -86,7 +86,7 @@ def update_training(model, epoch):
     else:
         model.r_img, model.r_bpp, model.r_aux = 1,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,0,0,0
-        model.r_app = 0 # [1,2,4,8]
+        model.r_app = 1 # [1,2,4,8]
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
@@ -262,7 +262,7 @@ def parallel_compression(model, ranges, cache):
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         for pos,j in enumerate(idx_list):
-            cache['clip'][j] = x_hat[pos].squeeze(0).detach()
+            cache['clip'][j] = x_hat[pos].squeeze(0)
             cache['img_loss'][j] = img_loss[pos]
             cache['aux'][j] = aux_loss[pos]
             cache['bpp_est'][j] = bpp_est[pos]
