@@ -117,11 +117,9 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # read whole video
         if startNewClip:
             self.cache = {}
-            self.cache['clip'] = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
+            clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
-                self.cache['clip'] = [self.transform(img) for img in self.cache['clip']]
-        else:
-            clip = None
+                self.cache['clip'] = [self.transform(img).cuda(0) for img in clip]
         compress_video(model_codec, im_ind, self.cache, startNewClip)
         self.prev_video = cur_video
         # check if the last frame of a clip or the last frame of a batch

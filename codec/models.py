@@ -215,8 +215,8 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
     # frame shape
     _,h,w = cache['clip'][0].shape
     # frames to be processed
-    Y0_com = cache['clip'][prev].unsqueeze(0).cuda(0) if prev>=0 else None
-    Y1_raw = cache['clip'][i].unsqueeze(0).cuda(0)
+    Y0_com = cache['clip'][prev].unsqueeze(0) if prev>=0 else None
+    Y1_raw = cache['clip'][i].unsqueeze(0)
     # hidden variables
     if P_flag:
         hidden = model.init_hidden(h,w)
