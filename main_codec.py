@@ -83,7 +83,7 @@ if cfg.TRAIN.RESUME_PATH:
     if cfg.TRAIN.CODEC_NAME in ['x265', 'x264', 'RAW']:
         # nothing to load
         print("No need to load for ", cfg.TRAIN.CODEC_NAME)
-    elif cfg.TRAIN.CODEC_NAME in ['SCVC','SPVC_v2']:
+    elif cfg.TRAIN.CODEC_NAME in ['SCVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
         pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_SPVC_best.pth"
@@ -93,7 +93,7 @@ if cfg.TRAIN.RESUME_PATH:
     elif cfg.TRAIN.RESUME_CODEC_PATH and os.path.isfile(cfg.TRAIN.RESUME_CODEC_PATH):
         print("Loading for ", cfg.TRAIN.CODEC_NAME, 'from',cfg.TRAIN.RESUME_CODEC_PATH)
         checkpoint = torch.load(cfg.TRAIN.RESUME_CODEC_PATH)
-        cfg.TRAIN.BEGIN_EPOCH = 2#checkpoint['epoch'] + 1
+        cfg.TRAIN.BEGIN_EPOCH = checkpoint['epoch'] + 1
         best_codec_score = checkpoint['score'] if isinstance(checkpoint['score'],list) else [checkpoint['score'],0]
         load_state_dict_all(model_codec, checkpoint['state_dict'])
         print("Loaded model codec score: ", checkpoint['score'])
