@@ -192,7 +192,7 @@ def load_data_detection_from_cache(base_path, imgpath, train, train_dur, sample_
             i_temp = 0
         elif i_temp > max_num-1:
             i_temp = max_num-1
-        clip.append(clip_tmp[i_temp])
+        clip.append(clip_tmp[i_temp].detach() if i != 0 else clip_tmp[i_temp])
         
     _,h,w = clip[0].shape
     label = torch.zeros(50*5)
