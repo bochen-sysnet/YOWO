@@ -224,7 +224,7 @@ def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
         hidden = cache['hidden']
     Y1_com,hidden,bpp_est,img_loss,aux_loss,bpp_act,psnr,msssim = model(Y0_com, Y1_raw, hidden, RPM_flag)
     cache['hidden'] = hidden
-    cache['clip'][i] = Y1_com.detach().squeeze(0)
+    cache['clip'][i] = Y1_com.detach().squeeze(0).cuda(0)
     cache['img_loss'][i] = img_loss
     cache['aux'][i] = aux_loss
     cache['bpp_est'][i] = bpp_est
@@ -242,7 +242,7 @@ def parallel_compression(model, ranges, cache):
     # I frame compression
     I_frame_idx = ranges[0][0]
     x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][I_frame_idx].unsqueeze(0), model.I_level)
-    cache['clip'][I_frame_idx] = x_hat.squeeze(0).cuda(0)
+    cache['clip'][I_frame_idx] = x_hat.squeeze(0)
     cache['img_loss'][I_frame_idx] = img_loss
     cache['aux'][I_frame_idx] = aux_loss
     cache['bpp_est'][I_frame_idx] = bpp_est
