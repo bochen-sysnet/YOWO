@@ -263,6 +263,7 @@ def parallel_compression(model, ranges, cache):
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         eob_idx = max(idx_list)
         bob_idx = min(idx_list) # only loss on the begin of batch is valid
+        zero = torch.FloatTensor([0]).squeeze(0).cuda(0)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0)
             cache['img_loss'][j] = img_loss if j==bob_idx else None
@@ -1408,24 +1409,25 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
+        bpp_est = bpp_est
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
+        bpp_act = bpp_act
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
+        aux_loss = aux_loss
         # calculate metrics/loss
         psnr = PSNR(x_tar, com_frames, use_list=True)
         msssim = MSSSIM(x_tar, com_frames, use_list=True)
-        if self.r_img != 0:
-            mc_loss = calc_loss(x_tar, MC_frames, self.r, self.use_psnr)
-            warp_loss = calc_loss(x_tar, warped_frames, self.r, self.use_psnr)
-            rec_loss = calc_loss(x_tar, com_frames, self.r, self.use_psnr)
-            flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
-            img_loss = (self.r_rec*rec_loss + \
-                        self.r_warp*warp_loss + \
-                        self.r_mc*mc_loss + \
-                        self.r_flow*flow_loss)
-        else:
-            img_loss = torch.FloatTensor([0]).squeeze(0).cuda(0)
+        mc_loss = calc_loss(x_tar, MC_frames, self.r, self.use_psnr)
+        warp_loss = calc_loss(x_tar, warped_frames, self.r, self.use_psnr)
+        rec_loss = calc_loss(x_tar, com_frames, self.r, self.use_psnr)
+        flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
+        img_loss = (self.r_rec*rec_loss + \
+                    self.r_warp*warp_loss + \
+                    self.r_mc*mc_loss + \
+                    self.r_flow*flow_loss)
+        img_loss = img_loss
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
