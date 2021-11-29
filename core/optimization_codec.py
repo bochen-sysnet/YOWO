@@ -134,7 +134,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
     bpp_est_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
-        if batch_idx<=10000:continue
+        if batch_idx<=30000:continue
         # align batches
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
@@ -157,7 +157,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
                 with autocast():
-                    reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else None
+                    reg_loss = loss_module(model(data).detach(), target, epoch, batch_idx, l_loader) if doAD else None
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
