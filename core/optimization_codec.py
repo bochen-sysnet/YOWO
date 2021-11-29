@@ -131,7 +131,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     # get instructions on training
     doAD = update_training(model_codec,epoch)
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
-    frame_idx = []; data = []; target = []
+    frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
+    bpp_est_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
         if batch_idx<=10000:continue
         # align batches
@@ -144,12 +145,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             frame_idx.append(f-1)
             data.append(d)
             target.append(t)
-            # only one valid in a batch
-            if additional['bpp_est'] is not None: be_loss = additional['bpp_est']
-            if additional['img_loss'] is not None: img_loss = additional['img_loss']
-            if additional['aux_loss'] is not None: aux_loss = additional['aux_loss']
-            if additional['psnr'] is not None: psnr = additional['psnr']
-            if additional['msssim'] is not None: msssim = additional['msssim']
+            bpp_est_list.append(additional['bpp_est'])
+            aux_loss_list.append(additional['aux_loss'])
+            img_loss_list.append(additional['img_loss'])
+            psnr_list.append(additional['psnr'])
+            msssim_list.append(additional['msssim'])
             if train_dataset.last_frame or additional['end_of_batch']:
                 # we split if the batch of compression ends or if the video ends or if its a i frame
                 # if is the end of a video
@@ -158,7 +158,12 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 l = len(frame_idx)
                 with autocast():
                     reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else None
+                    be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
+                    aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
+                    img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
                     loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
+                    psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
+                    msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
                     aux_loss_module.update(aux_loss.cpu().data.item(), l)
                     img_loss_module.update(img_loss.cpu().data.item(), l)
                     be_loss_module.update(be_loss.cpu().data.item(), l)
@@ -174,7 +179,8 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                     scaler.update()
                     optimizer.zero_grad()
                 # init batch
-                frame_idx = []; data = []; target = []
+                frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
+                bpp_est_list = []; psnr_list = []; msssim_list = []
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements

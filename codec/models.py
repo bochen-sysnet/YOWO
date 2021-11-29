@@ -261,18 +261,16 @@ def parallel_compression(model, ranges, cache):
         if n==0:continue
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-        eob_idx = max(idx_list)
-        bob_idx = min(idx_list) # only loss on the begin of batch is valid
-        zero = torch.FloatTensor([0]).squeeze(0).cuda(0)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0)
-            cache['img_loss'][j] = img_loss if j==bob_idx else None
-            cache['aux'][j] = aux_loss if j==bob_idx else None
-            cache['bpp_est'][j] = bpp_est if j==bob_idx else None
-            cache['psnr'][j] = psnr if j==bob_idx else None
-            cache['msssim'][j] = msssim if j==bob_idx else None
-            cache['bpp_act'][j] = bpp_act if j==bob_idx else None
+            cache['img_loss'][j] = img_loss[pos]
+            cache['aux'][j] = aux_loss[pos]
+            cache['bpp_est'][j] = bpp_est[pos]
+            cache['psnr'][j] = psnr[pos]
+            cache['msssim'][j] = msssim[pos]
+            cache['bpp_act'][j] = bpp_act[pos]
             cache['end_of_batch'][j] = False
+        eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
@@ -676,7 +674,6 @@ def PSNR(Y1_raw, Y1_com, use_list=False):
             train_mse = torch.mean(torch.pow(Y1_raw[i:i+1] - Y1_com[i:i+1].unsqueeze(0), 2))
             psnr = 10.0*torch.log(1/train_mse)/log10
             quality.append(psnr)
-        quality = torch.stack(quality,dim=0).mean(dim=0)
     return quality
 
 def MSSSIM(Y1_raw, Y1_com, use_list=False):
@@ -688,7 +685,6 @@ def MSSSIM(Y1_raw, Y1_com, use_list=False):
         quality = []
         for i in range(bs):
             quality.append(pytorch_msssim.ms_ssim(Y1_raw[i].unsqueeze(0), Y1_com[i].unsqueeze(0)))
-        quality = torch.stack(quality,dim=0).mean(dim=0)
     return quality
     
 def calc_loss(Y1_raw, Y1_com, r, use_psnr):
@@ -1409,13 +1405,13 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w * bs)
-        bpp_est = bpp_est
+        bpp_est = bpp_est.repeat(bs)
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w * bs)
-        bpp_act = bpp_act
+        bpp_act = bpp_act.repeat(bs)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
-        aux_loss = aux_loss
+        aux_loss = aux_loss.repeat(bs)
         # calculate metrics/loss
         psnr = PSNR(x_tar, com_frames, use_list=True)
         msssim = MSSSIM(x_tar, com_frames, use_list=True)
@@ -1427,7 +1423,7 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
-        img_loss = img_loss
+        img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
