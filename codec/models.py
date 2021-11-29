@@ -671,7 +671,7 @@ def PSNR(Y1_raw, Y1_com, use_list=False):
         b = Y1_raw.size()[0]
         quality = []
         for i in range(b):
-            train_mse = torch.mean(torch.pow(Y1_raw[i].unsqueeze(0) - Y1_com[i].unsqueeze(0), 2))
+            train_mse = torch.mean(torch.pow(Y1_raw[i:i+1] - Y1_com[i:i+1].unsqueeze(0), 2))
             psnr = 10.0*torch.log(1/train_mse)/log10
             quality.append(psnr)
     return quality
@@ -1310,7 +1310,7 @@ class SPVC(nn.Module):
         self.name = name 
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if self.name in ['SPVC','SPVC-I','SPVC-L']:
+        if self.name in ['SPVC','SPVC-P','SPVC-M','SPVC-L']:
             # use attention in encoder and entropy model
             self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
@@ -1323,6 +1323,7 @@ class SPVC(nn.Module):
         # split on multi-gpus
         self.split()
         self.noMeasure = noMeasure
+        self.use_psnr = False if self.name == 'SPVC-M' else True
 
     def split(self):
         self.optical_flow.cuda(0)
@@ -1330,7 +1331,7 @@ class SPVC(nn.Module):
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
-    def forward(self, x, use_psnr=True):
+    def forward(self, x):
         x = x.cuda(0)
         bs, c, h, w = x[1:].size()
         
@@ -1353,7 +1354,7 @@ class SPVC(nn.Module):
             self.meters['E-FL'].update(time.perf_counter() - t_0)
         
         # BATCH:compress optical flow
-        if self.name in ['SPVC','SPVC-I','SPVC-L']:
+        if self.name in ['SPVC','SPVC-P','SPVC-M','SPVC-L']:
             mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
         elif self.name == 'SPVC-R':
             mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
@@ -1387,7 +1388,7 @@ class SPVC(nn.Module):
         
         # BATCH:compress residual
         res_tensors = x_tar.to(MC_frames.device) - MC_frames
-        if self.name in ['SPVC','SPVC-I','SPVC-L']:
+        if self.name in ['SPVC','SPVC-P','SPVC-M','SPVC-L']:
             res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
         elif self.name == 'SPVC-R':
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
@@ -1414,9 +1415,9 @@ class SPVC(nn.Module):
         # calculate metrics/loss
         psnr = PSNR(x_tar, com_frames, use_list=True)
         msssim = MSSSIM(x_tar, com_frames, use_list=True)
-        mc_loss = calc_loss(x_tar, MC_frames, self.r, use_psnr)
-        warp_loss = calc_loss(x_tar, warped_frames, self.r, use_psnr)
-        rec_loss = calc_loss(x_tar, com_frames, self.r, use_psnr)
+        mc_loss = calc_loss(x_tar, MC_frames, self.r, self.use_psnr)
+        warp_loss = calc_loss(x_tar, warped_frames, self.r, self.use_psnr)
+        rec_loss = calc_loss(x_tar, com_frames, self.r, self.use_psnr)
         flow_loss = (l0+l1+l2+l3+l4).cuda(0)/5*1024
         img_loss = (self.r_rec*rec_loss + \
                     self.r_warp*warp_loss + \
