@@ -158,7 +158,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 l = len(frame_idx)
                 with autocast():
                     reg_loss = loss_module(model(data).detach(), target, epoch, batch_idx, l_loader) if doAD else None
-                    print(reg_loss.requires_grad)
+                    print(reg_loss.requires_grad,be_loss.requires_grad)
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
