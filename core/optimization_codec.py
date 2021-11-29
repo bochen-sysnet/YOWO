@@ -133,7 +133,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     train_iter = tqdm(range(0,l_loader*batch_size,batch_size))
     frame_idx = []; data = []; target = []
     for batch_idx,_ in enumerate(train_iter):
-        if batch_idx<=10000:continue
         # align batches
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
