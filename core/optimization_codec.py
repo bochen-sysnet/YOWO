@@ -375,7 +375,7 @@ def test_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, test_dataset, loss_
             test_dataset.preprocess(data_idx, model_codec)
             # read one clip
             f,d,t,additional = test_dataset[data_idx]
-            frame_idx.append(f)
+            frame_idx.append(f-1)
             data.append(d)
             target.append(t)
             bpp_est_list.append(additional['bpp_est'])
