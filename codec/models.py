@@ -250,6 +250,8 @@ def parallel_compression(model, ranges, cache):
     cache['bpp_act'][I_frame_idx] = bpp_act.cuda()
     cache['end_of_batch'][I_frame_idx] = True
     
+    # if range is more than batch size (6), divide it.
+    
     if len(ranges) == 2:
         ranges[1] = [I_frame_idx] + ranges[1]
     
@@ -272,6 +274,9 @@ def parallel_compression(model, ranges, cache):
             cache['end_of_batch'][j] = False
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
+        
+    # save metrics wrt positions
+    # mAP for each position is a problem
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # bi: fP=bP=6
