@@ -157,12 +157,11 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 target = torch.stack(target, dim=0)
                 l = len(frame_idx)
                 with autocast():
-                    reg_loss = loss_module(model(data).detach(), target, epoch, batch_idx, l_loader) if doAD else None
+                    reg_loss = loss_module(model(data), target, epoch, batch_idx, l_loader) if doAD else None
                     be_loss = torch.stack(bpp_est_list,dim=0).mean(dim=0)
                     aux_loss = torch.stack(aux_loss_list,dim=0).mean(dim=0)
                     img_loss = torch.stack(img_loss_list,dim=0).mean(dim=0)
                     loss = model_codec.loss(img_loss,be_loss,aux_loss,reg_loss)
-                    print(reg_loss.requires_grad,be_loss.requires_grad)
                     psnr = torch.stack(psnr_list,dim=0).mean(dim=0)
                     msssim = torch.stack(msssim_list,dim=0).mean(dim=0)
                     aux_loss_module.update(aux_loss.cpu().data.item(), l)
