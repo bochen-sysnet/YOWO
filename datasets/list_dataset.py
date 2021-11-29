@@ -116,8 +116,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         # x265/x264/MRLVC/RLVC/DVC
         # read whole video
         if startNewClip:
-            #if 'clip' in self.cache: del self.cache['clip']
-            #if 'img_loss' in self.cache: del self.cache['img_loss']
+            if 'clip' in self.cache: del self.cache['clip']
+            if 'img_loss' in self.cache: del self.cache['img_loss']
             self.cache = {}
             clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
