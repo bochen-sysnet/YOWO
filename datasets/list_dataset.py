@@ -113,14 +113,6 @@ class UCF_JHMDB_Dataset_codec(Dataset):
         im_ind = int(im_split[num_parts-1][0:5])
         cur_video = im_split[1]
         startNewClip = (cur_video != self.prev_video or self.cache['max_seen'] != im_ind-2)
-        # x265/x264/MRLVC/RLVC/DVC
-        # read whole video
-        if startNewClip:
-            self.cache = {}
-            clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
-            if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
-                self.cache['clip'] = [self.transform(img).cuda(0) for img in clip]
-        compress_video(model_codec, im_ind, self.cache, startNewClip)
         self.prev_video = cur_video
         # check if the last frame of a clip or the last frame of a batch
         # it tells whether to split the processing for action detection
@@ -133,6 +125,13 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             nxt_im_ind = int(im_split[num_parts-1][0:5])
             nxt_video = im_split[1]
             self.last_frame = (cur_video != nxt_video)
+        # read whole video
+        if startNewClip:
+            self.cache = {}
+            clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
+            if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
+                self.cache['clip'] = [self.transform(img).cuda(0) for img in clip]
+        compress_video(model_codec, im_ind, self.cache, startNewClip)
         
     
 def read_video_clip(base_path, imgpath, shape, dataset_use='ucf24', jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
