@@ -129,64 +129,6 @@ class RecProbModel(CompressionModel):
         self.dec_t = time.perf_counter() - t_0
         return x_hat, rpm_hidden.detach()
         
-def myupdate(self, force = False):
-    # Check if we need to update the bottleneck parameters, the offsets are
-    # only computed and stored when the conditonal model is update()'d.
-    if self._offset.numel() > 0 and not force:
-        return False
-    
-    medians = self.quantiles[:, 0, 1]
-
-    minima = medians - self.quantiles[:, 0, 0]
-    minima = torch.ceil(minima).int()
-    minima = torch.clamp(minima, min=1)
-
-    maxima = self.quantiles[:, 0, 2] - medians
-    maxima = torch.ceil(maxima).int()
-    maxima = torch.clamp(maxima, min=1)
-
-    self._offset = -minima
-
-    pmf_start = medians - minima
-    pmf_length = maxima + minima + 1
-
-    max_length = pmf_length.max().item()
-    device = pmf_start.device
-    samples = torch.arange(max_length, device=device)
-
-    samples = samples[None, :] + pmf_start[:, None, None]
-
-    half = float(0.5)
-    
-    lower = self._logits_cumulative(samples - half, stop_gradient=True)
-    upper = self._logits_cumulative(samples + half, stop_gradient=True)
-    sign = -torch.sign(lower + upper)
-    pmf = torch.abs(torch.sigmoid(sign * upper) - torch.sigmoid(sign * lower))
-
-    pmf = pmf[:, 0, :]
-    tail_mass = torch.sigmoid(lower[:, 0, :1]) + torch.sigmoid(-upper[:, 0, -1:])
-    quantized_cdf = my_pmf_to_cdf(self,pmf, tail_mass, pmf_length, max_length)
-    self._quantized_cdf = quantized_cdf
-    self._cdf_length = pmf_length + 2
-    return True
-    
-from compressai._CXX import pmf_to_quantized_cdf as _pmf_to_quantized_cdf
-
-def pmf_to_quantized_cdf(pmf, precision = 16):
-    cdf = _pmf_to_quantized_cdf(pmf.tolist(), precision)
-    cdf = torch.IntTensor(cdf)
-    return cdf
-    
-def my_pmf_to_cdf(self, pmf, tail_mass, pmf_length, max_length):
-    cdf = torch.zeros(
-        (len(pmf_length), max_length + 2), dtype=torch.int32, device=pmf.device
-    )
-    for i, p in enumerate(pmf):
-        prob = torch.cat((p[: pmf_length[i]], tail_mass[i]), dim=0)
-        _cdf = pmf_to_quantized_cdf(prob, self.entropy_coder_precision)
-        cdf[i, : _cdf.size(0)] = _cdf
-    return cdf
-        
 class MeanScaleHyperPriors(CompressionModel):
 
     def __init__(
@@ -263,11 +205,6 @@ class MeanScaleHyperPriors(CompressionModel):
         
     def update(self, scale_table=None, force=False):
         updated = self.gaussian_conditional.update_scale_table(self.scale_table, force=force)
-        #for m in self.children():
-        #    if not isinstance(m, EntropyBottleneck):
-        #        continue
-        #    myupdate(m,force=force)
-        # official version will cause floating point exception
         updated |= super().update(force=force)
         return updated
 
@@ -298,14 +235,17 @@ class MeanScaleHyperPriors(CompressionModel):
         
     def get_actual_bits(self, string):
         (x_string,z_string) = string
-        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
+        x_act = torch.FloatTensor([len(s)*8 for s in x_string])
+        z_act = torch.FloatTensor([len(s)*8 for s in z_string])
+        bits_act = x_act + z_act
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
         (x_likelihood,z_likelihood) = likelihoods
         log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(x_likelihood.device)
-        x_est = torch.sum(torch.log(x_likelihood)) / (-log2)
-        z_est = torch.sum(torch.log(z_likelihood)) / (-log2)
+        assert(len(likelihoods.size())==2)
+        x_est = torch.sum(torch.log(x_likelihood),dim=-1) / (-log2)
+        z_est = torch.sum(torch.log(z_likelihood),dim=-1) / (-log2)
         bits_est = x_est + z_est
         return bits_est
         
