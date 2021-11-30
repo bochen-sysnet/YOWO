@@ -134,7 +134,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
     bpp_est_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
-        if batch_idx<=50000:continue
+        if batch_idx<=70000:continue
         # align batches
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
