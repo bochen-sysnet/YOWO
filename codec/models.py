@@ -254,9 +254,9 @@ def parallel_compression(model, ranges, cache):
     cache['msssim'][I_frame_idx] = msssim.cuda()
     cache['bpp_act'][I_frame_idx] = bpp_act.cuda()
     cache['end_of_batch'][I_frame_idx] = True
-    #model.psnr[I_frame_idx%13].update(psnr.cpu().data.item())
-    #model.msssim[I_frame_idx%13].update(msssim.cpu().data.item())
-    #model.bpp[I_frame_idx%13].update(bpp_act.cpu().data.item())
+    #model.psnr[I_frame_idx%13].update(float(psnr))
+    #model.msssim[I_frame_idx%13].update(float(msssim))
+    #model.bpp[I_frame_idx%13].update(float(bpp_act))
     
     # if range is more than batch size (6), divide it.
     
@@ -280,9 +280,9 @@ def parallel_compression(model, ranges, cache):
             cache['msssim'][j] = msssim[pos]
             cache['bpp_act'][j] = bpp_act[pos]
             cache['end_of_batch'][j] = False
-            #model.psnr[j%13].update(psnr.cpu().data.item())
-            #model.msssim[j%13].update(msssim.cpu().data.item())
-            #model.bpp[j%13].update(bpp_act.cpu().data.item()) #need to calculate bpp of each frame and each component?
+            #model.psnr[j%13].update(float(psnr))
+            #model.msssim[j%13].update(float(msssim))
+            #model.bpp[j%13].update(float(bpp_act))
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
         
