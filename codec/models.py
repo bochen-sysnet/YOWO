@@ -886,7 +886,7 @@ class Coder2D(nn.Module):
         
     def forward(self, x, rae_hidden=None, rpm_hidden=None, RPM_flag=False, prior=None):
         # update only once during testing
-        if not self.updated and not self.training:
+        if not self.updated :
             self.entropy_bottleneck.update(force=True)
             self.updated = True
             
