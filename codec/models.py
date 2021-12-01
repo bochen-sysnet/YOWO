@@ -1770,7 +1770,7 @@ def test_batch_proc(name = 'SPVC'):
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
-    if name in ['SPVC','SPVC_v2']:
+    if 'SPVC' in name:
         model = SPVC(name,channels,noMeasure=False)
     elif name == 'SCVC':
         model = SCVC(name,channels,noMeasure=False)
@@ -1796,7 +1796,7 @@ def test_batch_proc(name = 'SPVC'):
         d = time.perf_counter() - t_0
         timer.update(d)
         # measure end
-        loss = model.loss(img_loss[0],bpp_est[0],aux_loss[0])
+        loss = model.loss(img_loss[0],torch.mean(bpp_est),aux_loss[0])
         loss.backward()
         optimizer.step()
         
@@ -1867,7 +1867,7 @@ def test_seq_proc(name='RLVC'):
 # update CNN alternatively?
     
 if __name__ == '__main__':
-    test_batch_proc('SVC')
+    #test_batch_proc('SVC')
     test_batch_proc('SPVC')
     #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
