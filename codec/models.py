@@ -1424,7 +1424,7 @@ class SPVC(nn.Module):
         bpp_est = bpp_est
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w)
-        bpp_act = bpp_act.repeat(bs)
+        bpp_act = bpp_act
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
