@@ -990,6 +990,7 @@ class Coder2D(nn.Module):
         # calculate bpp (actual)
         if not self.training:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
+            print(bits_act)
         else:
             bits_act = bits_est
 
