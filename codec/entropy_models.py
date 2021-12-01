@@ -275,7 +275,7 @@ class MeanScaleHyperPriors(CompressionModel):
         z = self.h_a2(z)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
-        print('z',training,z[0])
+        print('z',z[0])
         print('zhat',z_hat[0])
         
         g = self.h_s1(z_hat)
