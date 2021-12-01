@@ -218,7 +218,10 @@ class MeanScaleHyperPriors(CompressionModel):
         if self.useAttention:
             z = st_attention(z,self.s_attn_a,self.t_attn_a)
         z = self.h_a2(z)
-        z_hat, z_likelihood = self.entropy_bottleneck(z,training)
+        z_hat, z_likelihood = self.entropy_bottleneck(z)
+        print(z[0])
+        print(z_hat[0])
+        exit(0)
         
         self.z = z # for fast compression
             
@@ -239,8 +242,6 @@ class MeanScaleHyperPriors(CompressionModel):
         x_act = torch.FloatTensor([len(s)*8 for s in x_string])
         z_act = torch.FloatTensor([len(s)*8 for s in z_string])
         bits_act = x_act + z_act
-        print(x_act,z_act)
-        exit(0)
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
@@ -275,8 +276,6 @@ class MeanScaleHyperPriors(CompressionModel):
         z = self.h_a2(z)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
-        print('z',z[0])
-        print('zhat',z_hat[0])
         
         g = self.h_s1(z_hat)
         if self.useAttention:
