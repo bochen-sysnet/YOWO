@@ -974,7 +974,7 @@ class Coder2D(nn.Module):
         if self.noMeasure:
             bits_est = self.entropy_bottleneck.get_estimate_bits(likelihoods)
         else:
-            bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
+            bits_est = torch.zeros(latent_hat.size(0)).to(x.device)
         
         # calculate bpp (actual)
         if not self.training:
