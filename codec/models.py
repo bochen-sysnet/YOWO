@@ -271,7 +271,7 @@ def parallel_compression(model, ranges, cache):
         if n==0:continue
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-        if I_frame_idx>-1:
+        if I_frame_idx>50:
             print(I_frame_idx,bpp_est,bpp_act)
             write_image(x,'raw')
             write_image(x_hat,'com')
@@ -944,7 +944,6 @@ class Coder2D(nn.Module):
                 t_0 = time.perf_counter()
                 latent_string = self.entropy_bottleneck.compress(latent)
                 self.entropy_bottleneck.enc_t = time.perf_counter() - t_0
-                print(latent_string)
                 # decoding
                 t_0 = time.perf_counter()
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
@@ -956,6 +955,7 @@ class Coder2D(nn.Module):
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
+                print(latent_string)
                 latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
         elif self.entropy_type == 'joint':
             if self.noMeasure:
