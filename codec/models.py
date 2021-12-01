@@ -271,7 +271,7 @@ def parallel_compression(model, ranges, cache):
         if n==0:continue
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-        if I_frame_idx>30:
+        if I_frame_idx>-1:
             print(I_frame_idx,bpp_est,bpp_act)
             write_image(x,'raw')
             write_image(x_hat,'com')
@@ -944,6 +944,7 @@ class Coder2D(nn.Module):
                 t_0 = time.perf_counter()
                 latent_string = self.entropy_bottleneck.compress(latent)
                 self.entropy_bottleneck.enc_t = time.perf_counter() - t_0
+                print(latent_string)
                 # decoding
                 t_0 = time.perf_counter()
                 latent_hat = self.entropy_bottleneck.decompress(latent_string, latent.size()[-2:])
@@ -1331,7 +1332,7 @@ def generate_graph(graph_type='default'):
     return g
         
 class SPVC(nn.Module):
-    def __init__(self, name, channels=128, noMeasure=True):
+    def __init__(self, name, channels=128, noMeasure=False):
         super(SPVC, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()
