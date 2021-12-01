@@ -951,7 +951,7 @@ class Coder2D(nn.Module):
         elif self.entropy_type == 'mshp':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-                print(torch.mean(torch.pow(latent - latent_hat, 2)))
+                print('latent',torch.mean(torch.pow(latent - latent_hat, 2)))
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
@@ -1332,7 +1332,7 @@ def generate_graph(graph_type='default'):
     return g
         
 class SPVC(nn.Module):
-    def __init__(self, name, channels=128, noMeasure=True):
+    def __init__(self, name, channels=128, noMeasure=False):
         super(SPVC, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()
@@ -1422,7 +1422,7 @@ class SPVC(nn.Module):
         if not self.noMeasure:
             self.meters['E-RES'].update(self.res_codec.enc_t)
             self.meters['D-RES'].update(self.res_codec.dec_t)
-        
+        print('mv',torch.mean(torch.pow(mv_tensors - mv_hat, 2)),'res',torch.mean(torch.pow(res_tensors - res_hat, 2)))
         # reconstruction
         t_0 = time.perf_counter()
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
