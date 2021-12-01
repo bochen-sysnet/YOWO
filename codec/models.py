@@ -36,8 +36,6 @@ def get_codec_model(name):
         model_codec = SPVC(name)
     elif name in ['SCVC']:
         model_codec = SCVC(name)
-    elif 'SVC' in name:
-        model_codec = SVC(name)
     elif name in ['AE3D']:
         model_codec = AE3D(name)
     elif name in ['x264','x265']:
@@ -52,7 +50,7 @@ def compress_video(model, frame_idx, cache, startNewClip):
         compress_video_sequential(model, frame_idx, cache, startNewClip)
     elif model.name in ['x265','x264']:
         compress_video_group(model, frame_idx, cache, startNewClip)
-    elif model.name in ['SCVC','AE3D'] or 'SVC' in model.name or 'SPVC' in model.name:
+    elif model.name in ['SCVC','AE3D'] or 'SPVC' in model.name:
         compress_video_batch(model, frame_idx, cache, startNewClip)
             
 def init_training_params(model):
@@ -1153,167 +1151,6 @@ def motion_compensation(mc_model,x,motion):
     MC_frames = mc_model(MC_input)
     return MC_frames,warped_frames
     
-class SVC(nn.Module):
-    def __init__(self, name, channels=128, noMeasure=True):
-        super(SVC, self).__init__()
-        self.name = name 
-        self.optical_flow = OpticalFlowNet()
-        self.MC_network = MCNet()
-        self.mv_codec = Coder2D('rpm', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
-        self.res_codec = Coder2D('rpm', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
-        self.channels = channels
-        init_training_params(self)
-        self.epoch = -1
-        self.noMeasure = noMeasure
-        # option 1: use raw frames for flow estimation
-        # option 2: 
-        
-        # split on multi-gpus
-        self.split()
-        self.use_batch = False
-
-    def split(self):
-        self.optical_flow.cuda(0)
-        self.mv_codec.cuda(0)
-        self.MC_network.cuda(1)
-        self.res_codec.cuda(1)
-        
-    def forward(self, x, use_psnr=True):
-        if self.use_batch:
-            return self._batch_process(x, use_psnr)
-        else:
-            return self._seq_process(x, use_psnr)
-        
-    def _batch_process(self, x, use_psnr=True):
-        bs, c, h, w = x[1:].size()
-        
-        # flow estimation
-        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(x[:-1], x[1:])
-        
-        # flow compression
-        mv_hat, mv_act, mv_est, mv_aux = self._compress_sequence(self.mv_codec, mv_tensor)
-        
-        # motion compensation
-        loc = get_grid_locations(bs, h, w).to(x.device)
-        Y1_warp = F.grid_sample(x[:-1], loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        MC_input = torch.cat((mv_hat, x[:-1], Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
-        
-        # residual compression
-        res_tensor = x[1:].cuda(1) - Y1_MC
-        res_hat, res_act, res_est, res_aux = self._compress_sequence(self.res_codec, res_tensor)
-        
-        # reconstruction
-        x_hat = torch.clip(res_hat + Y1_MC, min=0, max=1).to(x.device)
-        
-        # estimated bits
-        bpp_est = (mv_est + res_est.cuda(0))/(h * w * bs)
-        # actual bits
-        bpp_act = (mv_act + res_act.to(mv_act.device))/(h * w * bs)
-        # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/(2 * bs)
-        
-        # compute loss and metrics
-        psnr = PSNR(x[1:], x_hat, use_list=True)
-        msssim = MSSSIM(x[1:], x_hat, use_list=True)
-        warp_loss = calc_loss(x[1:], Y1_warp.to(x.device), self.r, use_psnr)
-        mc_loss = calc_loss(x[1:], Y1_MC.to(x.device), self.r, use_psnr)
-        rec_loss = calc_loss(x[1:], x_hat, self.r, use_psnr)
-        flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
-        img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
-        
-        return x_hat, bpp_est.repeat(bs), img_loss.repeat(bs), aux_loss.repeat(bs), bpp_act.repeat(bs), psnr, msssim
-        
-    def _compress_sequence(self, codec, mv_tensor):
-        bs,_,h,w = mv_tensor.size()
-        rae_mv_hidden, _, rpm_mv_hidden, _ = self.init_hidden(h,w)
-        mv_hat=[]
-        mv_act=torch.FloatTensor([0]).squeeze(0).cuda()
-        mv_est=torch.FloatTensor([0]).squeeze(0).cuda()
-        mv_aux=torch.FloatTensor([0]).squeeze(0).cuda()
-        for k in range(bs):
-            mv_hat_k,rae_mv_hidden,rpm_mv_hidden,mv_act_k,mv_est_k,mv_aux_k = codec(mv_tensor[k:k+1], rae_mv_hidden, rpm_mv_hidden, RPM_flag=(k>0))
-            mv_hat += [mv_hat_k];mv_act += mv_act_k.cuda();mv_est += mv_est_k.cuda();mv_aux += mv_aux_k.cuda()
-        mv_hat = torch.cat(mv_hat, dim=0)
-        return mv_hat, mv_act, mv_est, mv_aux
-        
-    def _seq_process(self, x, use_psnr=True): 
-        # input: raw frames=bs+1,c,h,w 
-        bs, c, h, w = x[1:].size()
-        hidden = self.init_hidden(h,w)
-        bpp_est = {};img_loss = {};aux_loss = {};bpp_act = {};psnr = {};msssim = {};x_hat = {}
-        # graph-based compression 
-        g = generate_graph('3layers')
-        #g = generate_graph('default')
-        start = 0
-        # BFS
-        for start in g:
-            if start>bs:continue
-            if start == 0:
-                Y0_com = x[:1]
-            else:
-                Y0_com = x_hat[start-1]
-            for k in g[start]:
-                if k>bs:continue
-                Y1_raw = x[k:k+1]
-                Y1_com, hidden, bpp_est_k, img_loss_k, aux_loss_k, bpp_act_k, psnr_k, msssim_k = \
-                    self._process(Y0_com.detach(), Y1_raw, hidden, RPM_flag=(k not in g[0]), use_psnr=use_psnr)
-                k = k-1
-                x_hat[k] = Y1_com;bpp_est[k] = bpp_est_k;bpp_act[k] = bpp_act_k;img_loss[k] = img_loss_k;aux_loss[k] = aux_loss_k;psnr[k] = psnr_k;msssim[k] = msssim_k
-        return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
-        
-    def _process(self, Y0_com, Y1_raw, hidden, RPM_flag, use_psnr=True):
-        # Y0_com: compressed previous frame, [1,c,h,w]
-        # Y1_raw: uncompressed current frame
-        batch_size, _, Height, Width = Y1_raw.shape
-        # otherwise, it's P frame
-        # hidden states
-        rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden = hidden
-        # estimate optical flow
-        mv_tensor, l0, l1, l2, l3, l4 = self.optical_flow(Y0_com, Y1_raw)
-        # compress optical flow
-        mv_hat,rae_mv_hidden,rpm_mv_hidden,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensor, rae_mv_hidden, rpm_mv_hidden, RPM_flag)
-        # motion compensation
-        loc = get_grid_locations(batch_size, Height, Width).to(Y0_com.device)
-        Y1_warp = F.grid_sample(Y0_com, loc + mv_hat.permute(0,2,3,1), align_corners=True)
-        MC_input = torch.cat((mv_hat, Y0_com, Y1_warp), axis=1)
-        Y1_MC = self.MC_network(MC_input.cuda(1))
-        # compress residual
-        res_tensor = Y1_raw.cuda(1) - Y1_MC
-        res_hat,rae_res_hidden,rpm_res_hidden,res_act,res_est,res_aux = self.res_codec(res_tensor, rae_res_hidden, rpm_res_hidden, RPM_flag)
-        # reconstruction
-        Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
-        
-        ##### compute bits
-        # estimated bits
-        bpp_est = (mv_est + res_est.cuda(0))/(Height * Width * batch_size)
-        # actual bits
-        bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
-        # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
-        # calculate metrics/loss
-        psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
-        msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
-        warp_loss = calc_loss(Y1_raw, Y1_warp.to(Y1_raw.device), self.r, use_psnr)
-        mc_loss = calc_loss(Y1_raw, Y1_MC.to(Y1_raw.device), self.r, use_psnr)
-        rec_loss = calc_loss(Y1_raw, Y1_com.to(Y1_raw.device), self.r, use_psnr)
-        flow_loss = (l0+l1+l2+l3+l4)/5*1024*self.r_flow
-        img_loss = self.r_rec*rec_loss + self.r_warp*warp_loss + self.r_mc*mc_loss +self.r_flow*flow_loss
-        # hidden states
-        hidden = (rae_mv_hidden.detach(), rae_res_hidden.detach(), rpm_mv_hidden, rpm_res_hidden)
-        return Y1_com.cuda(0), hidden, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
-        
-    def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
-        loss = self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
-        return loss
-    
-    def init_hidden(self, h, w):
-        rae_mv_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
-        rae_res_hidden = torch.zeros(1,self.channels*4,h//4,w//4).cuda()
-        rpm_mv_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        rpm_res_hidden = torch.zeros(1,self.channels*2,h//16,w//16).cuda()
-        return (rae_mv_hidden, rae_res_hidden, rpm_mv_hidden, rpm_res_hidden)
-        
 def generate_graph(graph_type='default'):
     # 7 nodes, 6 edges
     # the order to iterate graph also matters, leave it now
@@ -1867,7 +1704,6 @@ def test_seq_proc(name='RLVC'):
 # update CNN alternatively?
     
 if __name__ == '__main__':
-    #test_batch_proc('SVC')
     test_batch_proc('SPVC')
     #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
