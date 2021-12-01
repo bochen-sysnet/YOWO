@@ -2,6 +2,8 @@ FROM nvidia/cuda:10.2-base
 
 USER root
 
+RUN apt-get update
+
 RUN apt-get install -y python3.7 python3-pip
 
 RUN apt-get -y install git cmake
