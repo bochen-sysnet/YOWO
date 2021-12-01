@@ -951,12 +951,12 @@ class Coder2D(nn.Module):
         elif self.entropy_type == 'mshp':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
+                print(torch.mean(torch.pow(latent - latent_hat, 2)))
                 if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
                 latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
-                print(torch.mean(torch.pow(latent - latent_hat, 2)))
         elif self.entropy_type == 'joint':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, prior, training=self.training)
@@ -1332,7 +1332,7 @@ def generate_graph(graph_type='default'):
     return g
         
 class SPVC(nn.Module):
-    def __init__(self, name, channels=128, noMeasure=False):
+    def __init__(self, name, channels=128, noMeasure=True):
         super(SPVC, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()
