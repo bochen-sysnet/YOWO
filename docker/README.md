@@ -1,6 +1,6 @@
 # build the docker images
-sudo docker build -t client -f dockerfiles/Dockerfile.client .
-sudo docker build -t server -f dockerfiles/Dockerfile.server .
+sudo docker build -t client -f docker/Dockerfile.client .
+sudo docker build -t server -f docker/Dockerfile.server .
 
 # start the docker container
 1. On server
