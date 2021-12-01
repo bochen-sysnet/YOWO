@@ -1420,7 +1420,6 @@ class SPVC(nn.Module):
         if not self.noMeasure:
             self.meters['E-RES'].update(self.res_codec.enc_t)
             self.meters['D-RES'].update(self.res_codec.dec_t)
-        print('mv',torch.mean(torch.pow(mv_tensors - mv_hat, 2)),'res',torch.mean(torch.pow(res_tensors - res_hat, 2)))
         # reconstruction
         t_0 = time.perf_counter()
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
