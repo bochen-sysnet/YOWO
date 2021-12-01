@@ -886,7 +886,7 @@ class Coder2D(nn.Module):
         
     def forward(self, x, rae_hidden=None, rpm_hidden=None, RPM_flag=False, prior=None):
         # update only once during testing
-        if not self.updated :
+        if not self.updated and not self.training:
             self.entropy_bottleneck.update(force=True)
             self.updated = True
             
@@ -941,7 +941,7 @@ class Coder2D(nn.Module):
         elif self.entropy_type == 'mshp':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-                if True:
+                if not self.training:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
@@ -977,7 +977,7 @@ class Coder2D(nn.Module):
             bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
         
         # calculate bpp (actual)
-        if True:
+        if not self.training:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
         else:
             bits_act = bits_est
@@ -1421,11 +1421,8 @@ class SPVC(nn.Module):
         ##### compute bits
         # estimated bits
         bpp_est = (mv_est.cuda(0) + res_est.cuda(0))/(h * w)
-        bpp_est = bpp_est
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w)
-        bpp_act = bpp_act
-        print(bpp_est,bpp_act)
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
         aux_loss = aux_loss.repeat(bs)
@@ -1440,6 +1437,7 @@ class SPVC(nn.Module):
                     self.r_warp*warp_loss + \
                     self.r_mc*mc_loss + \
                     self.r_flow*flow_loss)
+        print(bpp_est,bpp_act,img_loss)
         img_loss = img_loss.repeat(bs)
         
         return com_frames, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
