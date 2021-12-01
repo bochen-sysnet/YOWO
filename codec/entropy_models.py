@@ -235,9 +235,10 @@ class MeanScaleHyperPriors(CompressionModel):
         
     def get_actual_bits(self, string):
         (x_string,z_string) = string
-        x_act = torch.FloatTensor([len(s)*8 for s in x_string])
-        z_act = torch.FloatTensor([len(s)*8 for s in z_string])
-        bits_act = x_act + z_act
+        #x_act = torch.FloatTensor([len(s)*8 for s in x_string])
+        #z_act = torch.FloatTensor([len(s)*8 for s in z_string])
+        #bits_act = x_act + z_act
+        bits_act = torch.FloatTensor([len(b''.join(x_string))*8 + len(b''.join(z_string))*8]).squeeze(0)
         return bits_act
         
     def get_estimate_bits(self, likelihoods):
