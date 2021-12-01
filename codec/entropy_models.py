@@ -219,9 +219,6 @@ class MeanScaleHyperPriors(CompressionModel):
             z = st_attention(z,self.s_attn_a,self.t_attn_a)
         z = self.h_a2(z)
         z_hat, z_likelihood = self.entropy_bottleneck(z)
-        print(z[0])
-        print(z_hat[0])
-        exit(0)
         
         self.z = z # for fast compression
             
