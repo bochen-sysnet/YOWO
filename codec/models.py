@@ -245,7 +245,7 @@ def parallel_compression(model, ranges, cache):
     # make it bidirectional?
     # I frame compression
     I_frame_idx = ranges[0][0]
-    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][I_frame_idx].unsqueeze(0), model.I_level)
+    x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = I_compression(cache['clip'][I_frame_idx].unsqueeze(0), model.I_level, model_name=model.name)
     cache['clip'][I_frame_idx] = x_hat.squeeze(0).cuda()
     cache['img_loss'][I_frame_idx] = img_loss.cuda()
     cache['aux'][I_frame_idx] = aux_loss.cuda()
@@ -270,14 +270,11 @@ def parallel_compression(model, ranges, cache):
         n = len(idx_list)
         if n==0:continue
         x = torch.stack(img_list, dim=0)
-        for j in range(x.size(0)):
-            img = transforms.ToPILImage()(x[j])
-            img.save('raw_' + str(j) + '.jpg')
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-        for j in range(x_hat.size(0)):
-            img = transforms.ToPILImage()(x_hat[j])
-            img.save('com_' + str(j) + '.jpg')
-        exit(0)
+        if I_frame_idx>30:
+            write_image('raw',x)
+            write_image('com',x_hat)
+            exit(0)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0)
             cache['img_loss'][j] = img_loss[pos]
@@ -295,6 +292,11 @@ def parallel_compression(model, ranges, cache):
         
     # save metrics wrt positions
     # mAP for each position is a problem
+    
+def write_image(x, prefix):
+    for j in range(x.size(0)):
+        img = transforms.ToPILImage()(x[j])
+        img.save(prefix + str(j) + '.jpg')
             
 def index2GOP(i, clip_len, fP = 6, bP = 6):
     # bi: fP=bP=6
@@ -641,12 +643,12 @@ class StandardVideoCodecs(nn.Module):
         else:
             return self.r_app*app_loss + self.r_img*pix_loss + self.r_bpp*bpp_loss + self.r_aux*aux_loss
         
-def I_compression(Y1_raw, I_level):
+def I_compression(Y1_raw, I_level, model_name=''):
     # we can compress with bpg,deepcod ...
     batch_size, _, Height, Width = Y1_raw.shape
-    prename = "tmp/frames/prebpg"
-    binname = "tmp/frames/bpg"
-    postname = "tmp/frames/postbpg"
+    prename = "tmp/frames/prebpg" + model_name
+    binname = "tmp/frames/bpg" + model_name
+    postname = "tmp/frames/postbpg" + model_name
     raw_img = transforms.ToPILImage()(Y1_raw.squeeze(0))
     raw_img.save(prename + '.jpg')
     pre_bits = os.path.getsize(prename + '.jpg')*8
