@@ -181,15 +181,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
                 # init batch
                 frame_idx = []; data = []; target = []; img_loss_list = []; aux_loss_list = []
                 bpp_est_list = []; psnr_list = []; msssim_list = []
-         
-        # save model to prevent floating point exception
-        if batch_idx % 5000 == 0 and batch_idx > 0:
-            state = {
-                'epoch': epoch,
-                'state_dict': model_codec.state_dict(),
-                'score': score
-            }
-            save_codec_checkpoint(state, False, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
 
         # show result
         train_iter.set_description(
@@ -212,6 +203,13 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             all_loss_module.reset()
             psnr_module.reset()
             msssim_module.reset()
+            if batch_idx > 0:
+                state = {
+                    'epoch': epoch,
+                    'state_dict': model_codec.state_dict(),
+                    'score': score
+                }
+                save_codec_checkpoint(state, False, cfg.BACKUP_DIR, cfg.TRAIN.DATASET, cfg.DATA.NUM_FRAMES, cfg.TRAIN.CODEC_NAME)
 
     t1 = time.time()
     logging('trained with %f samples/s' % (len(train_dataset)/(t1-t0)))
