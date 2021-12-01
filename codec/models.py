@@ -272,8 +272,8 @@ def parallel_compression(model, ranges, cache):
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         if I_frame_idx>30:
-            write_image('raw',x)
-            write_image('com',x_hat)
+            write_image(x,'raw')
+            write_image(x_hat,'com')
             exit(0)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0)
