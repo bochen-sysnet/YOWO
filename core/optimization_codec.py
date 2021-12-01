@@ -201,6 +201,7 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
             f"AL: {all_loss_module.val:.2f} ({all_loss_module.avg:.2f}). "
             f"P: {psnr_module.val:.2f} ({psnr_module.avg:.2f}). "
             f"M: {msssim_module.val:.4f} ({msssim_module.avg:.4f}). ")
+        print('')
 
         # save result every 1000 batches
         if batch_idx % 2000 == 0: # From time to time, reset averagemeters to see improvements
