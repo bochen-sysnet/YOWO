@@ -271,7 +271,6 @@ def parallel_compression(model, ranges, cache):
         if n==0:continue
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
-        print(bpp_est,bpp_act)
         for pos,j in enumerate(idx_list):
             cache['clip'][j] = x_hat[pos].squeeze(0)
             cache['img_loss'][j] = img_loss[pos]
@@ -1425,6 +1424,7 @@ class SPVC(nn.Module):
         bpp_est = bpp_est
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w)
+        print(mv_act,res_act)
         bpp_act = bpp_act
         # auxilary loss
         aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
