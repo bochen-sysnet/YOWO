@@ -1333,7 +1333,7 @@ def generate_graph(graph_type='default'):
     return g
         
 class SPVC(nn.Module):
-    def __init__(self, name, channels=128, noMeasure=False):
+    def __init__(self, name, channels=128, noMeasure=True):
         super(SPVC, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()

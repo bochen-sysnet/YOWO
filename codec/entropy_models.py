@@ -218,7 +218,10 @@ class MeanScaleHyperPriors(CompressionModel):
         if self.useAttention:
             z = st_attention(z,self.s_attn_a,self.t_attn_a)
         z = self.h_a2(z)
-        z_hat, z_likelihood = self.entropy_bottleneck(z)
+        z_hat, z_likelihood = self.entropy_bottleneck(z,training)
+        
+        print('z',training,z[0])
+        print('zhat',z_hat[0])
         self.z = z # for fast compression
             
         g = self.h_s1(z_hat)
@@ -274,9 +277,6 @@ class MeanScaleHyperPriors(CompressionModel):
         z = self.h_a2(z)
         z_string = self.entropy_bottleneck.compress(z)
         z_hat = self.entropy_bottleneck.decompress(z_string, z.size()[-2:])
-        
-        print('z',z[0])
-        print('zhat',z_hat[0])
         
         g = self.h_s1(z_hat)
         if self.useAttention:
