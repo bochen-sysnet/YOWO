@@ -941,7 +941,7 @@ class Coder2D(nn.Module):
         elif self.entropy_type == 'mshp':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, training=self.training)
-                if not self.training:
+                if True:
                     latent_string = self.entropy_bottleneck.compress(latent)
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
