@@ -977,7 +977,7 @@ class Coder2D(nn.Module):
             bits_est = torch.FloatTensor([0]).squeeze(0).to(x.device)
         
         # calculate bpp (actual)
-        if not self.training:
+        if True:
             bits_act = self.entropy_bottleneck.get_actual_bits(latent_string)
         else:
             bits_act = bits_est
