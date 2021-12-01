@@ -955,10 +955,9 @@ class Coder2D(nn.Module):
             else:
                 latent_string, shape = self.entropy_bottleneck.compress_slow(latent)
                 latent_hat = self.entropy_bottleneck.decompress_slow(latent_string, shape)
-            print(latent)
+            print(latent[0])
             print('latent',torch.mean(torch.pow(latent - latent_hat, 2)))
-            print(latent_hat)
-            exit(0)
+            print(latent_hat[0])
         elif self.entropy_type == 'joint':
             if self.noMeasure:
                 latent_hat, likelihoods = self.entropy_bottleneck(latent, prior, training=self.training)
