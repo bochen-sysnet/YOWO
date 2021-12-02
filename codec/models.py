@@ -290,6 +290,7 @@ def parallel_compression(model, ranges, cache):
             #model.bpp[j%13].update(float(bpp_act))
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
+    print(cache['end_of_batch'])
         
     # save metrics wrt positions
     # mAP for each position is a problem
