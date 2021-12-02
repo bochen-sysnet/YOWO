@@ -127,10 +127,12 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.last_frame = (cur_video != nxt_video)
         # read whole video
         if startNewClip:
+            for key in self.cache:
+                del self.cache[key]
             self.cache = {}
             clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
-                self.cache['clip'] = [self.transform(img).cuda(0) for img in clip]
+                self.cache['clip'] = torch.stack([self.transform(img) for img in clip]).cuda(0)
         compress_video(model_codec, im_ind, self.cache, startNewClip)
         
     

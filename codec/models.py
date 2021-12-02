@@ -197,20 +197,21 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
     # process the involving GOP
     # how to deal with backward P frames?
     # if process in order, some frames need later frames to compress
+    L = len(cache['clip'])
     if startNewClip:
         # create cache
-        cache['bpp_est'] = {}
-        cache['img_loss'] = {}
-        cache['aux'] = {}
-        cache['bpp_act'] = {}
-        cache['msssim'] = {}
-        cache['psnr'] = {}
-        cache['end_of_batch'] = {}
+        cache['bpp_est'] = torch.FloatTensor(L).zero_().cuda()
+        cache['img_loss'] = torch.FloatTensor(L).zero_().cuda()
+        cache['aux'] = torch.FloatTensor(L).zero_().cuda()
+        cache['bpp_act'] = torch.FloatTensor(L).zero_().cuda()
+        cache['msssim'] = torch.FloatTensor(L).zero_().cuda()
+        cache['psnr'] = torch.FloatTensor(L).zero_().cuda()
+        cache['end_of_batch'] = [False for _ in range(L)]
         cache['max_proc'] = -1
     if cache['max_proc'] >= frame_idx-1:
         cache['max_seen'] = frame_idx-1
     else:
-        ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, len(cache['clip']))
+        ranges, cache['max_seen'], cache['max_proc'] = index2GOP(frame_idx-1, L)
         parallel_compression(model, ranges, cache)
       
 def progressive_compression(model, i, prev, cache, P_flag, RPM_flag):
