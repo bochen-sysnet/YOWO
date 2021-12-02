@@ -172,15 +172,15 @@ def compress_video_sequential(model, frame_idx, cache, startNewClip):
     # if process in order, some frames need later frames to compress
     if startNewClip:
         # create cache
-        cache['bpp_est'] = {}
-        cache['img_loss'] = {}
-        cache['aux'] = {}
-        cache['bpp_act'] = {}
-        cache['psnr'] = {}
-        cache['msssim'] = {}
+        cache['bpp_est'] = torch.FloatTensor(L).zero_().cuda()
+        cache['img_loss'] = torch.FloatTensor(L).zero_().cuda()
+        cache['aux'] = torch.FloatTensor(L).zero_().cuda()
+        cache['bpp_act'] = torch.FloatTensor(L).zero_().cuda()
+        cache['msssim'] = torch.FloatTensor(L).zero_().cuda()
+        cache['psnr'] = torch.FloatTensor(L).zero_().cuda()
+        cache['end_of_batch'] = [False for _ in range(L)]
         cache['hidden'] = None
         cache['max_proc'] = -1
-        cache['end_of_batch'] = {}
         # the first frame to be compressed in a video
     assert frame_idx>=1, 'Frame index less than 1'
     if cache['max_proc'] >= frame_idx-1:
