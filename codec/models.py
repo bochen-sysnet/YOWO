@@ -201,12 +201,12 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
     L = len(cache['clip'])
     if startNewClip:
         # create cache
-        cache['bpp_est'] = torch.FloatTensor(L).zero_().cuda()
-        cache['img_loss'] = torch.FloatTensor(L).zero_().cuda()
-        cache['aux'] = torch.FloatTensor(L).zero_().cuda()
-        cache['bpp_act'] = torch.FloatTensor(L).zero_().cuda()
-        cache['msssim'] = torch.FloatTensor(L).zero_().cuda()
-        cache['psnr'] = torch.FloatTensor(L).zero_().cuda()
+        cache['bpp_est'] = {}#torch.FloatTensor(L).zero_().cuda()
+        cache['img_loss'] = {}#torch.FloatTensor(L).zero_().cuda()
+        cache['aux'] = {}#torch.FloatTensor(L).zero_().cuda()
+        cache['bpp_act'] = {}#torch.FloatTensor(L).zero_().cuda()
+        cache['msssim'] = {}#torch.FloatTensor(L).zero_().cuda()
+        cache['psnr'] = {}#torch.FloatTensor(L).zero_().cuda()
         cache['end_of_batch'] = [False for _ in range(L)]
         cache['max_proc'] = -1
     if cache['max_proc'] >= frame_idx-1:
@@ -290,7 +290,6 @@ def parallel_compression(model, ranges, cache):
             #model.bpp[j%13].update(float(bpp_act))
         eob_idx = max(idx_list)
         cache['end_of_batch'][eob_idx] = True
-    print(cache['end_of_batch'])
         
     # save metrics wrt positions
     # mAP for each position is a problem
