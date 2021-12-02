@@ -201,12 +201,12 @@ def compress_video_batch(model, frame_idx, cache, startNewClip):
     L = len(cache['clip'])
     if startNewClip:
         # create cache
-        cache['bpp_est'] = torch.FloatTensor(L).zero_().cuda()
-        cache['img_loss'] = torch.FloatTensor(L).zero_().cuda()
-        cache['aux'] = torch.FloatTensor(L).zero_().cuda()
-        cache['bpp_act'] = torch.FloatTensor(L).zero_().cuda()
-        cache['msssim'] = torch.FloatTensor(L).zero_().cuda()
-        cache['psnr'] = torch.FloatTensor(L).zero_().cuda()
+        cache['bpp_est'] = {}
+        cache['img_loss'] = {}
+        cache['aux'] = {}
+        cache['bpp_act'] = {}
+        cache['msssim'] = {}
+        cache['psnr'] = {}
         cache['end_of_batch'] = [False for _ in range(L)]
         cache['max_proc'] = -1
     if cache['max_proc'] >= frame_idx-1:
