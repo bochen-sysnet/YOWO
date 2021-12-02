@@ -170,6 +170,7 @@ def compress_video_group(model, frame_idx, cache, startNewClip):
 def compress_video_sequential(model, frame_idx, cache, startNewClip):
     # process the involving GOP
     # if process in order, some frames need later frames to compress
+    L = len(cache['clip'])
     if startNewClip:
         # create cache
         cache['bpp_est'] = torch.FloatTensor(L).zero_().cuda()
