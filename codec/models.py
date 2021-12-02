@@ -1022,8 +1022,10 @@ class Coder2D(nn.Module):
         
         if self.conv_type == 'rec':
             rae_hidden = torch.cat((state_enc, state_dec),dim=1)
+            if rae_hidden is not None:
+                rae_hidden = rae_hidden.detach()
             
-        return hat, rae_hidden.detach(), rpm_hidden.detach(), bits_act, bits_est, aux_loss
+        return hat, rae_hidden, rpm_hidden, bits_act, bits_est, aux_loss
             
     def compress_sequence(self,x):
         bs,c,h,w = x.size()
