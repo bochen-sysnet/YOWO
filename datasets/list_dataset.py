@@ -127,10 +127,7 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.last_frame = (cur_video != nxt_video)
         # read whole video
         if startNewClip:
-            toDelete = self.cache.keys()
-            for key in toDelete:
-                del self.cache[key]
-            self.cache = {}
+            self.cache.clear()
             clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
             if (self.transform is not None) and (model_codec.name not in ['x265', 'x264']):
                 self.cache['clip'] = [self.transform(img).cuda(0) for img in clip]
