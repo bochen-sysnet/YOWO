@@ -127,7 +127,8 @@ class UCF_JHMDB_Dataset_codec(Dataset):
             self.last_frame = (cur_video != nxt_video)
         # read whole video
         if startNewClip:
-            for key in self.cache:
+            toDelete = self.cache.keys()
+            for key in toDelete:
                 del self.cache[key]
             self.cache = {}
             clip = read_video_clip(self.base_path, imgpath, self.shape, self.dataset)
