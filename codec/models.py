@@ -269,6 +269,7 @@ def parallel_compression(model, ranges, cache):
         idx_list = _range[1:]
         n = len(idx_list)
         if n==0:continue
+        print(I_frame_idx,idx_list)
         x = torch.stack(img_list, dim=0)
         x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim = model(x)
         #if I_frame_idx>50:
