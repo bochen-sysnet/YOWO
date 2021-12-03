@@ -1193,7 +1193,7 @@ class SPVC(nn.Module):
 
     def split(self):
         self.optical_flow.cuda(0)
-        self.mv_codec.cuda(1)
+        self.mv_codec.cuda(0)
         self.MC_network.cuda(1)
         self.res_codec.cuda(1)
         
@@ -1221,9 +1221,9 @@ class SPVC(nn.Module):
         
         # BATCH:compress optical flow
         if self.name in ['SPVC','SPVC-P','SPVC-M','SPVC-L']:
-            mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors.cuda(1))
+            mv_hat,_,_,mv_act,mv_est,mv_aux = self.mv_codec(mv_tensors)
         elif self.name == 'SPVC-R':
-            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors.cuda(1))
+            mv_hat,mv_act,mv_est,mv_aux = self.mv_codec.compress_sequence(mv_tensors)
         if not self.noMeasure:
             self.meters['E-MV'].update(self.mv_codec.enc_t)
             self.meters['D-MV'].update(self.mv_codec.dec_t)
@@ -1241,7 +1241,7 @@ class SPVC(nn.Module):
             for k in g[start]:
                 # k = 1...6
                 if k>bs:continue
-                mv = mv_hat[k-1:k]
+                mv = mv_hat[k-1:k].cuda(1)
                 MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
                 MC_frame_list[k-1] = MC_frame
                 warped_frame_list[k-1] = warped_frame
