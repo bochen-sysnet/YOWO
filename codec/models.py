@@ -477,8 +477,7 @@ class DCVC(nn.Module):
                                         ResidualBlock(channels,channels),
                                         nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
                                         )
-        if name == 'DCVC_v2':
-            self.MC_network = MCNet()
+        self.MC_network = MCNet()
         self.feature_extract = nn.Sequential(nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1),
                                         ResidualBlock(channels,channels)
                                         )
@@ -506,8 +505,7 @@ class DCVC(nn.Module):
     def split(self):
         self.optical_flow.cuda(0)
         self.mv_codec.cuda(0)
-        if self.name == 'DCVC_v2':
-            self.MC_network.cuda(1)
+        self.MC_network.cuda(1)
         self.feature_extract.cuda(1)
         self.ctx_refine.cuda(1)
         self.tmp_prior_encoder.cuda(1)
@@ -546,23 +544,14 @@ class DCVC(nn.Module):
         # warping
         t_0 = time.perf_counter()
         loc = get_grid_locations(bs, h, w).cuda(1)
-        if self.name == 'DCVC':
-            # feature extraction
-            x_feat = self.feature_extract(x_hat_prev.cuda(1))
-            
-            # motion compensation
-            x_feat_warp = F.grid_sample(x_feat, loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
-            x_tilde = F.grid_sample(x_hat_prev.cuda(1), loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True)
-            warp_loss = calc_loss(x, x_tilde.to(x.device), self.r, use_psnr)
-        else:
-            # motion compensation
-            x_warp = F.grid_sample(x_hat_prev.cuda(1), loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
-            warp_loss = calc_loss(x, x_warp.to(x.device), self.r, use_psnr)
-            x_mc = self.MC_network(torch.cat((mv_hat.cuda(1), x_hat_prev.cuda(1), x_warp), axis=1).cuda(1))
-            mc_loss = calc_loss(x, x_mc.to(x.device), self.r, use_psnr)
-            
-            # feature extraction
-            x_feat_warp = self.feature_extract(x_mc)
+        # motion compensation
+        x_warp = F.grid_sample(x_hat_prev.cuda(1), loc + mv_hat.permute(0,2,3,1).cuda(1), align_corners=True) # the difference
+        warp_loss = calc_loss(x, x_warp.to(x.device), self.r, use_psnr)
+        x_mc = self.MC_network(torch.cat((mv_hat.cuda(1), x_hat_prev.cuda(1), x_warp), axis=1).cuda(1))
+        mc_loss = calc_loss(x, x_mc.to(x.device), self.r, use_psnr)
+        
+        # feature extraction
+        x_feat_warp = self.feature_extract(x_mc)
         t_warp = time.perf_counter() - t_0
         if not self.noMeasure:
             self.enc_t += [t_warp]
