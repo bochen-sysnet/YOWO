@@ -71,7 +71,7 @@ def init_training_params(model):
     #model.msssim = [AverageMeter() for _ in range(13)]
     
 def showTimer(model):
-    if model.name in ['SPVC','SPVC','RLVC','DVC','AE3D']:
+    if model.name in ['SPVC','SPVC-R','SPVC-L','RLVC','DVC','AE3D']:
         print('------------',model.name,'------------')
         enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
         dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters.items()])
