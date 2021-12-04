@@ -1469,7 +1469,7 @@ class AE3D(nn.Module):
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
-        self.latent_codec = Coder2D('rpm', channels=32, kernel=5, padding=2, noMeasure=noMeasure, downsample=False)
+        self.latent_codec = Coder2D('base', channels=32, kernel=5, padding=2, noMeasure=noMeasure, downsample=False)
         self.deconv1 = nn.Sequential( 
             nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(128),
@@ -1529,7 +1529,8 @@ class AE3D(nn.Module):
         # entropy
         # compress each frame sequentially
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
-        latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
+        latent_hat,_,_,bpp_act,bpp_est,aux_loss = self.mv_codec(mv, None, None, RPM_flag)
+        #latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
         aux_loss = aux_loss.repeat(t)
         if not self.noMeasure:
