@@ -28,7 +28,7 @@ from datasets.clip import *
 from core.utils import *
 
 def get_codec_model(name):
-    if name in ['MLVC','RLVC','DVC','RAW']:
+    if name in ['RLVC','DVC','RAW']:
         model_codec = IterPredVideoCodecs(name)
     elif name in ['DCVC','DCVC_v2']:
         model_codec = DCVC(name)
