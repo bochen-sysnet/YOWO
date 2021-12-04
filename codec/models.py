@@ -1206,7 +1206,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         # obtain reference frames from a graph
         x_tar = x[1:]
-        if self.name == 'SPVC':
+        if self.name == 'SPVC-L':
             g = generate_graph('default')
         else:
             g = generate_graph('3layers')
@@ -1244,7 +1244,7 @@ class SPVC(nn.Module):
                 if k>bs:continue
                 mv = mv_hat[k-1:k].cuda(1)
                 MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
-                MC_frame_list[k-1] = MC_frame
+                MC_frame_list[k-1] = MC_frame.detach()
                 warped_frame_list[k-1] = warped_frame
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
