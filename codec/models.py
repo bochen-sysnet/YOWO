@@ -1049,7 +1049,7 @@ class Coder2D(nn.Module):
         x_hat = torch.stack(x_hat_list, dim=0)
         if not self.noMeasure:
             self.enc_t,self.dec_t = enc_t,dec_t
-        return x_hat,torch.FloatTensor(x_act),torch.FloatTensor(x_est),x_aux
+        return x_hat,torch.FloatTensor(x_act).cuda(),torch.FloatTensor(x_est).cuda(),x_aux
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -1548,7 +1548,7 @@ class AE3D(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         
         # calculate img loss
-        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
+        img_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
         img_loss = img_loss.repeat(t)
         
         if not self.noMeasure:
