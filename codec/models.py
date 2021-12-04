@@ -1026,7 +1026,8 @@ class Coder2D(nn.Module):
         else:
             rpm_hidden = torch.zeros(1,self.channels*2,h//16,w//16)
         rae_hidden = torch.zeros(1,self.channels*4,h//4,w//4)
-        enc_t = dec_t = 0
+        if not self.noMeasure:
+            enc_t = dec_t = 0
         x_hat_list = []
         for frame_idx in range(bs):
             x_i = x[frame_idx,:,:,:].unsqueeze(0)
@@ -1042,10 +1043,12 @@ class Coder2D(nn.Module):
             # aux
             x_aux += x_aux_i.cuda()
             
-            enc_t += self.enc_t
-            dec_t += self.dec_t
+            if not self.noMeasure:
+                enc_t += self.enc_t
+                dec_t += self.dec_t
         x_hat = torch.stack(x_hat_list, dim=0)
-        self.enc_t,self.dec_t = enc_t,dec_t
+        if not self.noMeasure:
+            self.enc_t,self.dec_t = enc_t,dec_t
         return x_hat,x_act,x_est,x_aux
 
 class MCNet(nn.Module):
