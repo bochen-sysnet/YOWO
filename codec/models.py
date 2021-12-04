@@ -814,7 +814,7 @@ def get_estimate_bits(self, likelihoods):
     log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
     bs = likelihoods.size(0)
     if bs>1:
-        bits_est = torch.sum(torch.log(likelihood.view(bs,-1)),dim=-1) / (-log2)
+        bits_est = torch.sum(torch.log(likelihoods.view(bs,-1)),dim=-1) / (-log2)
     else:
         bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
     return bits_est
