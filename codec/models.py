@@ -1177,7 +1177,7 @@ class SPVC(nn.Module):
         self.name = name 
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if self.name in ['SPVC','SPVC-P','SPVC-M','SPVC-L']:
+        if self.name in ['SPVC','SPVC-D','SPVC-M','SPVC-L']:
             # use attention in encoder and entropy model
             self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
@@ -1244,7 +1244,7 @@ class SPVC(nn.Module):
                 if k>bs:continue
                 mv = mv_hat[k-1:k].cuda(1)
                 MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
-                MC_frame_list[k-1] = MC_frame.detach()
+                MC_frame_list[k-1] = MC_frame.detach() if self.name == 'SPVC-D' else MC_frame
                 warped_frame_list[k-1] = warped_frame
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
@@ -1713,12 +1713,13 @@ def test_seq_proc(name='RLVC'):
 # update CNN alternatively?
     
 if __name__ == '__main__':
-    test_seq_proc('DVC')
+    #test_seq_proc('DVC')
     test_seq_proc('RLVC')
     test_batch_proc('SPVC')
-    test_batch_proc('SPVC-R')
+    test_batch_proc('SPVC-D')
     test_batch_proc('SPVC-L')
-    test_batch_proc('AE3D')
+    test_batch_proc('SPVC-R')
+    #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
