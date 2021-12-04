@@ -60,8 +60,8 @@ def init_training_params(model):
     model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
     model.I_level = 27 # [37,32,27,22] poor->good quality
     
-    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}\tNET:{4:.4f}"
-    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}\tNET:{4:.4f}"
+    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}\tNET:{4:.4f}\tALL:{5:.4f}"
+    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}\tNET:{4:.4f}\tALL:{5:.4f}"
     model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),'E-NET':AverageMeter(),
                     'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter(),'D-NET':AverageMeter()}
           
@@ -73,8 +73,10 @@ def init_training_params(model):
 def showTimer(model):
     if model.name in ['SPVC','SPVC','RLVC','DVC','AE3D']:
         print('------------',model.name,'------------')
-        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg))
-        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg))
+        enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters])
+        dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters])
+        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,enc))
+        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg,dec))
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -1553,9 +1555,6 @@ class AE3D(nn.Module):
         # calculate img loss
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         img_loss = img_loss.repeat(t)
-        
-        if not self.noMeasure:
-            print(np.sum(self.enc_t)/t,np.sum(self.dec_t)/t,self.enc_t,self.dec_t)
         
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
