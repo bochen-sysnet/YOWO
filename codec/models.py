@@ -1548,7 +1548,7 @@ class AE3D(nn.Module):
         msssim = MSSSIM(x, x_hat.to(x.device), use_list=True)
         
         # calculate img loss
-        img_loss = calc_loss(x[1:], x_hat.to(x.device), self.r, use_psnr)
+        img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
         img_loss = img_loss.repeat(t)
         
         if not self.noMeasure:
