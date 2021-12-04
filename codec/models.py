@@ -89,7 +89,7 @@ def update_training(model, epoch):
     else:
         model.r_img, model.r_bpp, model.r_aux = 0,1,1
         model.r_rec, model.r_flow, model.r_warp, model.r_mc = 1,0,0,0
-        model.r_app = 64 # [1,2,4,8]
+        model.r_app = 0 # [1,2,4,8]
     
     # whether to compute action detection
     doAD = True if model.r_app > 0 else False
