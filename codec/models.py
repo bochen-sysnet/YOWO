@@ -1019,8 +1019,8 @@ class Coder2D(nn.Module):
             
     def compress_sequence(self,x):
         bs,c,h,w = x.size()
-        x_est = torch.FloatTensor([0]).squeeze(0).cuda()
-        x_act = torch.FloatTensor([0]).squeeze(0).cuda()
+        x_est = []
+        x_act = []
         x_aux = torch.FloatTensor([0]).squeeze(0).cuda()
         if not self.downsample:
             rpm_hidden = torch.zeros(1,self.channels*2,h,w)
@@ -1036,10 +1036,10 @@ class Coder2D(nn.Module):
             x_hat_list.append(x_hat_i.squeeze(0))
             
             # calculate bpp (estimated) if it is training else it will be set to 0
-            x_est += x_est_i.cuda()
+            x_est += [x_est_i.cuda()]
             
             # calculate bpp (actual)
-            x_act += x_act_i.cuda()
+            x_act += [x_act_i.cuda()]
             
             # aux
             x_aux += x_aux_i.cuda()
@@ -1050,7 +1050,7 @@ class Coder2D(nn.Module):
         x_hat = torch.stack(x_hat_list, dim=0)
         if not self.noMeasure:
             self.enc_t,self.dec_t = enc_t,dec_t
-        return x_hat,x_act,x_est,x_aux
+        return x_hat,torch.FloatTensor(x_act),torch.FloatTensor(x_est),x_aux
 
 class MCNet(nn.Module):
     def __init__(self):
@@ -1266,7 +1266,7 @@ class SPVC(nn.Module):
         # actual bits
         bpp_act = (mv_act.cuda(0) + res_act.cuda(0))/(h * w)
         # auxilary loss
-        aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2 * bs)
+        aux_loss = (mv_aux.cuda(0) + res_aux.cuda(0))/(2)
         aux_loss = aux_loss.repeat(bs)
         # calculate metrics/loss
         psnr = PSNR(x_tar, com_frames, use_list=True)
@@ -1413,9 +1413,9 @@ class SCVC(nn.Module):
         #print('Context dec:',t_ctx_dec)
         
         # estimated bits
-        bpp_est = (mv_est + y_est.to(mv_est.device))/(h * w * bs)
+        bpp_est = (mv_est + y_est.to(mv_est.device))/(h * w)
         # actual bits
-        bpp_act = (mv_act + y_act.to(mv_act.device))/(h * w * bs)
+        bpp_act = (mv_act + y_act.to(mv_act.device))/(h * w)
         # auxilary loss
         aux_loss = (mv_aux + y_aux.to(mv_aux.device))/2
         # calculate metrics/loss
@@ -1431,7 +1431,7 @@ class SCVC(nn.Module):
                     self.r_flow*flow_loss
         img_loss = img_loss.repeat(bs)
         
-        return x_hat, bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
+        return x_hat, bpp_est, img_loss, aux_loss.repeat(bs), bpp_act, psnr, msssim
     
     def loss(self, pix_loss, bpp_loss, aux_loss, app_loss=None):
         loss = self.r_img*pix_loss.cuda(0) + self.r_bpp*bpp_loss.cuda(0) + self.r_aux*aux_loss.cuda(0)
@@ -1530,8 +1530,6 @@ class AE3D(nn.Module):
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
         latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
-        bpp_act = bpp_act.repeat(bs)
-        bpp_est = bpp_est.repeat(bs)
         aux_loss = aux_loss.repeat(bs)
         
         # decoder
