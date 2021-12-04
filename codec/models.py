@@ -804,12 +804,19 @@ class ConvLSTM(nn.Module):
         return h, torch.cat((c, h),dim=1)
     
 def get_actual_bits(self, string):
-    bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
+    if len(string)>1:
+        bits_act = act = torch.FloatTensor([len(s)*8 for s in string])
+    else:
+        bits_act = torch.FloatTensor([len(b''.join(string))*8]).squeeze(0)
     return bits_act
         
 def get_estimate_bits(self, likelihoods):
     log2 = torch.log(torch.FloatTensor([2])).squeeze(0).to(likelihoods.device)
-    bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
+    bs = likelihoods.size(0)
+    if bs>1:
+        bits_est = torch.sum(torch.log(likelihood.view(bs,-1)),dim=-1) / (-log2)
+    else:
+        bits_est = torch.sum(torch.log(likelihoods)) / (-log2)
     return bits_est
 
 class Coder2D(nn.Module):
