@@ -86,7 +86,7 @@ if cfg.TRAIN.RESUME_PATH:
     elif cfg.TRAIN.CODEC_NAME in ['SCVC','DCVC']:
         # load what exists
         print("Load whatever exists for",cfg.TRAIN.CODEC_NAME)
-        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_SPVC_best.pth"
+        pretrained_model_path = "/home/monet/research/YOWO/backup/ucf24/yowo_ucf24_16f_DCVC_best.pth"
         checkpoint = torch.load(pretrained_model_path)
         load_state_dict_whatever(model_codec, checkpoint['state_dict'])
         del checkpoint
