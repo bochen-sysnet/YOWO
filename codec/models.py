@@ -1206,7 +1206,7 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         # obtain reference frames from a graph
         x_tar = x[1:]
-        if self.name == 'SPVC-L':
+        if self.name == 'SPVC':
             g = generate_graph('default')
         else:
             g = generate_graph('3layers')
