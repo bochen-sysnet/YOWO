@@ -73,8 +73,8 @@ def init_training_params(model):
 def showTimer(model):
     if model.name in ['SPVC','SPVC','RLVC','DVC','AE3D']:
         print('------------',model.name,'------------')
-        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg))
-        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg))
+        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg))
+        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg))
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
