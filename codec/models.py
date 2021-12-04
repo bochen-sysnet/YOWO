@@ -1476,7 +1476,7 @@ class AE3D(nn.Module):
             nn.BatchNorm3d(32),
             nn.ReLU(inplace=True),
         )
-        self.latent_codec = Coder2D('base', channels=32, kernel=5, padding=2, noMeasure=noMeasure, downsample=False)
+        self.latent_codec = Coder2D('rpm', channels=32, kernel=5, padding=2, noMeasure=noMeasure, downsample=False)
         self.deconv1 = nn.Sequential( 
             nn.ConvTranspose3d(32, 128, kernel_size=5, stride=(1,2,2), padding=2, output_padding=(0,1,1)),
             nn.BatchNorm3d(128),
@@ -1536,8 +1536,7 @@ class AE3D(nn.Module):
         # entropy
         # compress each frame sequentially
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
-        latent_hat,_,_,bpp_act,bpp_est,aux_loss = self.latent_codec(latent, None, None, None)
-        #latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
+        latent_hat,latent_act,latent_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
         aux_loss = aux_loss.repeat(t)
         if not self.noMeasure:
@@ -1555,6 +1554,12 @@ class AE3D(nn.Module):
         # reshape
         x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
         x_hat = x_hat.permute(0,2,1,3,4).contiguous().squeeze(0)
+        
+        # estimated bits
+        bpp_est = latent_est/(h * w)
+        
+        # actual bits
+        bpp_act = latent_act/(h * w)
         
         # calculate metrics/loss
         psnr = PSNR(x, x_hat.to(x.device), use_list=True)
