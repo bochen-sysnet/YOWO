@@ -1529,7 +1529,7 @@ class AE3D(nn.Module):
         # entropy
         # compress each frame sequentially
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
-        latent_hat,_,_,bpp_act,bpp_est,aux_loss = self.latent_codec(mv, None, None, RPM_flag)
+        latent_hat,_,_,bpp_act,bpp_est,aux_loss = self.latent_codec(latent, None, None, None)
         #latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
         aux_loss = aux_loss.repeat(t)
