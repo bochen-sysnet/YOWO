@@ -1698,10 +1698,10 @@ def test_seq_proc(name='RLVC'):
 # update CNN alternatively?
     
 if __name__ == '__main__':
-    #test_batch_proc('SPVC')
+    test_batch_proc('SPVC')
     test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
-    #test_seq_proc('DCVC')
+    test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
-    #test_seq_proc('DVC')
-    #test_seq_proc('RLVC')
+    test_seq_proc('DVC')
+    test_seq_proc('RLVC')
