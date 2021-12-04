@@ -135,7 +135,6 @@ def train_ucf24_jhmdb21_codec(cfg, epoch, model, model_codec, train_dataset, los
     bpp_est_list = []; psnr_list = []; msssim_list = []
     for batch_idx,_ in enumerate(train_iter):
         # align batches
-        if batch_idx<=72000 and epoch==4:continue
         for j in range(batch_size):
             data_idx = batch_idx*batch_size+j
             # compress one batch of the data
