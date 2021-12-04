@@ -60,10 +60,10 @@ def init_training_params(model):
     model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
     model.I_level = 27 # [37,32,27,22] poor->good quality
     
-    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}"
-    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}"
-    model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),
-                    'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter()}
+    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}\tNET:{4:.4f}"
+    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}\tNET:{4:.4f}"
+    model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),'E-NET':AverageMeter(),
+                    'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter(),'D-NET':AverageMeter()}
           
     # bpp,psnr,msssim, at 13 positions
     #model.bpp = [AverageMeter() for _ in range(13)]
@@ -71,7 +71,7 @@ def init_training_params(model):
     #model.msssim = [AverageMeter() for _ in range(13)]
     
 def showTimer(model):
-    if model.name in ['SPVC','SPVC-R','RLVC','DVC']:
+    if model.name in ['SPVC','SPVC','RLVC','DVC','AE3D']:
         print('------------',model.name,'------------')
         print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg))
         print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg))
@@ -1510,7 +1510,7 @@ class AE3D(nn.Module):
         x = x[1:]
             
         if not self.noMeasure:
-            self.enc_t = [];self.dec_t = []
+            t_0 = time.perf_counter()
             
         # x=[B,C,H,W]: input sequence of frames
         x = x.permute(1,0,2,3).contiguous().unsqueeze(0)
@@ -1522,7 +1522,7 @@ class AE3D(nn.Module):
         x2 = self.conv2(x1) + x1
         latent = self.conv3(x2)
         if not self.noMeasure:
-            self.enc_t += [time.perf_counter() - t_0]
+            self.meters['E-NET'].update(time.perf_counter() - t_0)
         
         # entropy
         # compress each frame sequentially
@@ -1530,6 +1530,9 @@ class AE3D(nn.Module):
         latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
         aux_loss = aux_loss.repeat(t)
+        if not self.noMeasure:
+            self.meters['E-MV'].update(self.latent_codec.enc_t)
+            self.meters['D-MV'].update(self.latent_codec.dec_t)
         
         # decoder
         t_0 = time.perf_counter()
@@ -1537,7 +1540,7 @@ class AE3D(nn.Module):
         x4 = self.deconv2(x3) + x3
         x_hat = self.deconv3(x4)
         if not self.noMeasure:
-            self.dec_t += [time.perf_counter() - t_0]
+            self.meters['D-NET'].update(time.perf_counter() - t_0)
         
         # reshape
         x = x.permute(0,2,1,3,4).contiguous().squeeze(0)
@@ -1616,7 +1619,7 @@ def test_batch_proc(name = 'SPVC'):
     parameters = set(p for n, p in model.named_parameters())
     optimizer = optim.Adam(parameters, lr=1e-4)
     timer = AverageMeter()
-    train_iter = tqdm(range(0,2))
+    train_iter = tqdm(range(0,3))
     model.eval()
     for i,_ in enumerate(train_iter):
         optimizer.zero_grad()
@@ -1698,10 +1701,10 @@ def test_seq_proc(name='RLVC'):
 # update CNN alternatively?
     
 if __name__ == '__main__':
+    test_seq_proc('DVC')
+    test_seq_proc('RLVC')
     test_batch_proc('SPVC')
     test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
-    test_seq_proc('DCVC')
+    #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
-    test_seq_proc('DVC')
-    test_seq_proc('RLVC')
