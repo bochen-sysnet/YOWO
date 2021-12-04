@@ -1530,7 +1530,7 @@ class AE3D(nn.Module):
         latent = latent.squeeze(0).permute(1,0,2,3).contiguous()
         latent_hat,bpp_act,bpp_est,aux_loss = self.latent_codec.compress_sequence(latent)
         latent_hat = latent_hat.permute(1,0,2,3).unsqueeze(0).contiguous()
-        aux_loss = aux_loss.repeat(bs)
+        aux_loss = aux_loss.repeat(t)
         
         # decoder
         t_0 = time.perf_counter()
@@ -1550,10 +1550,10 @@ class AE3D(nn.Module):
         
         # calculate img loss
         img_loss = calc_loss(x, x_hat.to(x.device), self.r, use_psnr)
-        img_loss = img_loss.repeat(bs)
+        img_loss = img_loss.repeat(t)
         
         if not self.noMeasure:
-            print(np.sum(self.enc_t)/bs,np.sum(self.dec_t)/bs,self.enc_t,self.dec_t)
+            print(np.sum(self.enc_t)/t,np.sum(self.dec_t)/t,self.enc_t,self.dec_t)
         
         return x_hat.cuda(0), bpp_est, img_loss, aux_loss, bpp_act, psnr, msssim
     
