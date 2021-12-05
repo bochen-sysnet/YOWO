@@ -72,7 +72,6 @@ def init_training_params(model):
     
 def showTimer(model):
     if model.name in ['SPVC','SPVC-R','SPVC-D','SPVC-L','RLVC','DVC','AE3D']:
-        print('------------',model.name,'------------')
         enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
         dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters.items()])
         print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,enc))
@@ -1611,7 +1610,7 @@ class ResBlockB(nn.Module):
         return out
         
 def test_batch_proc(name = 'SPVC'):
-    print('test',name)
+    print('------------',name,'------------')
     batch_size = 7
     h = w = 224
     channels = 64
@@ -1657,7 +1656,7 @@ def test_batch_proc(name = 'SPVC'):
     showTimer(model)
             
 def test_seq_proc(name='RLVC'):
-    print('test',name)
+    print('------------',name,'------------')
     batch_size = 1
     h = w = 224
     x = torch.rand(batch_size,3,h,w).cuda()
@@ -1720,6 +1719,6 @@ if __name__ == '__main__':
     test_batch_proc('SPVC-L')
     test_batch_proc('SPVC-R')
     #test_batch_proc('AE3D')
-    #test_batch_proc('SCVC')
+    test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
