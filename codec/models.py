@@ -1163,20 +1163,23 @@ def generate_graph(graph_type='default'):
         g = {}
         for k in range(6):
             g[k] = [k+1]
+        layers = [[i+1] for i in range(6)] # elements in layers
     elif graph_type == '3layers':
         g = {0:[1,4],1:[2,3],4:[5,6]}
+        layers = [[1,4],[2,3,5,6]] # elements in layers
     else:
         print('Undefined graph type:',graph_type)
         exit(1)
-    return g
+    return g,layers
         
+# add encoder-decoder pair to each model
 class SPVC(nn.Module):
     def __init__(self, name, channels=128, noMeasure=True):
         super(SPVC, self).__init__()
         self.name = name 
         self.optical_flow = OpticalFlowNet()
         self.MC_network = MCNet()
-        if self.name in ['SPVC','SPVC-D','SPVC-M','SPVC-L']:
+        if self.name in ['SPVC','SPVC-M','SPVC-L']:
             # use attention in encoder and entropy model
             self.mv_codec = Coder2D('attn', in_channels=2, channels=channels, kernel=3, padding=1, noMeasure=noMeasure)
             self.res_codec = Coder2D('attn', in_channels=3, channels=channels, kernel=5, padding=2, noMeasure=noMeasure)
@@ -1206,9 +1209,9 @@ class SPVC(nn.Module):
         # obtain reference frames from a graph
         x_tar = x[1:]
         if self.name == 'SPVC-L':
-            g = generate_graph('default')
+            g,layers = generate_graph('default')
         else:
-            g = generate_graph('3layers')
+            g,layers = generate_graph('3layers')
         ref_index = [-1 for _ in x_tar]
         for start in g:
             if start>bs:continue
@@ -1232,19 +1235,21 @@ class SPVC(nn.Module):
         t_0 = time.perf_counter()
         MC_frame_list = [None for _ in x_tar]
         warped_frame_list = [None for _ in x_tar]
-        for start in g:
-            if start>bs:continue
-            if start == 0:
-                Y0_com = x[:1]
-            else:
-                Y0_com = MC_frame_list[start-1]
-            for k in g[start]:
-                # k = 1...6
-                if k>bs:continue
-                mv = mv_hat[k-1:k].cuda(1)
-                MC_frame,warped_frame = motion_compensation(self.MC_network,Y0_com,mv)
-                MC_frame_list[k-1] = MC_frame.detach() if self.name == 'SPVC-D' else MC_frame
-                warped_frame_list[k-1] = warped_frame
+        # for layers in graph
+        # get elements of this layers
+        # get parents of all elements above
+        for layer in layers:
+            ref = []
+            diff = []
+            for tar in layer:
+                ref += [x[:1] if tar==1 else MC_frame_list[tar-1]]
+                diff += [mv_hat[tar-1:tar]]
+            ref = torch.cat(ref,dim=0)
+            diff = torch.cat(diff,dim=0)
+            MC_frame,warped_frame = motion_compensation(self.MC_network,ref,diff)
+            for i,tar in enumerate(layers):
+                MC_frame_list[tar-1] = MC_frame[i:i+1]
+                warped_frame_list[tar-1] = warped_frame[i:i+1]
         MC_frames = torch.cat(MC_frame_list,dim=0)
         warped_frames = torch.cat(warped_frame_list,dim=0)
         t_comp = time.perf_counter() - t_0
@@ -1254,7 +1259,7 @@ class SPVC(nn.Module):
         
         # BATCH:compress residual
         res_tensors = x_tar.to(MC_frames.device) - MC_frames
-        if self.name in ['SPVC','SPVC-D','SPVC-M','SPVC-L']:
+        if self.name in ['SPVC','SPVC-M','SPVC-L']:
             res_hat,_, _,res_act,res_est,res_aux = self.res_codec(res_tensors)
         elif self.name == 'SPVC-R':
             res_hat,res_act,res_est,res_aux = self.res_codec.compress_sequence(res_tensors)
@@ -1715,7 +1720,6 @@ if __name__ == '__main__':
     #test_seq_proc('DVC')
     test_seq_proc('RLVC')
     test_batch_proc('SPVC')
-    test_batch_proc('SPVC-D')
     test_batch_proc('SPVC-L')
     test_batch_proc('SPVC-R')
     #test_batch_proc('AE3D')
