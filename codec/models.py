@@ -1174,12 +1174,20 @@ def generate_graph(graph_type='default'):
         g = {}
         for k in range(6):
             g[k] = [k+1]
-        layers = [[i+1] for i in range(6)] # elements in layers
-        parents = {1:0,2:1,3:2,4:3,5:4,6:5}
+        layers = [[i+1] for i in range(14)] # elements in layers
+        parents = {i+1:i for i in range(14)}
     elif graph_type == '3layers':
         g = {0:[1,4],1:[2,3],4:[5,6]}
         layers = [[1,4],[2,3,5,6]] # elements in layers
         parents = {1:0,4:0,2:1,3:1,5:4,6:4}
+    elif graph_type == '4layers':
+        # 0
+        # 1       8
+        # 2   5   9     12
+        # 3 4 6 7 10 11 13 14
+        g = {0:[1,8],1:[2,5],8:[9,12],2:[3,4],5:[6,7],9:[10,11],12:[13,14]}
+        layers = [[1,8],[2,5,9,12],[3,4,6,7,10,11,13,14]] # elements in layers
+        parents = {1:0,8:0,2:1,5:1,9:8,12:8,3:2,4:2,6:5,7:5,10:9,11:9,13:12,14:12}
     else:
         print('Undefined graph type:',graph_type)
         exit(1)
@@ -1224,7 +1232,12 @@ class SPVC(nn.Module):
         if self.name == 'SPVC-L':
             g,layers,parents = generate_graph('default')
         else:
-            g,layers,parents = generate_graph('3layers')
+            if bs <=6:
+                g,layers,parents = generate_graph('3layers')
+            elif bs <=14:
+                g,layers,parents = generate_graph('4layers')
+            else:
+                print('Batch size not supported yet:',bs)
         ref_index = [-1 for _ in x_tar]
         for start in g:
             if start>bs:continue
@@ -1634,7 +1647,7 @@ class ResBlockB(nn.Module):
         
 def test_batch_proc(name = 'SPVC'):
     print('------------',name,'------------')
-    batch_size = 7
+    batch_size = 15
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
