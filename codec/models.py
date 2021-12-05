@@ -1243,7 +1243,9 @@ class SPVC(nn.Module):
         for layer in layers:
             ref = [] # reference frame
             diff = [] # motion
+            print(layer)
             for tar in layer: # id of frames in this layer
+                print(tar,parents[tar]-1)
                 ref += [x[:1] if tar==1 else MC_frame_list[parents[tar]-1]] # ref needed for this id
                 diff += [mv_hat[tar-1:tar]] # motion needed for this id
             ref = torch.cat(ref,dim=0)
