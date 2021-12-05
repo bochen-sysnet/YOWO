@@ -1277,6 +1277,7 @@ class SPVC(nn.Module):
             ref = [] # reference frame
             diff = [] # motion
             for tar in layer: # id of frames in this layer
+                if tar>bs:continue
                 parent = parents[tar]
                 ref += [x[:1] if parent==0 else MC_frame_list[parent-1]] # ref needed for this id
                 diff += [mv_hat[tar-1:tar].cuda(1)] # motion needed for this id
