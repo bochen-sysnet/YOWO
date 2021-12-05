@@ -1176,6 +1176,10 @@ def generate_graph(graph_type='default'):
             g[k] = [k+1]
         layers = [[i+1] for i in range(14)] # elements in layers
         parents = {i+1:i for i in range(14)}
+    elif graph_type == '2layers':
+        g = {0:[1,2]}
+        layers = [[1,2]] # elements in layers
+        parents = {1:0,2:0}
     elif graph_type == '3layers':
         g = {0:[1,4],1:[2,3],4:[5,6]}
         layers = [[1,4],[2,3,5,6]] # elements in layers
@@ -1232,7 +1236,10 @@ class SPVC(nn.Module):
         if self.name == 'SPVC-L':
             g,layers,parents = generate_graph('default')
         else:
-            if bs <=6:
+            # I frame is the only first layer
+            if bs <=2:
+                g,layers,parents = generate_graph('2layers')
+            elif bs <=6:
                 g,layers,parents = generate_graph('3layers')
             elif bs <=14:
                 g,layers,parents = generate_graph('4layers')
