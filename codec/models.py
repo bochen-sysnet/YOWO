@@ -1765,7 +1765,7 @@ if __name__ == '__main__':
     result = []
     for B in range(2,16):
         spvc_e,_ = test_batch_proc('SPVC', B)
-        tpt = rlvc_e*(B-1)/spvc
+        tpt = rlvc_e*(B-1)/spvc_e
         result += [tpt]
     print(result)
     #test_batch_proc('SPVC-L')
