@@ -66,11 +66,6 @@ def init_training_params(model):
                     'E-MC':AverageMeter(),'E-RES':AverageMeter(),'eERES':AverageMeter(),'E-NET':AverageMeter(),
                     'D-MV':AverageMeter(),'eDMV':AverageMeter(),'D-MC':AverageMeter(),
                     'D-RES':AverageMeter(),'eDRES':AverageMeter(),'D-REC':AverageMeter(),'D-NET':AverageMeter()}
-          
-    # bpp,psnr,msssim, at 13 positions
-    #model.bpp = [AverageMeter() for _ in range(13)]
-    #model.psnr = [AverageMeter() for _ in range(13)]
-    #model.msssim = [AverageMeter() for _ in range(13)]
     
 def showTimer(model):
     enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
