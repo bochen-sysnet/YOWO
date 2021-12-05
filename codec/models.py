@@ -1164,13 +1164,15 @@ def generate_graph(graph_type='default'):
         for k in range(6):
             g[k] = [k+1]
         layers = [[i+1] for i in range(6)] # elements in layers
+        parents = {1:0,2:1,3:2,4:3,5:4,6:5}
     elif graph_type == '3layers':
         g = {0:[1,4],1:[2,3],4:[5,6]}
         layers = [[1,4],[2,3,5,6]] # elements in layers
+        parents = {1:0,4:0,2:1,3:1,5:4,6:4}
     else:
         print('Undefined graph type:',graph_type)
         exit(1)
-    return g,layers
+    return g,layers,parents
         
 # add encoder-decoder pair to each model
 class SPVC(nn.Module):
@@ -1209,9 +1211,9 @@ class SPVC(nn.Module):
         # obtain reference frames from a graph
         x_tar = x[1:]
         if self.name == 'SPVC-L':
-            g,layers = generate_graph('default')
+            g,layers,parents = generate_graph('default')
         else:
-            g,layers = generate_graph('3layers')
+            g,layers,parents = generate_graph('3layers')
         ref_index = [-1 for _ in x_tar]
         for start in g:
             if start>bs:continue
@@ -1242,7 +1244,7 @@ class SPVC(nn.Module):
             ref = [] # reference frame
             diff = [] # motion
             for tar in layer: # id of frames in this layer
-                ref += [x[:1] if tar==1 else MC_frame_list[tar-1]] # ref needed for this id
+                ref += [x[:1] if tar==1 else MC_frame_list[parents[tar]-1]] # ref needed for this id
                 diff += [mv_hat[tar-1:tar]] # motion needed for this id
             ref = torch.cat(ref,dim=0)
             diff = torch.cat(diff,dim=0)
