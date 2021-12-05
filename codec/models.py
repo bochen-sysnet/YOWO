@@ -1700,7 +1700,7 @@ def test_batch_proc(name = 'SPVC',batch_size = 7):
             f"aux_loss: {float(aux_loss[0]):.2f}. "
             f"duration: {timer.avg:.3f}. ")
     enc,dec = showTimer(model)
-    return enc
+    return enc,dec
             
 def test_seq_proc(name='RLVC'):
     print('------------',name,'------------')
