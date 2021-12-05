@@ -1278,6 +1278,7 @@ class SPVC(nn.Module):
             diff = [] # motion
             print(layer)
             for tar in layer: # id of frames in this layer
+                print(tar,bs,parents[tar])
                 if tar>bs:continue
                 parent = parents[tar]
                 ref += [x[:1] if parent==0 else MC_frame_list[parent-1]] # ref needed for this id
