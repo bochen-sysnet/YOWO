@@ -73,15 +73,15 @@ def init_training_params(model):
     #model.msssim = [AverageMeter() for _ in range(13)]
     
 def showTimer(model):
-    if model.name in ['SPVC','SPVC-R','SPVC-D','SPVC-L','RLVC','DVC','AE3D']:
-        enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
-        dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters.items()])
-        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,
-            model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,
-            enc,model.meters['eEMV'].avg,model.meters['eERES'].avg))
-        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,
-            model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg,
-            dec,model.meters['eDMV'].avg,model.meters['eDRES'].avg))
+    enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
+    dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters.items()])
+    print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,
+        model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,
+        enc,model.meters['eEMV'].avg,model.meters['eERES'].avg))
+    print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,
+        model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg,
+        dec,model.meters['eDMV'].avg,model.meters['eDRES'].avg))
+    return enc,dec
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -1647,9 +1647,9 @@ class ResBlockB(nn.Module):
         out = self.conv(x) + x
         return out
         
-def test_batch_proc(name = 'SPVC'):
+def test_batch_proc(name = 'SPVC',batch_size = 7):
     print('------------',name,'------------')
-    batch_size = 7
+    
     h = w = 224
     channels = 64
     x = torch.randn(batch_size,3,h,w).cuda()
@@ -1691,7 +1691,8 @@ def test_batch_proc(name = 'SPVC'):
             f"bits_act: {float(bpp_act[0]):.2f}. "
             f"aux_loss: {float(aux_loss[0]):.2f}. "
             f"duration: {timer.avg:.3f}. ")
-    showTimer(model)
+    enc,dec = showTimer(model)
+    return enc
             
 def test_seq_proc(name='RLVC'):
     print('------------',name,'------------')
@@ -1736,7 +1737,8 @@ def test_seq_proc(name='RLVC'):
             f"aux_loss: {float(aux_loss):.2f}. "
             f"psnr: {float(p):.2f}. "
             f"duration: {timer.avg:.3f}. ")
-    showTimer(model)
+    enc,dec = showTimer(model)
+    return enc,dec
             
 # integrate all codec models
 # measure the speed of all codecs
@@ -1751,10 +1753,15 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     #test_seq_proc('DVC')
-    test_seq_proc('RLVC')
-    test_batch_proc('SPVC')
-    test_batch_proc('SPVC-L')
-    test_batch_proc('SPVC-R')
+    rlvc_e,_ = test_seq_proc('RLVC')
+    result = []
+    for B in range(2,16):
+        spvc_e,_ = test_batch_proc('SPVC', B)
+        tpt = rlvc_e*(B-1)/spvc
+        result += [tpt]
+    print(result)
+    #test_batch_proc('SPVC-L')
+    #test_batch_proc('SPVC-R')
     #test_batch_proc('AE3D')
     #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
