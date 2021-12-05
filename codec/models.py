@@ -1243,12 +1243,10 @@ class SPVC(nn.Module):
         for layer in layers:
             ref = [] # reference frame
             diff = [] # motion
-            print(layer)
             for tar in layer: # id of frames in this layer
-                print(tar,parents[tar]-1)
                 parent = parents[tar]
                 ref += [x[:1] if parent==0 else MC_frame_list[parent-1]] # ref needed for this id
-                diff += [mv_hat[tar-1:tar]] # motion needed for this id
+                diff += [mv_hat[tar-1:tar].cuda(1)] # motion needed for this id
             ref = torch.cat(ref,dim=0)
             diff = torch.cat(diff,dim=0)
             MC_frame,warped_frame = motion_compensation(self.MC_network,ref,diff)
