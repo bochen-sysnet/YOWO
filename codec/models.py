@@ -1239,11 +1239,11 @@ class SPVC(nn.Module):
         # get elements of this layers
         # get parents of all elements above
         for layer in layers:
-            ref = []
-            diff = []
-            for tar in layer:
-                ref += [x[:1] if tar==1 else MC_frame_list[tar-1]]
-                diff += [mv_hat[tar-1:tar]]
+            ref = [] # reference frame
+            diff = [] # motion
+            for tar in layer: # id of frames in this layer
+                ref += [x[:1] if tar==1 else MC_frame_list[tar-1]] # ref needed for this id
+                diff += [mv_hat[tar-1:tar]] # motion needed for this id
             ref = torch.cat(ref,dim=0)
             diff = torch.cat(diff,dim=0)
             MC_frame,warped_frame = motion_compensation(self.MC_network,ref,diff)
