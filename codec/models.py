@@ -1713,12 +1713,12 @@ def test_seq_proc(name='RLVC'):
     
 if __name__ == '__main__':
     #test_seq_proc('DVC')
-    #test_seq_proc('RLVC')
-    #test_batch_proc('SPVC')
-    #test_batch_proc('SPVC-D')
-    #test_batch_proc('SPVC-L')
-    #test_batch_proc('SPVC-R')
+    test_seq_proc('RLVC')
+    test_batch_proc('SPVC')
+    test_batch_proc('SPVC-D')
+    test_batch_proc('SPVC-L')
+    test_batch_proc('SPVC-R')
     #test_batch_proc('AE3D')
-    test_batch_proc('SCVC')
+    #test_batch_proc('SCVC')
     #test_seq_proc('DCVC')
     #test_seq_proc('DCVC_v2')
