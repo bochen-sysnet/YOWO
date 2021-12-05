@@ -60,10 +60,12 @@ def init_training_params(model):
     model.r = 1024 # PSNR:[256,512,1024,2048] MSSSIM:[8,16,32,64]
     model.I_level = 27 # [37,32,27,22] poor->good quality
     
-    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}\tMC:{2:.4f}\tRES:{3:.4f}\tNET:{4:.4f}\tALL:{5:.4f}"
-    model.fmt_dec_str = "MV:{0:.4f}\tMC:{1:.4f}\tRES:{2:.4f}\tREC:{3:.4f}\tNET:{4:.4f}\tALL:{5:.4f}"
-    model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'E-MC':AverageMeter(),'E-RES':AverageMeter(),'E-NET':AverageMeter(),
-                    'D-MV':AverageMeter(),'D-MC':AverageMeter(),'D-RES':AverageMeter(),'D-REC':AverageMeter(),'D-NET':AverageMeter()}
+    model.fmt_enc_str = "FL:{0:.4f}\tMV:{1:.4f}({6:.4f})\tMC:{2:.4f}\tRES:{3:.4f}({7:.4f})\tNET:{4:.4f}\tALL:{5:.4f}"
+    model.fmt_dec_str = "MV:{0:.4f}({6:.4f})\tMC:{1:.4f}\tRES:{2:.4f}({7:.4f})\tREC:{3:.4f}\tNET:{4:.4f}\tALL:{5:.4f}"
+    model.meters = {'E-FL':AverageMeter(),'E-MV':AverageMeter(),'eEMV':AverageMeter(),
+                    'E-MC':AverageMeter(),'E-RES':AverageMeter(),'eERES':AverageMeter(),'E-NET':AverageMeter(),
+                    'D-MV':AverageMeter(),'eDMV':AverageMeter(),'D-MC':AverageMeter(),
+                    'D-RES':AverageMeter(),'eDRES':AverageMeter(),'D-REC':AverageMeter(),'D-NET':AverageMeter()}
           
     # bpp,psnr,msssim, at 13 positions
     #model.bpp = [AverageMeter() for _ in range(13)]
@@ -74,8 +76,12 @@ def showTimer(model):
     if model.name in ['SPVC','SPVC-R','SPVC-D','SPVC-L','RLVC','DVC','AE3D']:
         enc = sum([val.avg if 'E-' in key else 0 for key,val in model.meters.items()])
         dec = sum([val.avg if 'D-' in key else 0 for key,val in model.meters.items()])
-        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,enc))
-        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg,dec))
+        print(model.fmt_enc_str.format(model.meters['E-FL'].avg,model.meters['E-MV'].avg,
+            model.meters['E-MC'].avg,model.meters['E-RES'].avg,model.meters['E-NET'].avg,
+            enc,model.meters['eEMV'].avg,model.meters['eERES'].avg))
+        print(model.fmt_dec_str.format(model.meters["D-MV"].avg,model.meters["D-MC"].avg,
+            model.meters["D-RES"].avg,model.meters["D-REC"].avg,model.meters["D-NET"].avg,
+            dec,model.meters['eDMV'].avg,model.meters['eDRES'].avg))
     
 def update_training(model, epoch):
     # warmup with all gamma set to 1
@@ -393,6 +399,8 @@ class IterPredVideoCodecs(nn.Module):
         if not self.noMeasure:
             self.meters['E-MV'].update(self.mv_codec.enc_t)
             self.meters['D-MV'].update(self.mv_codec.dec_t)
+            self.meters['eEMV'].update(self.mv_codec.entropy_bottleneck.enc_t)
+            self.meters['eDMV'].update(self.mv_codec.entropy_bottleneck.dec_t)
         # motion compensation
         t_0 = time.perf_counter()
         loc = get_grid_locations(batch_size, Height, Width).type(Y0_com.type())
@@ -411,6 +419,8 @@ class IterPredVideoCodecs(nn.Module):
         if not self.noMeasure:
             self.meters['E-RES'].update(self.res_codec.enc_t)
             self.meters['D-RES'].update(self.res_codec.dec_t)
+            self.meters['eERES'].update(self.res_codec.entropy_bottleneck.enc_t)
+            self.meters['eDRES'].update(self.res_codec.entropy_bottleneck.dec_t)
         # reconstruction
         t_0 = time.perf_counter()
         Y1_com = torch.clip(res_hat + Y1_MC, min=0, max=1)
@@ -1014,8 +1024,6 @@ class Coder2D(nn.Module):
         if not self.noMeasure:
             self.enc_t += time.perf_counter() - t_0
             self.dec_t += time.perf_counter() - t_0
-            print(self.enc_t,self.entropy_bottleneck.enc_t)
-            print(self.dec_t,self.entropy_bottleneck.dec_t)
         
         # auxilary loss
         aux_loss = self.entropy_bottleneck.loss()/self.channels
@@ -1235,6 +1243,8 @@ class SPVC(nn.Module):
         if not self.noMeasure:
             self.meters['E-MV'].update(self.mv_codec.enc_t)
             self.meters['D-MV'].update(self.mv_codec.dec_t)
+            self.meters['eEMV'].update(self.mv_codec.entropy_bottleneck.enc_t)
+            self.meters['eDMV'].update(self.mv_codec.entropy_bottleneck.dec_t)
         
         # SEQ:motion compensation
         t_0 = time.perf_counter()
@@ -1272,6 +1282,8 @@ class SPVC(nn.Module):
         if not self.noMeasure:
             self.meters['E-RES'].update(self.res_codec.enc_t)
             self.meters['D-RES'].update(self.res_codec.dec_t)
+            self.meters['eERES'].update(self.res_codec.entropy_bottleneck.enc_t)
+            self.meters['eDRES'].update(self.res_codec.entropy_bottleneck.dec_t)
         # reconstruction
         t_0 = time.perf_counter()
         com_frames = torch.clip(res_hat + MC_frames, min=0, max=1).to(x.device)
