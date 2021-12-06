@@ -427,7 +427,7 @@ class IterPredVideoCodecs(nn.Module):
         # actual bits
         bpp_act = (mv_act + res_act.to(mv_act.device))/(Height * Width * batch_size)
         # auxilary loss
-        aux_loss = (mv_aux + res_aux.to(mv_aux.device))/2
+        aux_loss = (mv_aux + res_aux.to(mv_aux.device))
         # calculate metrics/loss
         psnr = PSNR(Y1_raw, Y1_com.to(Y1_raw.device))
         msssim = MSSSIM(Y1_raw, Y1_com.to(Y1_raw.device))
@@ -598,7 +598,7 @@ class DCVC(nn.Module):
         bpp_act = (mv_act + y_act.cuda(0))/(h * w * bs)
         #print(float(mv_est/(h * w * bs)), float(mv_act/(h * w * bs)), float(y_est/(h * w * bs)), float(y_act/(h * w * bs)))
         # auxilary loss
-        aux_loss = (mv_aux + y_aux.cuda(0))/2
+        aux_loss = (mv_aux + y_aux.cuda(0))
         # calculate metrics/loss
         psnr = PSNR(x, x_hat.cuda(0))
         msssim = MSSSIM(x, x_hat.cuda(0))
@@ -1465,7 +1465,7 @@ class SCVC(nn.Module):
         # actual bits
         bpp_act = (mv_act + y_act.to(mv_act.device))/(h * w)
         # auxilary loss
-        aux_loss = (mv_aux + y_aux.to(mv_aux.device))/2
+        aux_loss = (mv_aux + y_aux.to(mv_aux.device))
         # calculate metrics/loss
         psnr = PSNR(x[1:], x_hat.to(x.device), use_list=True)
         msssim = MSSSIM(x[1:], x_hat.to(x.device), use_list=True)
